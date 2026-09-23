@@ -4,3 +4,14 @@
 
 [functions]
   node_bundler = "esbuild"
+
+# pdf.js ships as .mjs modules; make sure browsers get a JavaScript type.
+[[headers]]
+  for = "/vendor/*.mjs"
+  [headers.values]
+    Content-Type = "text/javascript"
+
+[[headers]]
+  for = "/vendor/*/*.mjs"
+  [headers.values]
+    Content-Type = "text/javascript"

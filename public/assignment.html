@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Assignment, Grade Angels Network</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
+  <meta name="theme-color" content="#0B0B0B" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+  <nav class="nav" id="site-nav"></nav>
+
+  <main class="wrap">
+    <p><a id="back-link" href="/">&#8592; Back to dashboard</a></p>
+    <div id="page-msg" class="msg" style="display:none"></div>
+    <div id="content"><p class="muted">Loading…</p></div>
+  </main>
+
+  <dialog id="viewer" class="viewer">
+    <div class="viewer-bar">
+      <span id="viewer-label"></span>
+      <div>
+        <button type="button" class="btn small secondary" id="viewer-prev">Previous</button>
+        <button type="button" class="btn small secondary" id="viewer-next">Next</button>
+        <button type="button" class="btn small" id="viewer-close">Close</button>
+      </div>
+    </div>
+    <img id="viewer-img" alt="" />
+  </dialog>
+
+  <dialog id="reason-dialog" class="reason-dialog">
+    <form method="dialog" id="reason-form">
+      <h2 id="reason-title"></h2>
+      <p class="muted" id="reason-help"></p>
+      <label for="reason-text">Reason</label>
+      <textarea id="reason-text" required minlength="3" maxlength="500"></textarea>
+      <div class="row-actions">
+        <button class="btn small" type="submit" value="ok">Send</button>
+        <button class="btn small ghost" type="button" id="reason-cancel">Never mind</button>
+      </div>
+    </form>
+  </dialog>
+
+  <footer><span class="brand-line">Grade Angels Network</span><br />Helping teachers get their evenings back.</footer>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/page-uploader.js"></script>
+  <script src="/vendor/pdf-lib/pdf-lib.min.js"></script>
+  <script>
+    const assignmentId = Number(new URLSearchParams(location.search).get("id"));
+    const pageMsg = document.getElementById("page-msg");
+    let user = null;
+    let a = null;
+
+    const EVENT_TEXT = {
+      posted: "Posted",
+      invited: "Sent to a specific Grade Angel",
+      accepted: "Accepted",
+      declined: "Declined",
+      handed_back: "Handed back",
+      cancelled: "Cancelled",
+    };
+
+    function detailRows() {
+      const rows = [
+        ["Subject", escapeHtml(a.subject)],
+        ["Grade level", escapeHtml(a.grade_level)],
+        ["Type", assignmentTypeLabel(a.assignment_type)],
+        ["Pages", a.page_count],
+        ["Rate", formatCents(a.rate_per_page_cents) + " per page"],
+      ];
+      if (user.role === "grade_angel") rows.push(["You earn", `<strong>${formatCents(a.earnings_cents)}</strong>`]);
+      else rows.push(["Total", `<strong>${formatCents(a.total_cents)}</strong>`]);
+      rows.push(["Turnaround", a.turnaround_hours + " hours after it is accepted"]);
+      if (a.due_at) rows.push(["Due", `${formatDateTime(a.due_at)} <span class="due ${new Date(a.due_at) < new Date() ? "late" : ""}">${formatDue(a.due_at)}</span>`]);
+      if (user.role !== "grade_angel") {
+        if (a.grade_angel_name) rows.push(["Grade Angel", escapeHtml(a.grade_angel_name)]);
+        else if (a.invited_grade_angel_name) rows.push(["Sent to", escapeHtml(a.invited_grade_angel_name) + " (waiting for a reply)"]);
+      }
+      return rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
+    }
+
+    function pagesSection() {
+      if (a.stored_pages === 0) {
+        return a.has_source_file
+          ? `<p><a href="/api/assignments/file?assignment_id=${a.id}&kind=source">Download the assignment file</a></p>`
+          : '<p class="muted">No pages uploaded.</p>';
+      }
+      if (a.viewable_pages === 0) {
+        return `<p class="muted">${a.stored_pages} pages. Finish your Grade Angel setup to preview them.</p>`;
+      }
+      const thumbs = Array.from({ length: a.viewable_pages }, (_, i) => `
+        <button type="button" class="page-thumb view" data-page="${i}">
+          <div class="page-frame"><img loading="lazy" src="${pageImageUrl(a.id, i)}" alt="Page ${i + 1}" /></div>
+          <span>Page ${i + 1}</span>
+        </button>`).join("");
+      const more = a.viewable_pages < a.stored_pages
+        ? `<p class="muted">Showing a preview of ${a.viewable_pages} of ${a.stored_pages} pages. Accept the assignment to see the rest.</p>`
+        : `<div class="row-actions"><button type="button" class="btn small secondary" id="download-pdf">Download all pages as a PDF</button><span class="muted" id="download-status"></span></div>`;
+      return `<div class="page-grid">${thumbs}</div>${more}`;
+    }
+
+    function actionsSection() {
+      const out = [];
+      if (user.role === "grade_angel") {
+        if (a.status === "open" && a.access === "preview") {
+          out.push(`<button class="btn" data-act="accept">Accept this assignment</button>`);
+          if (a.invited_you) out.push(`<button class="btn ghost" data-act="decline">Decline</button>`);
+        }
+        if (a.status === "open" && a.access === "details") {
+          out.push(`<a class="btn" href="/grade-angel-setup.html">Finish setup to accept</a>`);
+        }
+        if (a.status === "accepted") {
+          out.push(`
+            <form id="submit-form" class="submit-box">
+              <label for="graded-file">Upload the graded work</label>
+              <p class="muted">A PDF or photos of the marked pages, in one file.</p>
+              <div class="row-actions">
+                <input id="graded-file" type="file" required accept="application/pdf,image/*" />
+                <button class="btn small" type="submit">Send graded work</button>
+              </div>
+            </form>`);
+          out.push(`<button class="btn small ghost" data-act="release">I can't finish this, hand it back</button>`);
+        }
+      } else {
+        const needsPayment = (a.status === "accepted" || a.status === "submitted") && a.payment_status !== "paid";
+        if (needsPayment) out.push(`<button class="btn" data-act="pay">Pay ${formatCents(a.total_cents)}</button>`);
+        if (a.status === "submitted") out.push(`<button class="btn" data-act="complete">Mark complete</button>`);
+        if (a.status === "draft" || a.status === "open") out.push(`<button class="btn ghost" data-act="cancel">Cancel assignment</button>`);
+      }
+      if (a.has_graded_file && a.access === "full") {
+        out.unshift(`<p><a class="btn small secondary" href="/api/assignments/file?assignment_id=${a.id}&kind=graded">Download graded work</a></p>`);
+      }
+      return out.join("");
+    }
+
+    function historySection(events) {
+      if (!events.length) return "";
+      return `
+        <div class="card">
+          <h2>History</h2>
+          <ul class="timeline">${events.map((e) => `
+            <li>
+              <span class="when">${formatDateTime(e.created_at)}</span>
+              <span>${EVENT_TEXT[e.kind] || escapeHtml(e.kind)}${e.actor_role === "grade_angel" && e.actor_name ? " by " + escapeHtml(e.actor_name) : ""}${e.note ? `: "${escapeHtml(e.note)}"` : ""}</span>
+            </li>`).join("")}
+          </ul>
+        </div>`;
+    }
+
+    function render(events) {
+      document.title = `${a.title}, Grade Angels Network`;
+      const invitedBanner = user.role === "grade_angel" && a.invited_you && a.status === "open"
+        ? '<div class="msg success">A teacher sent this assignment to you personally.</div>' : "";
+      document.getElementById("content").innerHTML = `
+        ${invitedBanner}
+        <div class="card accent">
+          <h1 class="assignment-title">${escapeHtml(a.title)} ${statusPillHtml(a.status)}</h1>
+          <dl class="details">${detailRows()}</dl>
+          ${a.instructions ? `<h3>Instructions</h3><p class="instructions">${escapeHtml(a.instructions)}</p>` : ""}
+          <div class="actions">${actionsSection()}</div>
+        </div>
+        <div class="card">
+          <h2>Pages</h2>
+          ${pagesSection()}
+        </div>
+        ${historySection(events)}
+      `;
+      wire();
+    }
+
+    async function load() {
+      try {
+        const data = await apiGet(`/api/assignments/get?id=${assignmentId}`);
+        a = data.assignment;
+        render(data.events || []);
+      } catch (err) {
+        document.getElementById("content").innerHTML = "";
+        showMessage(pageMsg, err.message, "error");
+      }
+    }
+
+    function askReason(title, help) {
+      const dialog = document.getElementById("reason-dialog");
+      document.getElementById("reason-title").textContent = title;
+      document.getElementById("reason-help").textContent = help;
+      document.getElementById("reason-text").value = "";
+      dialog.showModal();
+      return new Promise((resolve) => {
+        document.getElementById("reason-cancel").onclick = () => dialog.close("");
+        dialog.onclose = () => resolve(dialog.returnValue === "ok" ? document.getElementById("reason-text").value.trim() : null);
+      });
+    }
+
+    async function act(kind, btn) {
+      const id = a.id;
+      try {
+        btn.disabled = true;
+        if (kind === "accept") {
+          await apiPostJson("/api/assignments/accept", { assignment_id: id });
+          showMessage(pageMsg, "It's yours. The clock has started; see the due time below.", "success");
+        } else if (kind === "decline" || kind === "release") {
+          const reason = await askReason(
+            kind === "decline" ? "Decline this assignment" : "Hand this assignment back",
+            "The teacher will see this. It goes back on the open board for another Grade Angel."
+          );
+          if (!reason) return;
+          await apiPostJson(`/api/assignments/${kind}`, { assignment_id: id, reason });
+          if (kind === "decline") {
+            window.location.href = "/dashboard-grade-angel.html";
+            return;
+          }
+          showMessage(pageMsg, "Handed back. Thanks for letting the teacher know.", "success");
+        } else if (kind === "pay") {
+          const { url } = await apiPostJson("/api/assignments/pay", { assignment_id: id, success_url: location.href, cancel_url: location.href });
+          window.location.href = url;
+          return;
+        } else if (kind === "complete") {
+          const { payout_note } = await apiPostJson("/api/assignments/complete", { assignment_id: id });
+          showMessage(pageMsg, "Marked complete. " + (payout_note || ""), "success");
+        } else if (kind === "cancel") {
+          if (!confirm("Cancel this assignment? Its pages will be deleted.")) return;
+          await apiPostJson("/api/assignments/cancel", { assignment_id: id });
+          showMessage(pageMsg, "Cancelled. The pages were deleted.", "success");
+        }
+        load();
+      } catch (err) {
+        showMessage(pageMsg, err.message, "error");
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // Full size page viewer with previous and next.
+    let viewerPage = 0;
+    function openViewer(i) {
+      viewerPage = i;
+      document.getElementById("viewer-img").src = pageImageUrl(a.id, i);
+      document.getElementById("viewer-img").alt = `Page ${i + 1}`;
+      document.getElementById("viewer-label").textContent = `Page ${i + 1} of ${a.viewable_pages}`;
+      document.getElementById("viewer-prev").disabled = i === 0;
+      document.getElementById("viewer-next").disabled = i >= a.viewable_pages - 1;
+      const dialog = document.getElementById("viewer");
+      if (!dialog.open) dialog.showModal();
+    }
+    document.getElementById("viewer-prev").onclick = () => openViewer(viewerPage - 1);
+    document.getElementById("viewer-next").onclick = () => openViewer(viewerPage + 1);
+    document.getElementById("viewer-close").onclick = () => document.getElementById("viewer").close();
+
+    function wire() {
+      document.querySelectorAll("[data-act]").forEach((btn) => btn.addEventListener("click", () => act(btn.dataset.act, btn)));
+      document.querySelectorAll("button.view").forEach((btn) => btn.addEventListener("click", () => openViewer(Number(btn.dataset.page))));
+
+      const download = document.getElementById("download-pdf");
+      if (download) {
+        download.addEventListener("click", async () => {
+          const status = document.getElementById("download-status");
+          download.disabled = true;
+          try {
+            const name = a.title.replace(/[^a-z0-9]+/gi, " ").trim().replace(/ /g, "_") || "assignment";
+            await downloadPagesAsPdf(a.id, a.viewable_pages, `${name}.pdf`, (done, total) => {
+              status.textContent = `Building PDF, page ${done} of ${total}…`;
+            });
+            status.textContent = "";
+          } catch (err) {
+            status.textContent = err.message;
+          } finally {
+            download.disabled = false;
+          }
+        });
+      }
+
+      const submitForm = document.getElementById("submit-form");
+      if (submitForm) {
+        submitForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const file = document.getElementById("graded-file").files[0];
+          if (!file) return;
+          const btn = submitForm.querySelector("button");
+          btn.disabled = true;
+          try {
+            const form = new FormData();
+            form.set("assignment_id", String(a.id));
+            form.set("file", file);
+            await apiPostForm("/api/assignments/submit", form);
+            showMessage(pageMsg, "Sent. The teacher will review it and mark it complete.", "success");
+            load();
+          } catch (err) {
+            showMessage(pageMsg, err.message, "error");
+            btn.disabled = false;
+          }
+        });
+      }
+    }
+
+    (async () => {
+      try {
+        ({ user } = await apiGet("/api/auth/me"));
+      } catch {}
+      if (!user) {
+        window.location.href = "/login.html";
+        return;
+      }
+      renderNav(user);
+      document.getElementById("back-link").href = user.role === "teacher" ? "/dashboard-teacher.html" : "/dashboard-grade-angel.html";
+      if (!Number.isInteger(assignmentId) || assignmentId <= 0) {
+        document.getElementById("content").innerHTML = "";
+        showMessage(pageMsg, "That link is missing an assignment number.", "error");
+        return;
+      }
+      load();
+    })();
+  </script>
+</body>
+</html>

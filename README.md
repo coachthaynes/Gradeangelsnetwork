@@ -44,3 +44,29 @@ Environment variables used: `SESSION_SECRET`, `STRIPE_SECRET_KEY`,
 `STRIPE_WEBHOOK_SECRET`, `CHECKR_API_KEY`, `CHECKR_WEBHOOK_SECRET`, and
 optionally `CHECKR_PACKAGE`. On a real deploy both webhooks refuse every
 request until their secret is set; only local `netlify dev` skips the check.
+
+## Assignment pages and flow
+
+Teachers add pages as phone photos, scans, or PDFs. The browser converts
+every page to a JPEG no larger than 1700 pixels on its long side (usually
+200 to 400 KB) and uploads one page per request, because Netlify functions
+cap a single request at about 6 MB. PDFs are split into pages with pdf.js.
+
+Posting is three calls: `POST /api/assignments/create` (saves a draft),
+`POST /api/assignments/pages/upload` once per page, then
+`POST /api/assignments/publish`. Pages are served one at a time from
+`GET /api/assignments/page`, with the same access rules as the assignment.
+
+* Teachers choose a turnaround (24 to 96 hours). The due time starts when a
+  Grade Angel accepts.
+* Teachers can send an assignment to one Grade Angel. That Grade Angel can
+  accept it or decline with a reason, which reopens it to everyone.
+* A Grade Angel who cannot finish hands the work back with a reason.
+* Teachers can cancel drafts and unaccepted assignments, which deletes the
+  pages right away.
+* Before accepting, a vetted Grade Angel can preview only the first two
+  pages. Grade Angels never see the teacher's name.
+* `assignment_events` keeps a history of every step and reason.
+
+pdf.js and pdf-lib are served from `public/vendor/` rather than a CDN, so
+school web filters that block outside script hosts do not break uploads.

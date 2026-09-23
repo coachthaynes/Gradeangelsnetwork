@@ -102,3 +102,31 @@ async function requireRole(role) {
   renderNav(user);
   return user;
 }
+
+const TYPE_LABELS = { multiple_choice: "Multiple choice", combo: "Combination", essay: "Essay" };
+
+function assignmentTypeLabel(type) {
+  return TYPE_LABELS[type] || type;
+}
+
+// "Due in 1 day 4 hours" / "Overdue by 3 hours", from an ISO timestamp.
+function formatDue(dueAt) {
+  if (!dueAt) return "";
+  const ms = new Date(dueAt).getTime() - Date.now();
+  const hours = Math.round(Math.abs(ms) / 3600000);
+  const days = Math.floor(hours / 24);
+  const rest = hours % 24;
+  const parts = [];
+  if (days) parts.push(days + (days === 1 ? " day" : " days"));
+  if (rest || !days) parts.push(rest + (rest === 1 ? " hour" : " hours"));
+  return ms >= 0 ? "Due in " + parts.join(" ") : "Overdue by " + parts.join(" ");
+}
+
+function formatDateTime(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function pageImageUrl(assignmentId, pageIndex) {
+  return `/api/assignments/page?assignment_id=${assignmentId}&page=${pageIndex}`;
+}

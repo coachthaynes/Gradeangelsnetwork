@@ -38,7 +38,10 @@ export default async (req: Request) => {
   `;
   if (!assignment) return json({ error: "Assignment not found" }, 404);
   if (assignment.teacher_id !== session.id) return json({ error: "This is not your assignment" }, 403);
-  if (assignment.status === "open") {
+  if (assignment.status === "cancelled") {
+    return json({ error: "This assignment was cancelled" }, 409);
+  }
+  if (assignment.status === "open" || assignment.status === "draft") {
     return json({ error: "Wait until a Grade Angel accepts this before paying for it" }, 409);
   }
 

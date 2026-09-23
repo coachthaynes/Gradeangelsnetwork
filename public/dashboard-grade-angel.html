@@ -30,6 +30,12 @@
       <div class="stat"><span class="stat-label">Paid to you</span><span class="stat-value" id="stat-paid">$0.00</span></div>
     </div>
 
+    <div id="invites-section" style="display:none">
+      <h2 class="section-title">Sent to you</h2>
+      <p class="muted">Teachers picked you for these. Accept them, or decline with a reason so the teacher knows.</p>
+      <div id="invites-list"></div>
+    </div>
+
     <div class="section-head">
       <h2 class="section-title">Open assignments</h2>
       <label class="check toggle"><input type="checkbox" id="match-only" /> Only show my subjects and types</label>
@@ -46,14 +52,13 @@
 
   <script src="/js/api.js"></script>
   <script>
-    const TYPE_LABELS = { multiple_choice: "Multiple choice", combo: "Combination", essay: "Essay" };
     let setup = { ready: false };
     let profile = null;
     let openAssignments = [];
 
     function metaLine(a) {
       const rate = formatCents(a.rate_per_page_cents);
-      return `${escapeHtml(a.subject)} · ${escapeHtml(a.grade_level)} · ${TYPE_LABELS[a.assignment_type] || a.assignment_type} · ${a.page_count} pages at ${rate}/page`;
+      return `${escapeHtml(a.subject)} · ${escapeHtml(a.grade_level)} · ${assignmentTypeLabel(a.assignment_type)} · ${a.page_count} pages at ${rate}/page · ${a.turnaround_hours} hour turnaround`;
     }
 
     // Loose match on purpose: teachers type subjects freely ("Reading",
@@ -99,12 +104,13 @@
       list.innerHTML = shown.map((a) => `
         <div class="card">
           <div class="card-top">
-            <h3 class="assignment-title">${escapeHtml(a.title)}</h3>
+            <h3 class="assignment-title"><a class="plain" href="/assignment.html?id=${a.id}">${escapeHtml(a.title)}</a></h3>
             <span class="earn">You earn ${formatCents(a.earnings_cents)}</span>
           </div>
           <p class="assignment-meta">${metaLine(a)}</p>
           ${a.instructions ? `<p class="instructions">${escapeHtml(a.instructions)}</p>` : ""}
           <div class="row-actions">
+            <a class="btn small secondary" href="/assignment.html?id=${a.id}">${setup.ready ? "Preview pages" : "View details"}</a>
             ${setup.ready
               ? `<button class="btn small" data-accept-id="${a.id}">Accept</button>`
               : `<button class="btn small" disabled>Accept</button><span class="muted">Finish setup to accept</span>`}
@@ -128,11 +134,34 @@
       }
     }
 
+    async function loadInvites() {
+      const section = document.getElementById("invites-section");
+      const list = document.getElementById("invites-list");
+      try {
+        const { assignments } = await apiGet("/api/assignments/list?scope=invited");
+        section.style.display = assignments.length ? "" : "none";
+        list.innerHTML = assignments.map((a) => `
+          <div class="card invite">
+            <div class="card-top">
+              <h3 class="assignment-title"><a class="plain" href="/assignment.html?id=${a.id}">${escapeHtml(a.title)}</a></h3>
+              <span class="earn">You earn ${formatCents(a.earnings_cents)}</span>
+            </div>
+            <p class="assignment-meta">${metaLine(a)}</p>
+            <div class="row-actions">
+              <a class="btn small" href="/assignment.html?id=${a.id}">Review and respond</a>
+            </div>
+          </div>`).join("");
+      } catch {
+        section.style.display = "none";
+      }
+    }
+
     async function acceptAssignment(id, btn) {
       btn.disabled = true;
       try {
         await apiPostJson("/api/assignments/accept", { assignment_id: Number(id) });
         loadOpen();
+        loadInvites();
         loadMine();
       } catch (err) {
         alert(err.message);
@@ -173,9 +202,7 @@
           return;
         }
         list.innerHTML = assignments.map((a) => {
-          const downloadSource = a.has_source_file
-            ? `<a href="/api/assignments/file?assignment_id=${a.id}&kind=source">Download the assignment</a>`
-            : "";
+          const downloadSource = `<a href="/assignment.html?id=${a.id}">Open the pages</a>`;
           const downloadGraded = a.has_graded_file
             ? `<a href="/api/assignments/file?assignment_id=${a.id}&kind=graded">Your graded upload</a>`
             : "";
@@ -183,18 +210,22 @@
             a.status === "accepted"
               ? `
                 <form data-submit-id="${a.id}" class="row-actions">
-                  <input type="file" required aria-label="Graded work file" />
+                  <input type="file" required accept="application/pdf,image/*" aria-label="Graded work file" />
                   <button class="btn small" type="submit">Submit graded work</button>
                 </form>
               `
               : "";
+          const due = a.status === "accepted" && a.due_at
+            ? `<p class="due ${new Date(a.due_at) < new Date() ? "late" : ""}">${formatDue(a.due_at)} (${formatDateTime(a.due_at)})</p>`
+            : "";
           return `
             <div class="card">
               <div class="card-top">
-                <h3 class="assignment-title">${escapeHtml(a.title)} ${statusPillHtml(a.status)} ${payoutLabel(a)}</h3>
+                <h3 class="assignment-title"><a class="plain" href="/assignment.html?id=${a.id}">${escapeHtml(a.title)}</a> ${statusPillHtml(a.status)} ${payoutLabel(a)}</h3>
                 <span class="earn">${formatCents(a.earnings_cents)}</span>
               </div>
               <p class="assignment-meta">${metaLine(a)}</p>
+              ${due}
               ${a.instructions && a.status === "accepted" ? `<p class="instructions">${escapeHtml(a.instructions)}</p>` : ""}
               <div class="row-actions">${[downloadSource, downloadGraded].filter(Boolean).join(" · ")}</div>
               ${submitForm}
@@ -234,13 +265,14 @@
       document.getElementById("greeting").textContent = "Welcome, " + user.full_name.split(" ")[0];
       try {
         const result = await apiGet("/api/grade-angel/setup");
-        setup = result.status;
-        profile = result.profile;
+        setup = result.status || { ready: false };
+        profile = result.profile || null;
       } catch {
         // Leave setup as not ready; the accept endpoint checks again anyway.
       }
       renderSetup();
       if (profile && profile.profile_completed_at) document.getElementById("match-only").checked = true;
+      loadInvites();
       loadOpen();
       loadMine();
     });

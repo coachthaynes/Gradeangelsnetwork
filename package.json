@@ -7,11 +7,15 @@
     "dev": "netlify dev"
   },
   "dependencies": {
-    "@netlify/functions": "^3.1.4",
-    "@netlify/database": "^1.0.0",
     "@netlify/blobs": "^9.1.2",
+    "@netlify/database": "^1.0.0",
+    "@netlify/functions": "^3.1.4",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
     "stripe": "^17.4.0"
+  },
+  "devDependencies": {
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^4.10.38"
   }
 }
