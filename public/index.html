@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Grade Angels Network</title>
+  <meta name="description" content="Teachers post grading work. Grade Angels pick it up, grade it, and get paid." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
+  <meta name="theme-color" content="#0B0B0B" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+  <nav class="nav" id="site-nav"></nav>
+
+  <main>
+    <section class="hero">
+      <div class="inner">
+        <span class="eyebrow">Grading help for teachers</span>
+        <h1>Grade less. Get your <em>evenings</em> back.</h1>
+        <p class="lead">Teachers post grading work. Grade Angels pick it up, grade it carefully, and get paid. You get the stack back, finished, with time to spare.</p>
+        <div class="row-actions">
+          <a class="btn" href="/signup.html">Create an account</a>
+          <a class="btn secondary" href="/login.html">Sign in</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap">
+      <h2>Who it is for</h2>
+      <div class="grid cols-3">
+        <div class="card role-card">
+          <h3>
+            <span class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            </span>
+            Teachers
+          </h3>
+          <p>Upload an assignment, set a rate per page, and pay only once a Grade Angel accepts the work.</p>
+        </div>
+        <div class="card role-card">
+          <h3>
+            <span class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            </span>
+            Grade Angels
+          </h3>
+          <p>Pass a background check, connect payouts, then choose open assignments that fit your subjects and schedule.</p>
+        </div>
+        <div class="card role-card">
+          <h3>
+            <span class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v10H4V12"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+            </span>
+            Gift Angels
+          </h3>
+          <p>Coming soon. Supporters will be able to cover grading costs for a teacher they want to help.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="wrap">
+        <h2>How it works</h2>
+        <ol class="steps">
+          <li><strong>Post the work</strong><span class="muted">A teacher uploads the assignment with the subject, grade level, page count, and rate.</span></li>
+          <li><strong>A Grade Angel accepts it</strong><span class="muted">A vetted Grade Angel picks it up and the teacher pays securely through Stripe.</span></li>
+          <li><strong>Graded work comes back</strong><span class="muted">The Grade Angel uploads the finished work for the teacher to review.</span></li>
+          <li><strong>Mark it complete</strong><span class="muted">Once the teacher marks it complete, the Grade Angel is paid out.</span></li>
+        </ol>
+        <a class="btn" href="/signup.html">Get started</a>
+      </div>
+    </section>
+  </main>
+
+  <footer><span class="brand-line">Grade Angels Network</span><br />Helping teachers get their evenings back.</footer>
+
+  <script src="/js/api.js"></script>
+  <script>
+    apiGet("/api/auth/me").then(({ user }) => renderNav(user)).catch(() => renderNav(null));
+  </script>
+</body>
+</html>

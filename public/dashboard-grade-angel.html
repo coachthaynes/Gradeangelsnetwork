@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Grade Angel dashboard, Grade Angels Network</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
+  <meta name="theme-color" content="#0B0B0B" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+  <nav class="nav" id="site-nav"></nav>
+
+  <main class="wrap">
+    <div class="card accent" id="setup-card">
+      <h1>Getting paid</h1>
+      <p id="payout-status" class="muted">Checking your payout setup…</p>
+      <p id="check-status" class="muted">Checking your background check status…</p>
+      <div class="row-actions">
+        <button class="btn small" id="payout-btn">Set up payouts with Stripe</button>
+        <button class="btn small secondary" id="check-btn">Start background check</button>
+      </div>
+    </div>
+
+    <h1 class="section-title">Open assignments</h1>
+    <div id="open-list"></div>
+
+    <h1 class="section-title">Your assignments</h1>
+    <div id="mine-list"></div>
+  </main>
+
+  <footer><span class="brand-line">Grade Angels Network</span><br />Helping teachers get their evenings back.</footer>
+
+  <script src="/js/api.js"></script>
+  <script>
+
+    async function loadOpen() {
+      const list = document.getElementById("open-list");
+      list.innerHTML = '<p class="muted">Loading…</p>';
+      try {
+        const { assignments } = await apiGet("/api/assignments/list?scope=open");
+        if (assignments.length === 0) {
+          list.innerHTML = '<p class="muted">Nothing open right now. Check back soon.</p>';
+          return;
+        }
+        list.innerHTML = assignments.map((a) => {
+          const rate = formatCents(a.rate_per_page_cents);
+          const total = formatCents(a.rate_per_page_cents * a.page_count);
+          return `
+            <div class="card">
+              <h3 class="assignment-title">${escapeHtml(a.title)}</h3>
+              <p class="assignment-meta">${escapeHtml(a.subject)} · ${escapeHtml(a.grade_level)} · ${a.page_count} pages · ${rate}/page · ${total} total</p>
+              <div class="row-actions"><button class="btn small" data-accept-id="${a.id}">Accept</button></div>
+            </div>
+          `;
+        }).join("");
+        list.querySelectorAll("[data-accept-id]").forEach((btn) => {
+          btn.addEventListener("click", () => acceptAssignment(btn.dataset.acceptId, btn));
+        });
+      } catch (err) {
+        list.innerHTML = `<div class="msg error">${err.message}</div>`;
+      }
+    }
+
+    async function acceptAssignment(id, btn) {
+      btn.disabled = true;
+      try {
+        await apiPostJson("/api/assignments/accept", { assignment_id: Number(id) });
+        loadOpen();
+        loadMine();
+      } catch (err) {
+        alert(err.message);
+        btn.disabled = false;
+      }
+    }
+
+    async function loadMine() {
+      const list = document.getElementById("mine-list");
+      list.innerHTML = '<p class="muted">Loading…</p>';
+      try {
+        const { assignments } = await apiGet("/api/assignments/list?scope=mine");
+        if (assignments.length === 0) {
+          list.innerHTML = '<p class="muted">You have not accepted anything yet.</p>';
+          return;
+        }
+        list.innerHTML = assignments.map((a) => {
+          const rate = formatCents(a.rate_per_page_cents);
+          const total = formatCents(a.rate_per_page_cents * a.page_count);
+          const downloadSource = a.has_source_file
+            ? `<a href="/api/assignments/file?assignment_id=${a.id}&kind=source">Download the assignment</a>`
+            : "";
+          const submitForm =
+            a.status === "accepted"
+              ? `
+                <form data-submit-id="${a.id}" class="row-actions">
+                  <input type="file" required />
+                  <button class="btn small" type="submit">Submit graded work</button>
+                </form>
+              `
+              : "";
+          return `
+            <div class="card">
+              <h3 class="assignment-title">${escapeHtml(a.title)} ${statusPillHtml(a.status)}</h3>
+              <p class="assignment-meta">${escapeHtml(a.subject)} · ${escapeHtml(a.grade_level)} · ${a.page_count} pages · ${rate}/page · ${total} total</p>
+              <div class="row-actions">${downloadSource}</div>
+              ${submitForm}
+            </div>
+          `;
+        }).join("");
+        list.querySelectorAll("[data-submit-id]").forEach((form) => {
+          form.addEventListener("submit", (e) => submitGradedWork(e, form.dataset.submitId, form));
+        });
+      } catch (err) {
+        list.innerHTML = `<div class="msg error">${err.message}</div>`;
+      }
+    }
+
+    async function submitGradedWork(e, id, form) {
+      e.preventDefault();
+      const fileInput = form.querySelector('input[type="file"]');
+      const submitBtn = form.querySelector("button");
+      if (!fileInput.files[0]) return;
+      submitBtn.disabled = true;
+      try {
+        const formData = new FormData();
+        formData.set("assignment_id", id);
+        formData.set("file", fileInput.files[0]);
+        await apiPostForm("/api/assignments/submit", formData);
+        loadMine();
+      } catch (err) {
+        alert(err.message);
+        submitBtn.disabled = false;
+      }
+    }
+
+    async function loadPayoutStatus() {
+      const el = document.getElementById("payout-status");
+      const btn = document.getElementById("payout-btn");
+      try {
+        const status = await apiGet("/api/payments/connect/status");
+        if (status.charges_enabled) {
+          el.textContent = "Payouts are set up.";
+          btn.style.display = "none";
+        } else if (status.connected) {
+          el.textContent = "Stripe onboarding was started but is not finished yet.";
+        } else {
+          el.textContent = "Payouts are not set up yet.";
+        }
+      } catch (err) {
+        el.textContent = err.message;
+        btn.disabled = true;
+      }
+    }
+
+    document.getElementById("payout-btn").addEventListener("click", async () => {
+      try {
+        const { url } = await apiPostJson("/api/payments/connect/start", {
+          return_url: window.location.href,
+          refresh_url: window.location.href,
+        });
+        window.location.href = url;
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    document.getElementById("check-btn").addEventListener("click", async (e) => {
+      e.target.disabled = true;
+      try {
+        await apiPostJson("/api/background-check/invite", {});
+        document.getElementById("check-status").textContent = "Invitation sent. Check your email for next steps.";
+      } catch (err) {
+        alert(err.message);
+        e.target.disabled = false;
+      }
+    });
+
+    function showCheckStatus(user) {
+      const el = document.getElementById("check-status");
+      const btn = document.getElementById("check-btn");
+      const status = user.background_check_status;
+      if (status === "clear") {
+        el.textContent = "Background check: clear.";
+        btn.style.display = "none";
+      } else if (status === "not_started") {
+        el.textContent = "Background check has not been started.";
+      } else {
+        el.textContent = "Background check status: " + status.replace("_", " ") + ".";
+        btn.style.display = "none";
+      }
+    }
+
+    requireRole("grade_angel").then((user) => {
+      if (!user) return;
+      showCheckStatus(user);
+      loadPayoutStatus();
+      loadOpen();
+      loadMine();
+    });
+  </script>
+</body>
+</html>

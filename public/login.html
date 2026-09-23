@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign in, Grade Angels Network</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
+  <meta name="theme-color" content="#0B0B0B" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+  <nav class="nav" id="site-nav"></nav>
+
+  <main class="wrap narrow">
+    <div class="card accent">
+      <h1>Sign in</h1>
+      <div id="msg" class="msg" style="display:none"></div>
+      <form id="login-form">
+        <label for="email">Email</label>
+        <input id="email" type="email" required autocomplete="email" />
+
+        <label for="password">Password</label>
+        <input id="password" type="password" required autocomplete="current-password" />
+
+        <button class="btn" type="submit">Sign in</button>
+      </form>
+      <p class="muted" style="margin-top:1.5rem">New here? <a href="/signup.html">Create an account</a></p>
+    </div>
+  </main>
+
+  <footer><span class="brand-line">Grade Angels Network</span><br />Helping teachers get their evenings back.</footer>
+
+  <script src="/js/api.js"></script>
+  <script>
+    apiGet("/api/auth/me").then(({ user }) => renderNav(user)).catch(() => renderNav(null));
+
+    const form = document.getElementById("login-form");
+    const msg = document.getElementById("msg");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      showMessage(msg, "", "");
+      const submitBtn = form.querySelector("button");
+      submitBtn.disabled = true;
+      try {
+        const { user } = await apiPostJson("/api/auth/login", {
+          email: document.getElementById("email").value,
+          password: document.getElementById("password").value,
+        });
+        window.location.href = user.role === "teacher" ? "/dashboard-teacher.html" : "/dashboard-grade-angel.html";
+      } catch (err) {
+        showMessage(msg, err.message, "error");
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

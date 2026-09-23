@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Teacher dashboard, Grade Angels Network</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
+  <meta name="theme-color" content="#0B0B0B" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+  <nav class="nav" id="site-nav"></nav>
+
+  <main class="wrap">
+    <h1>Post an assignment</h1>
+    <div class="card">
+      <div id="create-msg" class="msg" style="display:none"></div>
+      <form id="create-form">
+        <label for="title">Title</label>
+        <input id="title" required placeholder="Chapter 4 vocabulary quiz" />
+
+        <div class="grid cols-2">
+          <div>
+            <label for="subject">Subject</label>
+            <input id="subject" required placeholder="Reading" />
+          </div>
+          <div>
+            <label for="grade_level">Grade level</label>
+            <input id="grade_level" required placeholder="4th grade" />
+          </div>
+        </div>
+
+        <div class="grid cols-2">
+          <div>
+            <label for="assignment_type">Type</label>
+            <select id="assignment_type" required>
+              <option value="multiple_choice">Multiple choice</option>
+              <option value="combo">Combination</option>
+              <option value="essay">Essay</option>
+            </select>
+          </div>
+          <div>
+            <label for="page_count">Number of pages</label>
+            <input id="page_count" type="number" min="1" step="1" required />
+          </div>
+        </div>
+
+        <label for="rate_per_page">Rate per page, in dollars</label>
+        <input id="rate_per_page" type="number" min="0.01" step="0.01" required placeholder="1.00" />
+
+        <label for="instructions">Instructions (optional)</label>
+        <textarea id="instructions" placeholder="Answer key attached. Flag anything left blank."></textarea>
+
+        <label for="file">Assignment file</label>
+        <input id="file" type="file" />
+
+        <button class="btn" type="submit">Post assignment</button>
+      </form>
+    </div>
+
+    <h1 class="section-title">Your assignments</h1>
+    <div id="list"></div>
+  </main>
+
+  <footer><span class="brand-line">Grade Angels Network</span><br />Helping teachers get their evenings back.</footer>
+
+  <script src="/js/api.js"></script>
+  <script>
+    let currentUser = null;
+
+    async function loadAssignments() {
+      const list = document.getElementById("list");
+      list.innerHTML = '<p class="muted">Loading…</p>';
+      try {
+        const { assignments } = await apiGet("/api/assignments/list");
+        if (assignments.length === 0) {
+          list.innerHTML = '<p class="muted">Nothing posted yet.</p>';
+          return;
+        }
+        list.innerHTML = assignments.map(renderAssignmentCard).join("");
+        list.querySelectorAll("[data-complete-id]").forEach((btn) => {
+          btn.addEventListener("click", () => completeAssignment(btn.dataset.completeId, btn));
+        });
+        list.querySelectorAll("[data-pay-id]").forEach((btn) => {
+          btn.addEventListener("click", () => payForAssignment(btn.dataset.payId, btn));
+        });
+      } catch (err) {
+        list.innerHTML = `<div class="msg error">${err.message}</div>`;
+      }
+    }
+
+    function renderAssignmentCard(a) {
+      const rate = formatCents(a.rate_per_page_cents);
+      const total = formatCents(a.rate_per_page_cents * a.page_count);
+      const files = [];
+      if (a.has_source_file) {
+        files.push(`<a href="/api/assignments/file?assignment_id=${a.id}&kind=source">Download what you posted</a>`);
+      }
+      if (a.has_graded_file) {
+        files.push(`<a href="/api/assignments/file?assignment_id=${a.id}&kind=graded">Download graded work</a>`);
+      }
+      const needsPayment = a.status === "accepted" && a.payment_status !== "paid";
+      const payBtn = needsPayment
+        ? `<button class="btn small" data-pay-id="${a.id}">Pay for this assignment</button>`
+        : "";
+      const completeBtn =
+        a.status === "submitted"
+          ? `<button class="btn small" data-complete-id="${a.id}">Mark complete</button>`
+          : "";
+      const paymentNote =
+        a.payment_status === "paid"
+          ? a.payout_status === "transferred"
+            ? '<span class="pill status-completed">Paid, Grade Angel paid out</span>'
+            : '<span class="pill status-accepted">Paid</span>'
+          : "";
+      return `
+        <div class="card">
+          <h3 class="assignment-title">${escapeHtml(a.title)} ${statusPillHtml(a.status)} ${paymentNote}</h3>
+          <p class="assignment-meta">${escapeHtml(a.subject)} · ${escapeHtml(a.grade_level)} · ${a.page_count} pages · ${rate}/page · ${total} total</p>
+          <div class="row-actions">${files.join(" · ")}${payBtn}${completeBtn}</div>
+        </div>
+      `;
+    }
+
+
+    async function completeAssignment(id, btn) {
+      btn.disabled = true;
+      try {
+        const { payout_note } = await apiPostJson("/api/assignments/complete", { assignment_id: Number(id) });
+        if (payout_note) alert(payout_note);
+        loadAssignments();
+      } catch (err) {
+        alert(err.message);
+        btn.disabled = false;
+      }
+    }
+
+    async function payForAssignment(id, btn) {
+      btn.disabled = true;
+      try {
+        const { url } = await apiPostJson("/api/assignments/pay", {
+          assignment_id: Number(id),
+          success_url: window.location.href,
+          cancel_url: window.location.href,
+        });
+        window.location.href = url;
+      } catch (err) {
+        alert(err.message);
+        btn.disabled = false;
+      }
+    }
+
+    const createForm = document.getElementById("create-form");
+    const createMsg = document.getElementById("create-msg");
+
+    createForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      showMessage(createMsg, "", "");
+      const submitBtn = createForm.querySelector("button");
+      submitBtn.disabled = true;
+      try {
+        const dollars = parseFloat(document.getElementById("rate_per_page").value || "0");
+        const formData = new FormData();
+        formData.set("title", document.getElementById("title").value);
+        formData.set("subject", document.getElementById("subject").value);
+        formData.set("grade_level", document.getElementById("grade_level").value);
+        formData.set("assignment_type", document.getElementById("assignment_type").value);
+        formData.set("page_count", document.getElementById("page_count").value);
+        formData.set("rate_per_page_cents", String(Math.round(dollars * 100)));
+        formData.set("instructions", document.getElementById("instructions").value);
+        const fileInput = document.getElementById("file");
+        if (fileInput.files[0]) formData.set("file", fileInput.files[0]);
+
+        await apiPostForm("/api/assignments/create", formData);
+        showMessage(createMsg, "Posted.", "success");
+        createForm.reset();
+        loadAssignments();
+      } catch (err) {
+        showMessage(createMsg, err.message, "error");
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+
+    requireRole("teacher").then((user) => {
+      if (!user) return;
+      currentUser = user;
+      loadAssignments();
+    });
+  </script>
+</body>
+</html>
