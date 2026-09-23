@@ -15,53 +15,116 @@
   <nav class="nav" id="site-nav"></nav>
 
   <main class="wrap">
-    <div class="card accent" id="setup-card">
-      <h1>Getting paid</h1>
-      <p id="payout-status" class="muted">Checking your payout setup…</p>
-      <p id="check-status" class="muted">Checking your background check status…</p>
-      <div class="row-actions">
-        <button class="btn small" id="payout-btn">Set up payouts with Stripe</button>
-        <button class="btn small secondary" id="check-btn">Start background check</button>
-      </div>
+    <h1 id="greeting">Welcome</h1>
+
+    <div class="card accent" id="setup-card" style="display:none">
+      <h2>Finish your setup</h2>
+      <p class="muted">You can browse open assignments now. You can accept them once these steps are done.</p>
+      <ul class="checklist" id="setup-checklist"></ul>
+      <a class="btn" href="/grade-angel-setup.html">Continue setup</a>
     </div>
 
-    <h1 class="section-title">Open assignments</h1>
+    <div class="stats" id="stats" style="display:none">
+      <div class="stat"><span class="stat-label">In progress</span><span class="stat-value" id="stat-active">0</span></div>
+      <div class="stat"><span class="stat-label">Upcoming earnings</span><span class="stat-value" id="stat-pending">$0.00</span></div>
+      <div class="stat"><span class="stat-label">Paid to you</span><span class="stat-value" id="stat-paid">$0.00</span></div>
+    </div>
+
+    <div class="section-head">
+      <h2 class="section-title">Open assignments</h2>
+      <label class="check toggle"><input type="checkbox" id="match-only" /> Only show my subjects and types</label>
+    </div>
     <div id="open-list"></div>
 
-    <h1 class="section-title">Your assignments</h1>
+    <h2 class="section-title">Your assignments</h2>
     <div id="mine-list"></div>
+
+    <p class="muted"><a href="/grade-angel-setup.html">Edit my profile and setup</a></p>
   </main>
 
   <footer><span class="brand-line">Grade Angels Network</span><br />Helping teachers get their evenings back.</footer>
 
   <script src="/js/api.js"></script>
   <script>
+    const TYPE_LABELS = { multiple_choice: "Multiple choice", combo: "Combination", essay: "Essay" };
+    let setup = { ready: false };
+    let profile = null;
+    let openAssignments = [];
+
+    function metaLine(a) {
+      const rate = formatCents(a.rate_per_page_cents);
+      return `${escapeHtml(a.subject)} · ${escapeHtml(a.grade_level)} · ${TYPE_LABELS[a.assignment_type] || a.assignment_type} · ${a.page_count} pages at ${rate}/page`;
+    }
+
+    // Loose match on purpose: teachers type subjects freely ("Reading",
+    // "4th grade reading"), so a profile subject counts if either contains
+    // the other.
+    function matchesProfile(a) {
+      if (!profile) return true;
+      const subjects = (profile.subjects || "").toLowerCase().split(",").map((s) => s.trim()).filter(Boolean);
+      const types = (profile.assignment_types || "").split(",").filter(Boolean);
+      const subject = String(a.subject).toLowerCase();
+      const subjectOk = subjects.length === 0 || subjects.some((s) => subject.includes(s) || s.includes(subject));
+      const typeOk = types.length === 0 || types.includes(a.assignment_type);
+      return subjectOk && typeOk;
+    }
+
+    function renderSetup() {
+      const card = document.getElementById("setup-card");
+      if (setup.ready) {
+        card.style.display = "none";
+        return;
+      }
+      const items = [
+        ["Profile and confidentiality agreement", setup.profile_complete && setup.agreement_signed],
+        ["Background check", setup.background_check_clear],
+        ["Payouts", setup.payouts_ready],
+      ];
+      document.getElementById("setup-checklist").innerHTML = items
+        .map(([label, done]) => `<li class="${done ? "done" : ""}">${label}</li>`)
+        .join("");
+      card.style.display = "block";
+    }
+
+    function renderOpen() {
+      const list = document.getElementById("open-list");
+      const onlyMatches = document.getElementById("match-only").checked;
+      const shown = onlyMatches ? openAssignments.filter(matchesProfile) : openAssignments;
+      if (shown.length === 0) {
+        list.innerHTML = onlyMatches && openAssignments.length
+          ? '<p class="muted">Nothing open matches your profile right now. Turn off the filter to see everything.</p>'
+          : '<p class="muted">Nothing open right now. Check back soon.</p>';
+        return;
+      }
+      list.innerHTML = shown.map((a) => `
+        <div class="card">
+          <div class="card-top">
+            <h3 class="assignment-title">${escapeHtml(a.title)}</h3>
+            <span class="earn">You earn ${formatCents(a.earnings_cents)}</span>
+          </div>
+          <p class="assignment-meta">${metaLine(a)}</p>
+          ${a.instructions ? `<p class="instructions">${escapeHtml(a.instructions)}</p>` : ""}
+          <div class="row-actions">
+            ${setup.ready
+              ? `<button class="btn small" data-accept-id="${a.id}">Accept</button>`
+              : `<button class="btn small" disabled>Accept</button><span class="muted">Finish setup to accept</span>`}
+          </div>
+        </div>
+      `).join("");
+      list.querySelectorAll("[data-accept-id]").forEach((btn) => {
+        btn.addEventListener("click", () => acceptAssignment(btn.dataset.acceptId, btn));
+      });
+    }
 
     async function loadOpen() {
       const list = document.getElementById("open-list");
       list.innerHTML = '<p class="muted">Loading…</p>';
       try {
         const { assignments } = await apiGet("/api/assignments/list?scope=open");
-        if (assignments.length === 0) {
-          list.innerHTML = '<p class="muted">Nothing open right now. Check back soon.</p>';
-          return;
-        }
-        list.innerHTML = assignments.map((a) => {
-          const rate = formatCents(a.rate_per_page_cents);
-          const total = formatCents(a.rate_per_page_cents * a.page_count);
-          return `
-            <div class="card">
-              <h3 class="assignment-title">${escapeHtml(a.title)}</h3>
-              <p class="assignment-meta">${escapeHtml(a.subject)} · ${escapeHtml(a.grade_level)} · ${a.page_count} pages · ${rate}/page · ${total} total</p>
-              <div class="row-actions"><button class="btn small" data-accept-id="${a.id}">Accept</button></div>
-            </div>
-          `;
-        }).join("");
-        list.querySelectorAll("[data-accept-id]").forEach((btn) => {
-          btn.addEventListener("click", () => acceptAssignment(btn.dataset.acceptId, btn));
-        });
+        openAssignments = assignments;
+        renderOpen();
       } catch (err) {
-        list.innerHTML = `<div class="msg error">${err.message}</div>`;
+        list.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
       }
     }
 
@@ -77,35 +140,63 @@
       }
     }
 
+    function payoutLabel(a) {
+      if (a.status !== "completed") return "";
+      if (a.payout_status === "transferred") return '<span class="pill status-completed">Paid out</span>';
+      if (a.payout_status === "failed") return '<span class="pill status-cancelled">Payout failed</span>';
+      return '<span class="pill status-accepted">Payout pending</span>';
+    }
+
+    function renderStats(mine) {
+      const active = mine.filter((a) => a.status === "accepted" || a.status === "submitted").length;
+      const paid = mine
+        .filter((a) => a.payout_status === "transferred")
+        .reduce((sum, a) => sum + a.earnings_cents, 0);
+      const pending = mine
+        .filter((a) => a.status !== "cancelled" && a.payout_status !== "transferred")
+        .reduce((sum, a) => sum + a.earnings_cents, 0);
+      document.getElementById("stat-active").textContent = active;
+      document.getElementById("stat-pending").textContent = formatCents(pending);
+      document.getElementById("stat-paid").textContent = formatCents(paid);
+      // New Grade Angels still finishing setup would only see a row of zeros.
+      document.getElementById("stats").style.display = setup.ready || mine.length ? "" : "none";
+    }
+
     async function loadMine() {
       const list = document.getElementById("mine-list");
       list.innerHTML = '<p class="muted">Loading…</p>';
       try {
         const { assignments } = await apiGet("/api/assignments/list?scope=mine");
+        renderStats(assignments);
         if (assignments.length === 0) {
           list.innerHTML = '<p class="muted">You have not accepted anything yet.</p>';
           return;
         }
         list.innerHTML = assignments.map((a) => {
-          const rate = formatCents(a.rate_per_page_cents);
-          const total = formatCents(a.rate_per_page_cents * a.page_count);
           const downloadSource = a.has_source_file
             ? `<a href="/api/assignments/file?assignment_id=${a.id}&kind=source">Download the assignment</a>`
+            : "";
+          const downloadGraded = a.has_graded_file
+            ? `<a href="/api/assignments/file?assignment_id=${a.id}&kind=graded">Your graded upload</a>`
             : "";
           const submitForm =
             a.status === "accepted"
               ? `
                 <form data-submit-id="${a.id}" class="row-actions">
-                  <input type="file" required />
+                  <input type="file" required aria-label="Graded work file" />
                   <button class="btn small" type="submit">Submit graded work</button>
                 </form>
               `
               : "";
           return `
             <div class="card">
-              <h3 class="assignment-title">${escapeHtml(a.title)} ${statusPillHtml(a.status)}</h3>
-              <p class="assignment-meta">${escapeHtml(a.subject)} · ${escapeHtml(a.grade_level)} · ${a.page_count} pages · ${rate}/page · ${total} total</p>
-              <div class="row-actions">${downloadSource}</div>
+              <div class="card-top">
+                <h3 class="assignment-title">${escapeHtml(a.title)} ${statusPillHtml(a.status)} ${payoutLabel(a)}</h3>
+                <span class="earn">${formatCents(a.earnings_cents)}</span>
+              </div>
+              <p class="assignment-meta">${metaLine(a)}</p>
+              ${a.instructions && a.status === "accepted" ? `<p class="instructions">${escapeHtml(a.instructions)}</p>` : ""}
+              <div class="row-actions">${[downloadSource, downloadGraded].filter(Boolean).join(" · ")}</div>
               ${submitForm}
             </div>
           `;
@@ -114,7 +205,7 @@
           form.addEventListener("submit", (e) => submitGradedWork(e, form.dataset.submitId, form));
         });
       } catch (err) {
-        list.innerHTML = `<div class="msg error">${err.message}</div>`;
+        list.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
       }
     }
 
@@ -136,67 +227,20 @@
       }
     }
 
-    async function loadPayoutStatus() {
-      const el = document.getElementById("payout-status");
-      const btn = document.getElementById("payout-btn");
-      try {
-        const status = await apiGet("/api/payments/connect/status");
-        if (status.charges_enabled) {
-          el.textContent = "Payouts are set up.";
-          btn.style.display = "none";
-        } else if (status.connected) {
-          el.textContent = "Stripe onboarding was started but is not finished yet.";
-        } else {
-          el.textContent = "Payouts are not set up yet.";
-        }
-      } catch (err) {
-        el.textContent = err.message;
-        btn.disabled = true;
-      }
-    }
+    document.getElementById("match-only").addEventListener("change", renderOpen);
 
-    document.getElementById("payout-btn").addEventListener("click", async () => {
-      try {
-        const { url } = await apiPostJson("/api/payments/connect/start", {
-          return_url: window.location.href,
-          refresh_url: window.location.href,
-        });
-        window.location.href = url;
-      } catch (err) {
-        alert(err.message);
-      }
-    });
-
-    document.getElementById("check-btn").addEventListener("click", async (e) => {
-      e.target.disabled = true;
-      try {
-        await apiPostJson("/api/background-check/invite", {});
-        document.getElementById("check-status").textContent = "Invitation sent. Check your email for next steps.";
-      } catch (err) {
-        alert(err.message);
-        e.target.disabled = false;
-      }
-    });
-
-    function showCheckStatus(user) {
-      const el = document.getElementById("check-status");
-      const btn = document.getElementById("check-btn");
-      const status = user.background_check_status;
-      if (status === "clear") {
-        el.textContent = "Background check: clear.";
-        btn.style.display = "none";
-      } else if (status === "not_started") {
-        el.textContent = "Background check has not been started.";
-      } else {
-        el.textContent = "Background check status: " + status.replace("_", " ") + ".";
-        btn.style.display = "none";
-      }
-    }
-
-    requireRole("grade_angel").then((user) => {
+    requireRole("grade_angel").then(async (user) => {
       if (!user) return;
-      showCheckStatus(user);
-      loadPayoutStatus();
+      document.getElementById("greeting").textContent = "Welcome, " + user.full_name.split(" ")[0];
+      try {
+        const result = await apiGet("/api/grade-angel/setup");
+        setup = result.status;
+        profile = result.profile;
+      } catch {
+        // Leave setup as not ready; the accept endpoint checks again anyway.
+      }
+      renderSetup();
+      if (profile && profile.profile_completed_at) document.getElementById("match-only").checked = true;
       loadOpen();
       loadMine();
     });

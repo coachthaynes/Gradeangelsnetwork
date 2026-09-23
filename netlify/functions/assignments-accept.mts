@@ -2,8 +2,10 @@ import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
+import { getSetupStatus } from "../lib/grade-angel.mts";
 
-// A Grade Angel claims an open assignment. The WHERE clause checks
+// A Grade Angel claims an open assignment, but only once their setup is
+// finished (profile, background check, payouts). The WHERE clause checks
 // status = 'open' as part of the same update, so two Grade Angels racing
 // for the same assignment cannot both win it.
 export default async (req: Request) => {
@@ -25,6 +27,11 @@ export default async (req: Request) => {
   const assignmentId = Number(body.assignment_id);
   if (!Number.isInteger(assignmentId)) {
     return json({ error: "assignment_id is required" }, 400);
+  }
+
+  const setup = await getSetupStatus(session.id);
+  if (!setup?.ready) {
+    return json({ error: "Finish your Grade Angel setup before accepting assignments", setup }, 403);
   }
 
   const rows = await db.sql`

@@ -264,3 +264,136 @@ footer {
   font-size: 0.85rem;
 }
 footer .brand-line { color: var(--seafoam); font-weight: 600; }
+
+/* Grade Angel setup and dashboard */
+.eyebrow.dark { color: var(--seafoam-deep); margin-bottom: 0.5rem; }
+h2 { font-size: 1.35rem; }
+.card h2 { margin-bottom: 0.25rem; }
+
+.progress {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--seafoam-soft);
+  overflow: hidden;
+  margin-top: 1.5rem;
+}
+.progress-bar {
+  height: 100%;
+  width: 0;
+  background: var(--seafoam);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+#progress-text { margin: 0.5rem 0 1.5rem; }
+
+.step-head { display: flex; gap: 1rem; align-items: flex-start; }
+.step-head > div { flex: 1; }
+.step-head p { margin: 0; }
+.step-num {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  background: var(--black);
+  color: var(--seafoam);
+  font-weight: 700;
+}
+.step.complete .step-num { background: var(--seafoam); color: var(--black); }
+.step-state {
+  flex: none;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  background: #EDEDED;
+  color: var(--ink);
+}
+.step-state.done { background: var(--seafoam); color: var(--black); }
+
+fieldset { border: none; padding: 0; margin: 1.25rem 0 0; }
+legend { font-weight: 600; font-size: 0.92rem; padding: 0; margin-bottom: 0.5rem; }
+.sub-label { font-weight: 500; margin-top: 0.75rem; }
+.check-grid { display: grid; gap: 0.5rem; }
+@media (min-width: 640px) { .check-grid { grid-template-columns: repeat(2, 1fr); } }
+label.check {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  font-weight: 500;
+  cursor: pointer;
+}
+label.check input { width: 1.1rem; height: 1.1rem; flex: none; accent-color: var(--seafoam-deep); }
+.check-grid label.check {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.check-grid label.check:has(input:checked) { border-color: var(--seafoam-deep); background: var(--seafoam-soft); }
+label.check.agreement {
+  align-items: flex-start;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--bg-alt);
+  border-radius: 10px;
+  font-size: 0.92rem;
+}
+label.check.agreement input { margin-top: 0.2rem; }
+
+.ready-banner { background: var(--black); color: #fff; border-color: var(--black); }
+.ready-banner h2 { color: var(--seafoam); }
+
+.checklist { list-style: none; padding: 0; margin: 1rem 0 0; }
+.checklist li { display: flex; align-items: center; gap: 0.6rem; padding: 0.35rem 0; }
+.checklist li::before {
+  content: "";
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  border: 2px solid var(--ink-soft);
+  flex: none;
+}
+.checklist li.done { color: var(--ink-soft); text-decoration: line-through; }
+.checklist li.done::before {
+  border-color: var(--seafoam-deep);
+  background: var(--seafoam) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230B0B0B' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5L20 7'/%3E%3C/svg%3E") center / 70% no-repeat;
+}
+
+.stats { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin-bottom: 1rem; }
+.stat {
+  background: var(--black);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+}
+.stat-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(255, 255, 255, 0.7); }
+.stat-value { font-family: "Fraunces", Georgia, serif; font-size: 1.8rem; font-weight: 700; color: var(--seafoam); }
+
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.section-head .section-title { margin-bottom: 0.75rem; }
+label.check.toggle { font-size: 0.9rem; color: var(--ink-soft); }
+
+.card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+.earn {
+  flex: none;
+  font-weight: 700;
+  color: var(--seafoam-deep);
+  background: var(--seafoam-soft);
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+.instructions {
+  margin: 0 0 0.5rem;
+  padding: 0.6rem 0.9rem;
+  border-left: 3px solid var(--seafoam);
+  background: var(--bg-alt);
+  font-size: 0.92rem;
+}

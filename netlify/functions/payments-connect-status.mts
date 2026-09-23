@@ -15,22 +15,26 @@ export default async (req: Request) => {
   if (!session) return json({ error: "Sign in required" }, 401);
 
   const [user] = await db.sql`
-    SELECT stripe_account_id, stripe_charges_enabled FROM users WHERE id = ${session.id}
+    SELECT stripe_account_id, stripe_payouts_ready FROM users WHERE id = ${session.id}
   `;
   if (!user?.stripe_account_id) {
-    return json({ connected: false, charges_enabled: false }, 200);
+    return json({ connected: false, payouts_ready: false }, 200);
   }
 
   try {
     const stripe = getStripe();
     const account = await stripe.accounts.retrieve(user.stripe_account_id);
-    const chargesEnabled = Boolean(account.charges_enabled);
+    // Grade Angels only receive transfers, so "ready" means the transfers
+    // capability is active and Stripe will pay out to their bank.
+    // charges_enabled is not used: it can stay false on these accounts.
+    const payoutsReady = account.capabilities?.transfers === "active" && Boolean(account.payouts_enabled);
+    const detailsSubmitted = Boolean(account.details_submitted);
 
-    if (chargesEnabled !== user.stripe_charges_enabled) {
-      await db.sql`UPDATE users SET stripe_charges_enabled = ${chargesEnabled} WHERE id = ${session.id}`;
+    if (payoutsReady !== user.stripe_payouts_ready) {
+      await db.sql`UPDATE users SET stripe_payouts_ready = ${payoutsReady} WHERE id = ${session.id}`;
     }
 
-    return json({ connected: true, charges_enabled: chargesEnabled }, 200);
+    return json({ connected: true, details_submitted: detailsSubmitted, payouts_ready: payoutsReady }, 200);
   } catch (err) {
     if (err instanceof StripeNotConfiguredError) {
       return json({ error: err.message }, 501);

@@ -60,10 +60,10 @@ export default async (req: Request) => {
   let payoutNote = "Payout already sent earlier.";
   if (payment.payout_status !== "transferred" && assignment.grade_angel_id) {
     const [gradeAngel] = await db.sql`
-      SELECT stripe_account_id, stripe_charges_enabled FROM users WHERE id = ${assignment.grade_angel_id}
+      SELECT stripe_account_id, stripe_payouts_ready FROM users WHERE id = ${assignment.grade_angel_id}
     `;
 
-    if (!gradeAngel?.stripe_account_id || !gradeAngel.stripe_charges_enabled) {
+    if (!gradeAngel?.stripe_account_id || !gradeAngel.stripe_payouts_ready) {
       payoutNote = "The Grade Angel has not finished setting up payouts yet, their share is on hold until they do.";
     } else {
       try {

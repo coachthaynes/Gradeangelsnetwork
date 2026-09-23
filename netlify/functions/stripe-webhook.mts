@@ -1,4 +1,4 @@
-import type { Config } from "@netlify/functions";
+import type { Config, Context } from "@netlify/functions";
 import { db } from "../lib/db.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 import { getStripe, StripeNotConfiguredError } from "../lib/stripe.mts";
@@ -7,14 +7,20 @@ import { getStripe, StripeNotConfiguredError } from "../lib/stripe.mts";
 // webhook, there is no signed in person here, Stripe proves itself with a
 // signature instead, checked against STRIPE_WEBHOOK_SECRET (from the
 // webhook's settings in the Stripe dashboard, not the same secret as the
-// API key). Until that is set, the signature check is skipped with a note,
-// so local testing is not blocked on having it yet.
-export default async (req: Request) => {
+// API key). Marking a payment paid is what later releases money to a
+// Grade Angel, so on a real deploy an unsigned request is always refused.
+// Only local `netlify dev` may skip the check, so testing is not blocked on
+// having the secret yet.
+export default async (req: Request, context: Context) => {
   if (req.method !== "POST") return methodNotAllowed(["POST"]);
 
   const rawBody = await req.text();
   const secret = Netlify.env.get("STRIPE_WEBHOOK_SECRET");
   const signature = req.headers.get("stripe-signature") || "";
+
+  if (!secret && context.deploy?.context !== "dev") {
+    return json({ error: "STRIPE_WEBHOOK_SECRET is not set, so this webhook cannot verify requests" }, 503);
+  }
 
   let event: any;
   try {

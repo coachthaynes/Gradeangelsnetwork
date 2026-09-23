@@ -1,18 +1,23 @@
-import type { Config } from "@netlify/functions";
+import type { Config, Context } from "@netlify/functions";
 import crypto from "node:crypto";
 import { db } from "../lib/db.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 
 // Checkr calls this when a report's status changes. It is not a signed-in
 // person, so there is no session check, only a signature check against
-// CHECKR_WEBHOOK_SECRET (set this once the Checkr account's webhook is
-// configured; until then the signature check is skipped with a note, so
-// local testing is not blocked on having that secret yet).
-export default async (req: Request) => {
+// CHECKR_WEBHOOK_SECRET. A "clear" result here is what lets a Grade Angel
+// start taking student work, so on a real deploy an unsigned request is
+// always refused. Only local `netlify dev` may skip the check, so testing
+// is not blocked on having the secret yet.
+export default async (req: Request, context: Context) => {
   if (req.method !== "POST") return methodNotAllowed(["POST"]);
 
   const rawBody = await req.text();
   const secret = Netlify.env.get("CHECKR_WEBHOOK_SECRET");
+
+  if (!secret && context.deploy?.context !== "dev") {
+    return json({ error: "CHECKR_WEBHOOK_SECRET is not set, so this webhook cannot verify requests" }, 503);
+  }
 
   if (secret) {
     const signature = req.headers.get("x-checkr-signature") || "";

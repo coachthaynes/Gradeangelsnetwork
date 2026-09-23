@@ -19,6 +19,13 @@ export interface UserRow {
   background_check_status: string;
   stripe_account_id: string | null;
   stripe_charges_enabled: boolean;
+  stripe_payouts_ready: boolean;
+  bio: string | null;
+  qualifications: string | null;
+  grade_levels: string | null;
+  assignment_types: string | null;
+  confidentiality_agreed_at: string | null;
+  profile_completed_at: string | null;
   created_at: string;
 }
 

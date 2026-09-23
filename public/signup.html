@@ -70,7 +70,8 @@
           school_or_org: document.getElementById("school_or_org").value,
           subjects: document.getElementById("subjects").value,
         });
-        window.location.href = user.role === "teacher" ? "/dashboard-teacher.html" : "/dashboard-grade-angel.html";
+        // New Grade Angels go straight into setup; teachers can post right away.
+        window.location.href = user.role === "teacher" ? "/dashboard-teacher.html" : "/grade-angel-setup.html";
       } catch (err) {
         showMessage(msg, err.message, "error");
         submitBtn.disabled = false;

@@ -3,6 +3,7 @@ import { db } from "../lib/db.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 import { getStripe, StripeNotConfiguredError } from "../lib/stripe.mts";
+import { PLATFORM_FEE_RATE } from "../lib/grade-angel.mts";
 
 // A teacher pays for an assignment once a Grade Angel has accepted it,
 // through a Stripe hosted Checkout page. The Grade Angel's own payout does
@@ -49,7 +50,7 @@ export default async (req: Request) => {
   }
 
   const amountCents = assignment.page_count * assignment.rate_per_page_cents;
-  const platformFeeCents = Math.round(amountCents * 0.2);
+  const platformFeeCents = Math.round(amountCents * PLATFORM_FEE_RATE);
 
   try {
     const stripe = getStripe();
