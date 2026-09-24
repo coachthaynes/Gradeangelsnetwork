@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import type { UserRole } from "./db.mts";
@@ -9,6 +10,12 @@ export const SESSION_COOKIE = "gan_session";
 // the deploy step for this project takes care of.
 function getSecret(): string {
   return Netlify.env.get("SESSION_SECRET") || "dev-only-secret-change-me";
+}
+
+// A short signature for links that must not be guessable, such as the
+// unsubscribe link in emails.
+export function signToken(value: string): string {
+  return crypto.createHmac("sha256", getSecret()).update(value).digest("hex").slice(0, 32);
 }
 
 export interface SessionPayload {

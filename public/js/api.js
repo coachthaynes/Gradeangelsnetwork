@@ -146,3 +146,40 @@ function payoutPillHtml(a) {
   if (a.payout_status === "held") return '<a class="pill status-cancelled" href="/grade-angel-setup.html">Payout on hold: finish Stripe setup</a>';
   return '<span class="pill status-accepted">Payout on the way</span>';
 }
+
+// Remembers where a visitor first came from, so sign ups and checklist
+// requests can be credited to TikTok, a flyer, a newsletter, and so on.
+// Reads utm_source, utm_medium, and utm_campaign from links (for example
+// ?utm_source=tiktok), or the site that linked here. Kept for 60 days.
+const ATTRIBUTION_KEY = "ga_attribution";
+(function captureAttribution() {
+  try {
+    const params = new URLSearchParams(location.search);
+    const source = params.get("utm_source") || params.get("ref");
+    const ref = document.referrer && !document.referrer.startsWith(location.origin) ? document.referrer : "";
+    const saved = JSON.parse(localStorage.getItem(ATTRIBUTION_KEY) || "null");
+    const fresh = saved && Date.now() - saved.at < 60 * 864e5;
+    if (source || (!fresh && ref)) {
+      let fromSite = "";
+      try { fromSite = ref ? new URL(ref).hostname.replace(/^www\./, "") : ""; } catch {}
+      localStorage.setItem(ATTRIBUTION_KEY, JSON.stringify({
+        source: (source || fromSite).slice(0, 80),
+        medium: (params.get("utm_medium") || (source ? "" : "referral")).slice(0, 80),
+        campaign: (params.get("utm_campaign") || "").slice(0, 120),
+        referrer: ref.slice(0, 300),
+        at: Date.now(),
+      }));
+    }
+  } catch {
+    // Private browsing can block storage; attribution is optional.
+  }
+})();
+
+function getAttribution() {
+  try {
+    const a = JSON.parse(localStorage.getItem(ATTRIBUTION_KEY) || "null");
+    return a ? { source: a.source, medium: a.medium, campaign: a.campaign, referrer: a.referrer } : {};
+  } catch {
+    return {};
+  }
+}

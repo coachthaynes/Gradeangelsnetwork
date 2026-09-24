@@ -3,6 +3,10 @@ import { db } from "../lib/db.mts";
 import { hashPassword, signSession, sessionCookieHeader } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 import { isMasterEmail } from "../lib/staff.mts";
+import { sendNow } from "../lib/drips.mts";
+
+// Where the person came from (utm tags or the linking site), kept short.
+const clip = (v: unknown, n: number) => (v ? String(v).trim().slice(0, n) : null);
 
 const ALLOWED_ROLES = new Set(["teacher", "grade_angel"]);
 
@@ -42,11 +46,19 @@ export default async (req: Request) => {
   const staffLevel = owner ? "owner" : null;
 
   const [user] = await db.sql`
-    INSERT INTO users (email, password_hash, role, full_name, school_or_org, subjects, staff_level, staff_approved_at)
+    INSERT INTO users (email, password_hash, role, full_name, school_or_org, subjects, staff_level, staff_approved_at,
+                       signup_source, signup_medium, signup_campaign, signup_referrer)
     VALUES (${email}, ${passwordHash}, ${finalRole}, ${fullName}, ${schoolOrOrg}, ${subjects}, ${staffLevel},
-            ${owner ? new Date().toISOString() : null})
+            ${owner ? new Date().toISOString() : null},
+            ${clip(body.source, 80)}, ${clip(body.medium, 80)}, ${clip(body.campaign, 120)}, ${clip(body.referrer, 300)})
     RETURNING id, email, role, full_name, school_or_org, subjects, background_check_status, staff_level, created_at
   `;
+
+  // Welcome email right away; the rest of the campaign follows on its own.
+  if (finalRole === "teacher" || finalRole === "grade_angel") {
+    await sendNow(finalRole === "teacher" ? "teacher_welcome" : "angel_welcome",
+      { kind: "user", id: user.id, email: user.email, name: user.full_name });
+  }
 
   const token = signSession({ id: user.id, email: user.email, role: user.role, full_name: user.full_name });
 

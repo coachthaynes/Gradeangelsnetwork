@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Printable flyers, Grade Angels Network</title>
+  <meta name="robots" content="noindex" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/css/app.css" />
+  <style>
+    body { background: #E9EEEC; }
+    .controls { max-width: 8.5in; margin: 1.5rem auto 1rem; padding: 0 1rem; display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+    .controls .btn { margin-top: 0; }
+    .flyer {
+      width: 8.5in; min-height: 11in; margin: 0 auto 2rem; background: #fff; color: #0B0B0B;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: flex; flex-direction: column; overflow: hidden;
+    }
+    .f-top { background: #0B0B0B; color: #fff; padding: 0.6in 0.7in 0.5in; position: relative; }
+    .f-top::after { content: ""; position: absolute; right: -1.2in; top: -1.2in; width: 4in; height: 4in; border-radius: 50%; background: radial-gradient(circle, rgba(95,211,179,0.45), rgba(95,211,179,0) 70%); }
+    .f-brand { display: flex; align-items: center; gap: 0.6rem; font-family: "Fraunces", Georgia, serif; font-weight: 700; font-size: 18pt; position: relative; z-index: 1; }
+    .f-mark { width: 0.55in; height: 0.55in; border-radius: 50%; background: #5FD3B3; color: #0B0B0B; display: grid; place-items: center; font-size: 14pt; }
+    .f-top h1 { color: #fff; font-size: 44pt; line-height: 1.05; margin: 0.35in 0 0.15in; position: relative; z-index: 1; }
+    .f-top h1 em { font-style: normal; color: #5FD3B3; }
+    .f-top p { font-size: 15pt; color: rgba(255,255,255,0.85); margin: 0; position: relative; z-index: 1; max-width: 6in; }
+    .f-body { padding: 0.5in 0.7in; flex: 1; display: flex; flex-direction: column; gap: 0.3in; }
+    .f-points { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.2in; }
+    .f-points li { display: flex; gap: 0.2in; align-items: flex-start; font-size: 14pt; }
+    .f-points b { display: block; font-size: 15pt; }
+    .f-check { flex: none; width: 0.45in; height: 0.45in; border-radius: 50%; background: #5FD3B3; display: grid; place-items: center; font-weight: 700; font-size: 16pt; }
+    .f-cta { margin-top: auto; background: #DDF6EE; border-radius: 16px; padding: 0.3in 0.35in; display: flex; justify-content: space-between; align-items: center; gap: 0.3in; }
+    .f-cta strong { font-family: "Fraunces", Georgia, serif; font-size: 20pt; display: block; }
+    .f-cta span { font-size: 13pt; }
+    .f-url { font-size: 15pt; font-weight: 700; color: #1E8C6E; }
+    .f-qr { flex: none; width: 1.6in; height: 1.6in; background: #fff; border-radius: 10px; padding: 0.1in; }
+    .f-qr svg { width: 100%; height: 100%; display: block; }
+    .f-foot { background: #0B0B0B; color: #9AA3A0; font-size: 10pt; padding: 0.15in 0.7in; }
+    .hidden { display: none; }
+    @media print {
+      @page { size: letter; margin: 0; }
+      body { background: #fff; }
+      .controls, .nav { display: none !important; }
+      .flyer { box-shadow: none; margin: 0; width: 100%; min-height: 100vh; }
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+    @media (max-width: 8.8in) { .flyer { transform-origin: top left; } }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <strong>Printable flyers:</strong>
+    <button class="btn small" type="button" data-show="teacher">Teacher lounge flyer</button>
+    <button class="btn small secondary" type="button" data-show="angel">Grade Angel recruiting flyer</button>
+    <button class="btn small" type="button" onclick="window.print()">Print this flyer</button>
+    <p class="muted" style="width:100%;margin:0">Each QR code links to the website tagged as coming from this flyer, so the admin Marketing tab shows how many sign ups the flyers bring in.</p>
+  </div>
+
+  <article class="flyer" id="flyer-teacher">
+    <div class="f-top">
+      <div class="f-brand"><span class="f-mark">GA</span>Grade Angels Network</div>
+      <h1>Midterm stack?<br /><em>Hand it off.</em></h1>
+      <p>Background checked graders use your answer key and rubric, so you can take back your evenings and weekends.</p>
+    </div>
+    <div class="f-body">
+      <ul class="f-points">
+        <li><span class="f-check">✓</span><div><b>Snap a photo of the stack</b>Post it in about 3 minutes from your phone.</div></li>
+        <li><span class="f-check">✓</span><div><b>You set the rate per page</b>Quizzes, worksheets, and essays. Back in 24 hours to 4 days.</div></li>
+        <li><span class="f-check">✓</span><div><b>Vetted and private</b>Every Grade Angel is background checked and signs a confidentiality agreement.</div></li>
+        <li><span class="f-check">✓</span><div><b>You approve before anyone is paid</b>Review the graded work, then mark it complete.</div></li>
+      </ul>
+      <div class="f-cta">
+        <div><strong>Take back your Sunday.</strong><span>Create your free account at</span><br /><span class="f-url">grade-angels-network.netlify.app</span></div>
+        <div class="f-qr" id="qr-teacher"></div>
+      </div>
+    </div>
+    <div class="f-foot">Grade Angels Network · Helping teachers get their evenings back</div>
+  </article>
+
+  <article class="flyer hidden" id="flyer-angel">
+    <div class="f-top">
+      <div class="f-brand"><span class="f-mark">GA</span>Grade Angels Network</div>
+      <h1>Retired teacher?<br /><em>You're still needed.</em></h1>
+      <p>Earn flexible income grading assignments for today's busy teachers. From home, on your schedule.</p>
+    </div>
+    <div class="f-body">
+      <ul class="f-points">
+        <li><span class="f-check">✓</span><div><b>Paid per page</b>Keep 80% of every assignment, paid once the teacher approves.</div></li>
+        <li><span class="f-check">✓</span><div><b>Choose your work</b>Pick your subjects, grade levels, and the assignments you accept.</div></li>
+        <li><span class="f-check">✓</span><div><b>Perfect for</b>Retired and substitute teachers, graduate students in education, English, and STEM, and tutors.</div></li>
+        <li><span class="f-check">✓</span><div><b>Make a real difference</b>Every stack you grade gives a teacher their evening back.</div></li>
+      </ul>
+      <div class="f-cta">
+        <div><strong>Become a Grade Angel.</strong><span>Apply free at</span><br /><span class="f-url">grade-angels-network.netlify.app</span></div>
+        <div class="f-qr" id="qr-angel"></div>
+      </div>
+    </div>
+    <div class="f-foot">Grade Angels Network · Background check required</div>
+  </article>
+
+  <script src="/vendor/qrcode/qrcode.js"></script>
+  <script>
+    // Real QR codes pointing at this site, tagged so sign ups are credited
+    // to the printed flyer.
+    function drawQr(id, path) {
+      const qr = qrcode(0, "M");
+      qr.addData(location.origin + path);
+      qr.make();
+      document.getElementById(id).innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+    }
+    drawQr("qr-teacher", "/?utm_source=flyer&utm_medium=print&utm_campaign=teacher_lounge");
+    drawQr("qr-angel", "/signup.html?role=grade_angel&utm_source=flyer&utm_medium=print&utm_campaign=angel_recruiting");
+    document.querySelectorAll("[data-show]").forEach((b) => b.addEventListener("click", () => {
+      document.getElementById("flyer-teacher").classList.toggle("hidden", b.dataset.show !== "teacher");
+      document.getElementById("flyer-angel").classList.toggle("hidden", b.dataset.show !== "angel");
+    }));
+  </script>
+</body>
+</html>

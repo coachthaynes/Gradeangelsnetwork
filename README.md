@@ -154,3 +154,32 @@ Every staff action goes to `admin_actions`, shown in the Activity log.
 
 Suspended accounts cannot sign in, are signed out on their next page load,
 and are refused by every endpoint that changes anything.
+
+## Marketing
+
+Built from the 30 day marketing plan. Everything is managed from the admin
+Marketing tab.
+
+* **Email campaigns** (`netlify/lib/drips.mts`): a 4 email teacher series, a 5
+  email Grade Angel series, and a 2 email checklist series. Timing rules are
+  in code; the words are edited in the admin page, with a live preview and a
+  "send me a test" button. The hourly `email-campaigns` job sends what is
+  due, each email at most once per person, and only to people who joined
+  after campaigns started. Welcome and checklist emails go out immediately.
+* **Sending** uses Resend (`netlify/lib/email.mts`). Set `RESEND_API_KEY` and
+  `EMAIL_FROM` (an address on a domain verified in Resend) in Netlify, and
+  fill in the mailing address under Email settings; marketing emails must
+  show one. Until then emails are simply not sent.
+* **Unsubscribe**: every email has a signed unsubscribe link
+  (`/api/email/unsubscribe`) and a List-Unsubscribe header.
+* **Free checklist**: homepage form (`/api/leads`), printable page at
+  `/checklist.html`, and a leads list with spreadsheet export.
+* **Source tracking**: `utm_source`, `utm_medium`, and `utm_campaign` on any
+  link (or the referring site) are remembered for 60 days and saved with
+  sign ups and leads. The Marketing tab has a tracked link builder.
+* **Content calendar**: posts and outreach tasks with ready captions, for
+  scheduling in Buffer.
+* **Flyers**: `/flyer.html`, a teacher lounge flyer and a Grade Angel
+  recruiting flyer, each with a QR code tagged `utm_source=flyer`.
+
+Left out on purpose: the plan's $15 discount codes and referral credits.

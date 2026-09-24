@@ -24,6 +24,7 @@
         <a href="#assignments" data-tab="assignments">Assignments</a>
         <a href="#payouts" data-tab="payouts">Payouts</a>
         <a href="#reviews" data-tab="reviews">Reviews</a>
+        <a href="#marketing" data-tab="marketing">Marketing</a>
         <a href="#staff" data-tab="staff">Staff</a>
         <a href="#master" data-tab="master" id="menu-master" hidden>Master admin</a>
         <a href="#activity" data-tab="activity">Activity log</a>
@@ -123,6 +124,94 @@
           <button class="btn small" type="submit">Filter</button>
         </form>
         <div id="rev-list"></div>
+      </section>
+
+      <!-- Marketing -->
+      <section class="tab" id="tab-marketing" hidden>
+        <h1>Marketing</h1>
+        <div class="chips" id="mk-chips" role="tablist" aria-label="Marketing sections">
+          <button type="button" class="chip active" data-mk="overview">Overview</button>
+          <button type="button" class="chip" data-mk="campaigns">Email campaigns</button>
+          <button type="button" class="chip" data-mk="calendar">Content calendar</button>
+          <button type="button" class="chip" data-mk="leads">Leads</button>
+          <button type="button" class="chip" data-mk="settings">Email settings</button>
+        </div>
+
+        <div class="mk-pane" id="mk-overview">
+          <div id="mk-connect"></div>
+          <div class="tiles" id="mk-tiles"></div>
+          <div class="grid admin-two">
+            <div class="card">
+              <h2>Where people come from</h2>
+              <p class="muted">Based on the links people used to reach the site. Add <code>?utm_source=tiktok</code> (or instagram, facebook, flyer, newsletter) to every link you share.</p>
+              <div class="table-wrap flat"><table class="admin-table" id="mk-sources"></table></div>
+            </div>
+            <div class="card">
+              <h2>Link builder</h2>
+              <p class="muted">Make a tracked link to paste into posts, bios, and emails.</p>
+              <label for="lb-page">Page</label>
+              <select id="lb-page">
+                <option value="/">Homepage</option>
+                <option value="/#checklist">Free checklist form</option>
+                <option value="/signup.html">Teacher sign up</option>
+                <option value="/signup.html?role=grade_angel">Grade Angel sign up</option>
+              </select>
+              <label for="lb-source">Where it will be shared</label>
+              <select id="lb-source">
+                <option>tiktok</option><option>instagram</option><option>facebook</option><option>linkedin</option>
+                <option>newsletter</option><option>flyer</option><option>email</option><option>podcast</option>
+              </select>
+              <label for="lb-campaign">Campaign name (optional)</label>
+              <input id="lb-campaign" placeholder="midterms" />
+              <div class="copy-row"><input id="lb-out" readonly aria-label="Tracked link" /><button class="btn small" type="button" id="lb-copy">Copy</button></div>
+              <p class="muted"><a href="/flyer.html" target="_blank" rel="noopener">Open the printable flyers</a> · <a href="/checklist.html" target="_blank" rel="noopener">View the free checklist</a></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="mk-pane" id="mk-campaigns" hidden>
+          <p class="muted">These emails go out on their own, based on what each person has or has not done yet. They only reach people who joined after campaigns started, and never the same email twice. Edit the words, turn any email off, or send yourself a test.</p>
+          <div class="row-actions"><button class="btn small secondary" type="button" id="mk-run">Send anything due now</button><span class="muted" id="mk-run-out"></span></div>
+          <div id="mk-templates"></div>
+          <div class="card"><h2>Recent sends</h2><div class="table-wrap flat"><table class="admin-table" id="mk-recent"></table></div></div>
+        </div>
+
+        <div class="mk-pane" id="mk-calendar" hidden>
+          <div class="section-head">
+            <p class="muted">Your 30 day plan of posts and outreach. Copy a caption, paste it into Buffer to schedule it, then mark it scheduled.</p>
+            <div class="row-actions">
+              <a class="btn small secondary" href="https://publish.buffer.com" target="_blank" rel="noopener">Open Buffer</a>
+              <button class="btn small" type="button" id="mk-new-post">Add a post</button>
+            </div>
+          </div>
+          <div class="chips" id="cal-filter"></div>
+          <div id="mk-posts"></div>
+        </div>
+
+        <div class="mk-pane" id="mk-leads" hidden>
+          <div class="section-head">
+            <p class="muted">People who asked for the free grading checklist.</p>
+            <a class="btn small secondary" id="mk-leads-csv" href="/api/admin/marketing?view=leads&format=csv">Download spreadsheet</a>
+          </div>
+          <div class="table-wrap"><table class="admin-table" id="mk-leads-table"></table></div>
+        </div>
+
+        <div class="mk-pane" id="mk-settings" hidden>
+          <div class="card narrow-card">
+            <h2>Email settings</h2>
+            <form id="mk-settings-form">
+              <label for="set-from">From name</label>
+              <input id="set-from" placeholder="The Grade Angels Team" />
+              <label for="set-reply">Reply to address</label>
+              <input id="set-reply" type="email" placeholder="help@gradeangels.net" />
+              <p class="muted">Where replies go. Several emails invite people to reply, so use an inbox someone reads.</p>
+              <label for="set-address">Mailing address</label>
+              <input id="set-address" placeholder="Street, city, state, ZIP" />
+              <p class="muted">The law (CAN SPAM) requires a real postal address in every marketing email. A P.O. box works.</p>
+              <button class="btn" type="submit">Save settings</button>
+            </form>
+          </div>
+        </div>
       </section>
 
       <!-- Staff -->
@@ -505,6 +594,358 @@
         loaders.reviews();
       } catch (err) {
         alert(err.message);
+      }
+    });
+
+    // ---------- Marketing ----------
+    const AUDIENCE = { teacher: "Teachers", grade_angel: "Grade Angels", lead: "Checklist leads" };
+    const POST_STATUS = ["idea", "ready", "scheduled", "posted"];
+    let mkPane = "overview";
+    let mkCanEdit = false;
+    let calendar = [];
+    let calFilter = "all";
+    let templatesByKey = {};
+
+    function showMkPane(name) {
+      mkPane = name;
+      document.querySelectorAll("#mk-chips .chip").forEach((c) => c.classList.toggle("active", c.dataset.mk === name));
+      document.querySelectorAll(".mk-pane").forEach((p) => (p.hidden = p.id !== "mk-" + name));
+      return mkLoaders[name]().catch((err) => flash(err.message, "error"));
+    }
+    document.getElementById("mk-chips").addEventListener("click", (e) => {
+      const c = e.target.closest("[data-mk]");
+      if (c) showMkPane(c.dataset.mk);
+    });
+    let mkReady = false;
+    loaders.marketing = async () => {
+      // The overview tells us whether this person may edit; load it first.
+      if (!mkReady) {
+        await mkLoaders.overview();
+        mkReady = true;
+      }
+      return showMkPane(mkPane);
+    };
+
+    const mkLoaders = {};
+    mkLoaders.overview = async () => {
+      const d = await apiGet("/api/admin/marketing?view=overview");
+      mkCanEdit = d.can_edit;
+      document.getElementById("mk-connect").innerHTML = d.email_connected
+        ? ""
+        : `<div class="card setup-steps">
+             <h2>Connect email to turn campaigns on</h2>
+             <p class="muted">Campaign emails are written and ready, but nothing sends until email is connected. People who sign up meanwhile still get their emails once it is, as long as it is within a few days.</p>
+             <ol>
+               <li>Create a free account at <a href="https://resend.com" target="_blank" rel="noopener">resend.com</a>.</li>
+               <li>In Resend, add and verify your domain (for example gradeangels.net) by adding the DNS records it shows you.</li>
+               <li>Create an API key in Resend.</li>
+               <li>In Netlify, go to Project configuration, then Environment variables, and add <code>RESEND_API_KEY</code> (the key) and <code>EMAIL_FROM</code> (like hello@gradeangels.net).</li>
+               <li>Fill in the mailing address under Email settings, then trigger a new deploy.</li>
+             </ol>
+           </div>`;
+      const c = d.counts;
+      document.getElementById("mk-tiles").innerHTML = [
+        statTileHtml("inbox", "Checklist leads", c.leads),
+        statTileHtml("star", "New leads, 30 days", c.leads_30d),
+        statTileHtml("check", "Emails sent, 30 days", c.emails_30d),
+        statTileHtml("clock", "Failed sends, 30 days", c.failed_30d, c.failed_30d ? "hot" : ""),
+        statTileHtml("pages", "Unsubscribed", c.unsubscribed),
+      ].join("");
+      document.getElementById("mk-sources").innerHTML = `
+        <thead><tr><th>Source</th><th>Teachers</th><th>Grade Angels</th><th>Leads</th></tr></thead>
+        <tbody>${d.sources.map((x) => `<tr><td><strong>${escapeHtml(x.source)}</strong></td><td>${x.teachers}</td><td>${x.grade_angels}</td><td>${x.leads}</td></tr>`).join("")
+          || '<tr><td colspan="4" class="muted">No sign ups yet.</td></tr>'}</tbody>`;
+      const set = d.settings;
+      document.getElementById("set-from").value = set.email_from_name;
+      document.getElementById("set-reply").value = set.email_reply_to;
+      document.getElementById("set-address").value = set.email_mailing_address;
+      document.getElementById("mk-leads-csv").hidden = !mkCanEdit;
+      document.querySelectorAll("#mk-settings-form input, #mk-settings-form button").forEach((el) => (el.disabled = !mkCanEdit));
+      document.getElementById("mk-new-post").hidden = !mkCanEdit;
+      document.getElementById("mk-run").hidden = !mkCanEdit;
+      buildLink();
+    };
+
+    function buildLink() {
+      const page = document.getElementById("lb-page").value;
+      const params = new URLSearchParams();
+      params.set("utm_source", document.getElementById("lb-source").value);
+      const campaign = document.getElementById("lb-campaign").value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
+      if (campaign) params.set("utm_campaign", campaign);
+      const [path, hash] = page.split("#");
+      const joiner = path.includes("?") ? "&" : "?";
+      document.getElementById("lb-out").value = `${location.origin}${path}${joiner}${params}${hash ? "#" + hash : ""}`;
+    }
+    ["lb-page", "lb-source", "lb-campaign"].forEach((id) => document.getElementById(id).addEventListener("input", buildLink));
+    document.getElementById("lb-copy").addEventListener("click", () => copyText(document.getElementById("lb-out").value, "Link copied."));
+
+    function copyText(text, done) {
+      navigator.clipboard.writeText(text).then(() => flash(done), () => {
+        prompt("Copy this:", text);
+      });
+    }
+
+    mkLoaders.campaigns = async () => {
+      const d = await apiGet("/api/admin/marketing?view=campaigns");
+      templatesByKey = Object.fromEntries(d.templates.map((t) => [t.key, t]));
+      const groups = ["teacher", "grade_angel", "lead"];
+      document.getElementById("mk-templates").innerHTML = groups.map((g) => `
+        <div class="card">
+          <h2>${AUDIENCE[g]}</h2>
+          <ol class="campaign-steps">${d.templates.filter((t) => t.audience === g).map((t) => `
+            <li class="${t.enabled ? "" : "off"}">
+              <div class="cs-main">
+                <span class="cs-when">${escapeHtml(t.trigger_text)}</span>
+                <strong>${escapeHtml(t.subject)}</strong>
+                <span class="muted">${t.sent} sent${t.failed ? ` · <span class="danger-text">${t.failed} failed</span>` : ""}${t.last_sent_at ? ` · last ${fmtDate(t.last_sent_at)}` : ""}${t.updated_by_name ? ` · edited by ${escapeHtml(t.updated_by_name)}` : ""}</span>
+              </div>
+              <div class="row-actions">
+                <button class="btn small secondary" type="button" data-tpl-open="${t.key}">${mkCanEdit ? "Edit" : "View"}</button>
+                ${mkCanEdit ? `<label class="switch" title="${t.enabled ? "On" : "Off"}"><input type="checkbox" data-tpl-toggle="${t.key}" ${t.enabled ? "checked" : ""} /><span>${t.enabled ? "On" : "Off"}</span></label>` : `<span class="pill">${t.enabled ? "On" : "Off"}</span>`}
+              </div>
+            </li>`).join("")}</ol>
+        </div>`).join("");
+      document.getElementById("mk-recent").innerHTML = `
+        <thead><tr><th>When</th><th>Email</th><th>To</th><th>Result</th></tr></thead>
+        <tbody>${d.recent.map((x) => `<tr><td>${formatDateTime(x.created_at)}</td><td>${escapeHtml(templatesByKey[x.template_key]?.name || x.template_key)}</td>
+          <td>${escapeHtml(x.to_email)}</td><td>${x.status === "sent" ? '<span class="pill status-completed">Sent</span>' : x.status === "test" ? '<span class="pill">Test</span>' : `<span class="pill status-cancelled">Failed</span> <span class="muted small-text">${escapeHtml(x.error || "")}</span>`}</td></tr>`).join("")
+          || '<tr><td colspan="4" class="muted">Nothing sent yet.</td></tr>'}</tbody>`;
+    };
+
+    document.getElementById("mk-templates").addEventListener("change", async (e) => {
+      const t = e.target.closest("[data-tpl-toggle]");
+      if (!t) return;
+      try {
+        await apiPostJson("/api/admin/marketing", { action: "toggle_template", key: t.dataset.tplToggle, enabled: t.checked });
+        mkLoaders.campaigns();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+    document.getElementById("mk-templates").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-tpl-open]");
+      if (b) openTemplateEditor(templatesByKey[b.dataset.tplOpen]);
+    });
+    document.getElementById("mk-run").addEventListener("click", async (e) => {
+      e.target.disabled = true;
+      try {
+        const r = await apiPostJson("/api/admin/marketing", { action: "run_now" });
+        document.getElementById("mk-run-out").textContent = r.skipped_reason || `${r.sent} sent, ${r.failed} failed.`;
+        mkLoaders.campaigns();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        e.target.disabled = false;
+      }
+    });
+
+    function openTemplateEditor(t) {
+      const dialog = document.getElementById("user-dialog");
+      const ro = mkCanEdit ? "" : "readonly";
+      dialog.innerHTML = `
+        <div class="pad">
+          <div class="user-head"><div><h2>${escapeHtml(t.name)}</h2><span class="muted">${AUDIENCE[t.audience]} · ${escapeHtml(t.trigger_text)}</span></div>
+            <button type="button" class="btn small ghost close-x" data-close>Close</button></div>
+          <div class="editor-grid">
+            <div>
+              <label for="tp-subject">Subject</label>
+              <input id="tp-subject" value="${escapeHtml(t.subject)}" ${ro} />
+              <label for="tp-body">Message</label>
+              <textarea id="tp-body" rows="16" ${ro}>${escapeHtml(t.body)}</textarea>
+              <p class="muted small-text">Blank line between paragraphs. Start a line with * for a bullet or 1. for a numbered step. **Bold**. {{first_name}} becomes the person's first name.</p>
+              <div class="grid cols-2">
+                <div><label for="tp-cta">Button text</label><input id="tp-cta" value="${escapeHtml(t.cta_label || "")}" ${ro} /></div>
+                <div><label for="tp-path">Button link</label><input id="tp-path" value="${escapeHtml(t.cta_path || "")}" ${ro} /></div>
+              </div>
+              ${mkCanEdit ? `<div class="row-actions">
+                <button class="btn" type="button" data-tp="save">Save</button>
+                <button class="btn secondary" type="button" data-tp="test">Send me a test</button>
+              </div>` : ""}
+              <div id="tp-msg" class="msg" style="display:none"></div>
+            </div>
+            <div>
+              <label>Preview</label>
+              <iframe id="tp-preview" class="email-preview" title="Email preview"></iframe>
+            </div>
+          </div>
+        </div>`;
+      if (!dialog.open) dialog.showModal();
+      dialog.querySelector("[data-close]").onclick = () => dialog.close();
+      const values = () => ({
+        key: t.key,
+        subject: dialog.querySelector("#tp-subject").value,
+        body: dialog.querySelector("#tp-body").value,
+        cta_label: dialog.querySelector("#tp-cta").value,
+        cta_path: dialog.querySelector("#tp-path").value,
+      });
+      let timer = null;
+      const preview = () => {
+        clearTimeout(timer);
+        timer = setTimeout(async () => {
+          try {
+            const draft = values();
+            const r = await apiPostJson("/api/admin/marketing", { action: "preview", ...draft });
+            const frame = dialog.querySelector("#tp-preview");
+            if (frame) frame.srcdoc = r.preview.html;
+          } catch {}
+        }, 300);
+      };
+      ["#tp-subject", "#tp-body", "#tp-cta", "#tp-path"].forEach((sel) => dialog.querySelector(sel).addEventListener("input", preview));
+      preview();
+      dialog.querySelectorAll("[data-tp]").forEach((b) => (b.onclick = async () => {
+        const out = dialog.querySelector("#tp-msg");
+        b.disabled = true;
+        try {
+          if (b.dataset.tp === "save") {
+            await apiPostJson("/api/admin/marketing", { action: "save_template", ...values() });
+            showMessage(out, "Saved.", "success");
+            mkLoaders.campaigns();
+          } else {
+            await apiPostJson("/api/admin/marketing", { action: "save_template", ...values() });
+            const r = await apiPostJson("/api/admin/marketing", { action: "test_send", key: t.key });
+            showMessage(out, `Saved, and a test was sent to ${r.sent_to}.`, "success");
+          }
+        } catch (err) {
+          showMessage(out, err.message, "error");
+        } finally {
+          b.disabled = false;
+        }
+      }));
+    }
+
+    mkLoaders.calendar = async () => {
+      const d = await apiGet("/api/admin/marketing?view=calendar");
+      calendar = d.posts;
+      renderCalendar();
+    };
+    function renderCalendar() {
+      const counts = Object.fromEntries(POST_STATUS.map((st) => [st, calendar.filter((p) => p.status === st).length]));
+      document.getElementById("cal-filter").innerHTML = [["all", "All", calendar.length], ...POST_STATUS.map((st) => [st, st[0].toUpperCase() + st.slice(1), counts[st]])]
+        .map(([k, label, n]) => `<button type="button" class="chip ${calFilter === k ? "active" : ""}" data-cal="${k}">${label}<span>${n}</span></button>`).join("");
+      const shown = calendar.filter((p) => calFilter === "all" || p.status === calFilter);
+      document.getElementById("mk-posts").innerHTML = shown.length ? shown.map((p) => `
+        <div class="card post-item status-${p.status}">
+          <div class="card-top">
+            <div>
+              <span class="post-date">${p.planned_for ? new Date(p.planned_for + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) : "No date"}</span>
+              <h3>${escapeHtml(p.title)}</h3>
+              <span class="muted">${p.kind === "outreach" ? "Outreach" : "Post"}${p.channels ? " · " + escapeHtml(p.channels) : ""}</span>
+            </div>
+            ${mkCanEdit
+              ? `<select data-post-status="${p.id}" aria-label="Status">${POST_STATUS.map((st) => `<option value="${st}" ${p.status === st ? "selected" : ""}>${st[0].toUpperCase() + st.slice(1)}</option>`).join("")}</select>`
+              : `<span class="pill">${p.status}</span>`}
+          </div>
+          ${p.caption ? `<p class="caption">${escapeHtml(p.caption)}${p.hashtags ? `<br /><span class="tags-text">${escapeHtml(p.hashtags)}</span>` : ""}</p>` : ""}
+          ${p.notes ? `<p class="muted small-text">${escapeHtml(p.notes)}</p>` : ""}
+          <div class="row-actions">
+            ${p.caption ? `<button class="btn small" type="button" data-copy-post="${p.id}">Copy ${p.kind === "outreach" ? "text" : "caption"}</button>` : ""}
+            ${mkCanEdit ? `<button class="btn small secondary" type="button" data-edit-post="${p.id}">Edit</button>` : ""}
+          </div>
+        </div>`).join("") : emptyStateHtml("pages", "Nothing here", "Try another filter, or add a post.");
+    }
+    document.getElementById("cal-filter").addEventListener("click", (e) => {
+      const c = e.target.closest("[data-cal]");
+      if (c) { calFilter = c.dataset.cal; renderCalendar(); }
+    });
+    document.getElementById("mk-posts").addEventListener("click", (e) => {
+      const copy = e.target.closest("[data-copy-post]");
+      if (copy) {
+        const p = calendar.find((x) => x.id === Number(copy.dataset.copyPost));
+        copyText([p.caption, p.hashtags].filter(Boolean).join("\n\n"), "Copied. Paste it into Buffer.");
+      }
+      const edit = e.target.closest("[data-edit-post]");
+      if (edit) openPostEditor(calendar.find((x) => x.id === Number(edit.dataset.editPost)));
+    });
+    document.getElementById("mk-posts").addEventListener("change", async (e) => {
+      const sel = e.target.closest("[data-post-status]");
+      if (!sel) return;
+      const p = calendar.find((x) => x.id === Number(sel.dataset.postStatus));
+      try {
+        await apiPostJson("/api/admin/marketing", { action: "save_post", ...p, status: sel.value });
+        p.status = sel.value;
+        renderCalendar();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+    document.getElementById("mk-new-post").addEventListener("click", () => openPostEditor(null));
+
+    function openPostEditor(p) {
+      const dialog = document.getElementById("user-dialog");
+      const v = p || { kind: "post", status: "idea", planned_for: new Date().toISOString().slice(0, 10) };
+      dialog.innerHTML = `
+        <div class="pad">
+          <div class="user-head"><div><h2>${p ? "Edit post" : "Add a post"}</h2></div><button type="button" class="btn small ghost close-x" data-close>Close</button></div>
+          <form id="post-form">
+            <div class="grid cols-2">
+              <div><label for="pf-date">Date</label><input id="pf-date" type="date" value="${v.planned_for || ""}" /></div>
+              <div><label for="pf-kind">Type</label><select id="pf-kind"><option value="post" ${v.kind === "post" ? "selected" : ""}>Social post</option><option value="outreach" ${v.kind === "outreach" ? "selected" : ""}>Outreach task</option></select></div>
+            </div>
+            <label for="pf-title">Title</label><input id="pf-title" required value="${escapeHtml(v.title || "")}" />
+            <label for="pf-channels">Channels</label><input id="pf-channels" placeholder="TikTok, Instagram" value="${escapeHtml(v.channels || "")}" />
+            <label for="pf-caption">Caption or text</label><textarea id="pf-caption" rows="5">${escapeHtml(v.caption || "")}</textarea>
+            <label for="pf-tags">Hashtags</label><input id="pf-tags" value="${escapeHtml(v.hashtags || "")}" />
+            <label for="pf-notes">Notes</label><textarea id="pf-notes" rows="2">${escapeHtml(v.notes || "")}</textarea>
+            <label for="pf-status">Status</label><select id="pf-status">${POST_STATUS.map((st) => `<option value="${st}" ${v.status === st ? "selected" : ""}>${st}</option>`).join("")}</select>
+            <div class="row-actions">
+              <button class="btn" type="submit">Save</button>
+              ${p ? '<button class="btn ghost" type="button" id="pf-delete">Delete</button>' : ""}
+            </div>
+          </form>
+        </div>`;
+      if (!dialog.open) dialog.showModal();
+      dialog.querySelector("[data-close]").onclick = () => dialog.close();
+      dialog.querySelector("#post-form").onsubmit = async (e) => {
+        e.preventDefault();
+        try {
+          await apiPostJson("/api/admin/marketing", {
+            action: "save_post", id: p?.id, planned_for: dialog.querySelector("#pf-date").value, kind: dialog.querySelector("#pf-kind").value,
+            title: dialog.querySelector("#pf-title").value, channels: dialog.querySelector("#pf-channels").value,
+            caption: dialog.querySelector("#pf-caption").value, hashtags: dialog.querySelector("#pf-tags").value,
+            notes: dialog.querySelector("#pf-notes").value, status: dialog.querySelector("#pf-status").value,
+          });
+          dialog.close();
+          mkLoaders.calendar();
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+      const del = dialog.querySelector("#pf-delete");
+      if (del) del.onclick = async () => {
+        if (!confirm("Delete this post?")) return;
+        await apiPostJson("/api/admin/marketing", { action: "delete_post", id: p.id });
+        dialog.close();
+        mkLoaders.calendar();
+      };
+    }
+
+    mkLoaders.leads = async () => {
+      const { leads } = await apiGet("/api/admin/marketing?view=leads");
+      document.getElementById("mk-leads-table").innerHTML = `
+        <thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Source</th><th>Joined the site</th><th>Date</th></tr></thead>
+        <tbody>${leads.map((l) => `<tr>
+          <td>${escapeHtml(l.email)}${l.unsubscribed_at ? ' <span class="pill">Unsubscribed</span>' : ""}</td>
+          <td>${escapeHtml(l.name || "")}</td><td>${escapeHtml(l.role || "")}</td>
+          <td>${escapeHtml(l.source || "direct")}${l.campaign ? `<br /><span class="muted small-text">${escapeHtml(l.campaign)}</span>` : ""}</td>
+          <td>${l.signed_up ? '<span class="pill status-completed">Yes</span>' : '<span class="muted">Not yet</span>'}</td>
+          <td>${fmtDate(l.created_at)}</td></tr>`).join("") || '<tr><td colspan="6" class="muted">No leads yet. Share the checklist link to start collecting them.</td></tr>'}</tbody>`;
+    };
+
+    mkLoaders.settings = async () => {
+      await mkLoaders.overview();
+    };
+    document.getElementById("mk-settings-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        await apiPostJson("/api/admin/marketing", {
+          action: "save_settings",
+          email_from_name: document.getElementById("set-from").value,
+          email_reply_to: document.getElementById("set-reply").value,
+          email_mailing_address: document.getElementById("set-address").value,
+        });
+        flash("Email settings saved.");
+      } catch (err) {
+        flash(err.message, "error");
       }
     });
 

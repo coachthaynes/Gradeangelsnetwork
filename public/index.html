@@ -20,11 +20,16 @@
       <div class="inner">
         <span class="eyebrow">Grading help for teachers</span>
         <h1>Grade less. Get your <em>evenings</em> back.</h1>
-        <p class="lead">Teachers post grading work. Grade Angels pick it up, grade it carefully, and get paid. You get the stack back, finished, with time to spare.</p>
+        <p class="lead">Take back Sunday dinner. Post your stack, set your rate per page, and a background checked Grade Angel grades it with your answer key and rubric. You review everything before anyone is paid.</p>
         <div class="row-actions">
-          <a class="btn" href="/signup.html">Create an account</a>
-          <a class="btn secondary" href="/login.html">Sign in</a>
+          <a class="btn" href="/signup.html">Post my first stack</a>
+          <a class="btn secondary" href="/signup.html?role=grade_angel">Become a Grade Angel</a>
         </div>
+        <ul class="hero-trust">
+          <li>Background checked graders</li>
+          <li>Your key, your rubric</li>
+          <li>You approve before payout</li>
+        </ul>
       </div>
     </section>
 
@@ -61,6 +66,18 @@
       </div>
     </section>
 
+    <section class="wrap vetting" id="vetting">
+      <span class="eyebrow dark">Trust and safety</span>
+      <h2>How we vet every Grade Angel</h2>
+      <p class="muted section-lead">Handing off student work is a big step. Here is what every Grade Angel completes before they can accept a single assignment.</p>
+      <div class="grid cols-2 vet-grid">
+        <div class="vet-item"><span class="vet-num">1</span><div><strong>Identity and experience on file</strong><p>Every Grade Angel gives us their legal name, contact details, education, teaching certificate, and years in education.</p></div></div>
+        <div class="vet-item"><span class="vet-num">2</span><div><strong>Background check</strong><p>A professional background check that must come back clear before any student work is shared.</p></div></div>
+        <div class="vet-item"><span class="vet-num">3</span><div><strong>Signed confidentiality agreement</strong><p>Student work and names stay private, are used only for grading, and downloaded files are deleted once grading is done.</p></div></div>
+        <div class="vet-item"><span class="vet-num">4</span><div><strong>Reviewed on every job</strong><p>Teachers approve the work before payout and rate every Grade Angel. Teachers stay anonymous to Grade Angels.</p></div></div>
+      </div>
+    </section>
+
     <section class="band">
       <div class="wrap">
         <h2>How it works</h2>
@@ -73,6 +90,51 @@
         <a class="btn" href="/signup.html">Get started</a>
       </div>
     </section>
+
+    <section class="wrap">
+      <div class="lead-magnet" id="checklist">
+        <div class="lm-copy">
+          <span class="eyebrow dark">Free for teachers</span>
+          <h2>The Rubric and Time Saving Grading Checklist</h2>
+          <p>A simple rubric template plus 12 habits that cut grading time without cutting feedback quality. Print it, share it with your department, keep it by your grading pile.</p>
+        </div>
+        <form class="lm-form" id="lead-form">
+          <label for="lead-name">First name</label>
+          <input id="lead-name" autocomplete="given-name" />
+          <label for="lead-email">Email</label>
+          <input id="lead-email" type="email" required autocomplete="email" />
+          <label for="lead-role">I am a</label>
+          <select id="lead-role">
+            <option value="teacher">Teacher</option>
+            <option value="administrator">School administrator</option>
+            <option value="parent">Parent or PTA member</option>
+            <option value="other">Other</option>
+          </select>
+          <input type="text" id="lead-website" name="website" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true" />
+          <button class="btn" type="submit">Send me the checklist</button>
+          <p class="muted small-print">We will email you the checklist and a few short tips. Unsubscribe anytime.</p>
+          <div id="lead-msg" class="msg" style="display:none"></div>
+        </form>
+      </div>
+    </section>
+
+    <section class="angel-recruit">
+      <div class="wrap">
+        <div class="grid cols-2 recruit-grid">
+          <div>
+            <span class="eyebrow">Now recruiting Grade Angels</span>
+            <h2>Your experience is still needed.</h2>
+            <p>Retired teachers, graduate students, and subject experts: earn flexible income grading for today's busy teachers. Work from home, choose your subjects and grade levels, and accept only the assignments that fit your schedule.</p>
+            <a class="btn" href="/signup.html?role=grade_angel">Become a Grade Angel</a>
+          </div>
+          <ul class="recruit-list">
+            <li><strong>Paid per page</strong><span>You keep 80% of every assignment, paid once the teacher approves.</span></li>
+            <li><strong>Your schedule</strong><span>Pick up work when it suits you. Turnarounds run from 24 hours to 4 days.</span></li>
+            <li><strong>Make a difference</strong><span>Every stack you grade gives a teacher their evening back.</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
   </main>
 
   <footer>
@@ -82,6 +144,30 @@
 
   <script src="/js/api.js"></script>
   <script>
+    document.getElementById("lead-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById("lead-msg");
+      const btn = e.target.querySelector("button");
+      btn.disabled = true;
+      try {
+        const { checklist_url } = await apiPostJson("/api/leads", {
+          name: document.getElementById("lead-name").value,
+          email: document.getElementById("lead-email").value,
+          role: document.getElementById("lead-role").value,
+          website: document.getElementById("lead-website").value,
+          ...getAttribution(),
+        });
+        e.target.reset();
+        msg.innerHTML = `Check your inbox! You can also <a href="${checklist_url}">open the checklist now</a>.`;
+        msg.className = "msg success";
+        msg.style.display = "block";
+      } catch (err) {
+        showMessage(msg, err.message, "error");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
     apiGet("/api/auth/me").then(({ user }) => renderNav(user)).catch(() => renderNav(null));
   </script>
 </body>

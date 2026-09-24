@@ -61,6 +61,10 @@
   <script>
     apiGet("/api/auth/me").then(({ user }) => renderNav(user)).catch(() => renderNav(null));
 
+    if (new URLSearchParams(location.search).get("role") === "grade_angel") {
+      document.getElementById("role").value = "grade_angel";
+    }
+
     const form = document.getElementById("signup-form");
     const msg = document.getElementById("msg");
 
@@ -97,6 +101,7 @@
           password: document.getElementById("password").value,
           school_or_org: document.getElementById("school_or_org").value,
           subjects: document.getElementById("subjects").value,
+          ...getAttribution(),
         });
         // New Grade Angels go straight into setup; teachers can post right away.
         window.location.href = user.role === "grade_angel" ? "/grade-angel-setup.html" : dashboardFor(user.role);
