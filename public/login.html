@@ -17,7 +17,7 @@
   <main class="wrap narrow">
     <div class="card accent">
       <h1 id="login-title">Sign in</h1>
-      <p class="muted" id="staff-note" hidden>For Grade Angels Network staff. Use the email and password your site owner set up for you.</p>
+      <p class="muted" id="staff-note" hidden>For Grade Angels Network staff. Only emails approved by the master admin can sign in here.</p>
       <div id="msg" class="msg" style="display:none"></div>
       <form id="login-form">
         <label for="email">Email</label>
@@ -29,6 +29,25 @@
         <button class="btn" type="submit">Sign in</button>
       </form>
       <p class="muted" id="signup-line" style="margin-top:1.5rem">New here? <a href="/signup.html">Create an account</a></p>
+    </div>
+
+    <div class="card" id="staff-request-card" hidden>
+      <h2>Need staff access?</h2>
+      <p class="muted">Request an account with your own email (not one you use as a teacher or Grade Angel). The master admin approves every request before you can sign in.</p>
+      <button type="button" class="btn small secondary" id="show-request">Request staff access</button>
+      <form id="staff-request" hidden>
+        <div id="request-msg" class="msg" style="display:none"></div>
+        <label for="rq-name">Full name</label>
+        <input id="rq-name" required autocomplete="name" />
+        <label for="rq-email">Email</label>
+        <input id="rq-email" type="email" required autocomplete="email" />
+        <label for="rq-pass">Choose a password</label>
+        <input id="rq-pass" type="password" required minlength="10" autocomplete="new-password" />
+        <p class="muted">At least 10 characters.</p>
+        <label for="rq-pass2">Confirm password</label>
+        <input id="rq-pass2" type="password" required minlength="10" autocomplete="new-password" />
+        <button class="btn" type="submit">Send request</button>
+      </form>
     </div>
   </main>
 
@@ -47,7 +66,37 @@
       document.getElementById("login-title").textContent = "Staff sign in";
       document.getElementById("staff-note").hidden = false;
       document.getElementById("signup-line").hidden = true;
+      document.getElementById("staff-request-card").hidden = false;
     }
+
+    document.getElementById("show-request").addEventListener("click", (e) => {
+      e.target.hidden = true;
+      document.getElementById("staff-request").hidden = false;
+      document.getElementById("rq-name").focus();
+    });
+
+    document.getElementById("staff-request").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const out = document.getElementById("request-msg");
+      const pass = document.getElementById("rq-pass").value;
+      if (pass !== document.getElementById("rq-pass2").value) return showMessage(out, "The passwords do not match.", "error");
+      const btn = e.target.querySelector("button");
+      btn.disabled = true;
+      try {
+        const { message } = await apiPostJson("/api/staff/request", {
+          full_name: document.getElementById("rq-name").value,
+          email: document.getElementById("rq-email").value,
+          password: pass,
+        });
+        document.getElementById("email").value = document.getElementById("rq-email").value;
+        e.target.reset();
+        showMessage(out, message, "success");
+      } catch (err) {
+        showMessage(out, err.message, "error");
+      } finally {
+        btn.disabled = false;
+      }
+    });
 
     const form = document.getElementById("login-form");
     const msg = document.getElementById("msg");

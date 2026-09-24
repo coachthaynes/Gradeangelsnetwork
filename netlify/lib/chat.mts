@@ -20,11 +20,12 @@ export interface ChatAccess {
 // The chat opens when a Grade Angel accepts the assignment and stays open
 // while the work is graded, reviewed, and paid for. Once the Grade Angel has
 // been paid out it becomes read only, kept as a record for both people (and
-// for an admin settling a dispute).
-export function chatAccess(session: SessionPayload, a: ChatRow): ChatAccess {
+// for an admin settling a dispute). `activeStaff` must be checked by the
+// caller (isActiveStaff), since a pending staff request gets no access.
+export function chatAccess(session: SessionPayload, a: ChatRow, activeStaff = false): ChatAccess {
   const isTeacher = session.id === a.teacher_id;
   const isAngel = a.grade_angel_id !== null && session.id === a.grade_angel_id;
-  const isAdmin = session.role === "admin";
+  const isAdmin = activeStaff;
 
   if (!a.grade_angel_id) {
     return { canRead: false, canWrite: false, closedReason: a.status === "cancelled" ? "cancelled" : "not_started" };

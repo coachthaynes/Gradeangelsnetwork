@@ -3,6 +3,7 @@ import { db } from "../lib/db.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 import { getSetupStatus } from "../lib/grade-angel.mts";
+import { isActiveStaff } from "../lib/staff.mts";
 import { createCandidateAndInvitation, CheckrNotConfiguredError } from "../lib/checkr.mts";
 
 // A Grade Angel can invite themselves; an admin can invite anyone by
@@ -23,7 +24,7 @@ export default async (req: Request) => {
 
   let targetId = session.id;
   if (body.user_id !== undefined) {
-    if (session.role !== "admin") {
+    if (session.role !== "admin" || !(await isActiveStaff(session.id))) {
       return json({ error: "Only an admin can invite someone else" }, 403);
     }
     targetId = Number(body.user_id);

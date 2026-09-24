@@ -2,6 +2,7 @@ import { db } from "./db.mts";
 import type { SessionPayload } from "./auth.mts";
 import { assignmentFilesStore } from "./blobs.mts";
 import { getSetupStatus } from "./grade-angel.mts";
+import { isActiveStaff } from "./staff.mts";
 
 // Grade Angels deciding whether to take an assignment can look at this many
 // pages before accepting. Enough to judge the handwriting and the work,
@@ -30,7 +31,7 @@ export interface AccessRow {
 }
 
 export async function assignmentAccess(session: SessionPayload, a: AccessRow): Promise<Access> {
-  if (session.role === "admin") return "full";
+  if (session.role === "admin") return (await isActiveStaff(session.id)) ? "full" : "none";
   if (session.role === "teacher") return a.teacher_id === session.id ? "full" : "none";
   if (session.role !== "grade_angel") return "none";
 

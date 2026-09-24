@@ -25,6 +25,7 @@
         <a href="#payouts" data-tab="payouts">Payouts</a>
         <a href="#reviews" data-tab="reviews">Reviews</a>
         <a href="#staff" data-tab="staff">Staff</a>
+        <a href="#master" data-tab="master" id="menu-master" hidden>Master admin</a>
         <a href="#activity" data-tab="activity">Activity log</a>
         <a href="#account" data-tab="account">My account</a>
       </nav>
@@ -127,29 +128,46 @@
       <!-- Staff -->
       <section class="tab" id="tab-staff" hidden>
         <h1>Staff</h1>
-        <div class="card levels">
-          <div><strong>Support</strong><span>View everything, hide reviews, suspend users, record background checks.</span></div>
-          <div><strong>Manager</strong><span>Support, plus retry payouts, cancel assignments, and download money reports.</span></div>
-          <div><strong>Owner</strong><span>Manager, plus add, change, and remove staff.</span></div>
-        </div>
+        <div class="card levels" id="levels-card"></div>
+        <p class="muted">Only the master admin can approve staff or change anyone's access.</p>
         <div class="table-wrap"><table class="admin-table" id="staff-table"></table></div>
-        <div class="card" id="staff-add-card" hidden>
-          <h2>Add a staff member</h2>
-          <p class="muted">They sign in at the normal sign in page with this email and temporary password, then change it under My account. Staff need an email that is not already a teacher or Grade Angel account.</p>
-          <form id="staff-add">
-            <div class="grid cols-2">
-              <div><label for="st-name">Full name</label><input id="st-name" required /></div>
-              <div><label for="st-email">Email</label><input id="st-email" type="email" required /></div>
-            </div>
-            <div class="grid cols-2">
-              <div><label for="st-pass">Temporary password</label><input id="st-pass" required minlength="10" /></div>
-              <div>
-                <label for="st-level">Access</label>
-                <select id="st-level"><option value="support">Support</option><option value="manager">Manager</option><option value="owner">Owner</option></select>
-              </div>
-            </div>
-            <button class="btn" type="submit">Add staff member</button>
+      </section>
+
+      <!-- Master admin -->
+      <section class="tab" id="tab-master" hidden>
+        <h1>Master admin</h1>
+        <p class="muted">You decide who can use this dashboard and what they can do. Every change is recorded below.</p>
+
+        <div class="card">
+          <h2>Waiting for approval <span class="badge" id="pending-count" hidden></span></h2>
+          <div id="pending"></div>
+        </div>
+
+        <div class="card">
+          <h2>Staff and their access</h2>
+          <div class="table-wrap flat"><table class="admin-table" id="master-staff"></table></div>
+        </div>
+
+        <div class="card">
+          <h2>Pre-approve an email</h2>
+          <p class="muted">A pre-approved person can request access from the Staff sign in page and is let in right away at this level.</p>
+          <form id="invite-form" class="filters">
+            <input id="inv-email" type="email" required placeholder="name@example.com" aria-label="Email" />
+            <select id="inv-level" aria-label="Access"><option value="support">Support</option><option value="manager">Manager</option><option value="owner">Owner</option></select>
+            <button class="btn small" type="submit">Pre-approve</button>
           </form>
+          <ul class="mini-list" id="invites"></ul>
+        </div>
+
+        <div class="card">
+          <h2>What each level can do</h2>
+          <div class="table-wrap flat"><table class="admin-table perm-table" id="perm-table"></table></div>
+          <p class="muted" id="masters-line"></p>
+        </div>
+
+        <div class="card">
+          <h2>Access changes</h2>
+          <div class="table-wrap flat"><table class="admin-table" id="access-log"></table></div>
         </div>
       </section>
 
@@ -217,7 +235,7 @@
     loaders.overview = async () => {
       const d = await apiGet("/api/admin/overview");
       me = d.me;
-      document.getElementById("admin-who").innerHTML = `<strong>${escapeHtml(me.name)}</strong><span class="role-badge">${me.level}</span>`;
+      document.getElementById("admin-who").innerHTML = `<strong>${escapeHtml(me.name)}</strong><span class="role-badge">${me.is_master ? "Master admin" : me.level}</span>`;
       const u = d.users, a = d.assignments, m = d.money;
       document.getElementById("ov-tiles").innerHTML = [
         statTileHtml("star", "Teachers", u.teachers),
@@ -259,7 +277,7 @@
 
     function applyPermissions() {
       document.getElementById("pay-csv").hidden = !can("manager");
-      document.getElementById("staff-add-card").hidden = !can("owner");
+      document.getElementById("menu-master").hidden = !me.is_master;
     }
 
     // ---------- Users ----------
@@ -490,67 +508,123 @@
       }
     });
 
-    // ---------- Staff ----------
-    loaders.staff = async () => {
-      const { staff, me: who } = await apiGet("/api/admin/staff");
-      const owner = can("owner");
-      document.getElementById("staff-table").innerHTML = `
-        <thead><tr><th>Name</th><th>Access</th><th>Last action</th><th></th></tr></thead>
-        <tbody>${staff.map((s) => {
-          const self = s.id === who.id;
-          const level = owner && !self && !s.suspended_at
-            ? `<select data-level="${s.id}">${["support", "manager", "owner"].map((l) => `<option ${s.staff_level === l ? "selected" : ""}>${l}</option>`).join("")}</select>`
-            : escapeHtml(s.staff_level || "support");
-          const action = owner && !self
-            ? s.suspended_at
-              ? `<button class="btn small" data-staff-act="restore" data-id="${s.id}">Restore</button>`
-              : `<button class="btn small ghost" data-staff-act="remove" data-id="${s.id}">Remove</button>`
-            : self ? '<span class="muted">You</span>' : "";
-          return `<tr>
-            <td><strong>${escapeHtml(s.full_name)}</strong><br /><span class="muted">${escapeHtml(s.email)}</span>${s.suspended_at ? ' <span class="pill status-cancelled">Removed</span>' : ""}</td>
-            <td>${level}</td>
-            <td>${s.last_action_at ? fmtDate(s.last_action_at) : '<span class="muted">Never</span>'}</td>
-            <td>${action}</td></tr>`;
-        }).join("")}</tbody>`;
+    // ---------- Staff (everyone) ----------
+    const PERMS = [
+      ["See every page of the dashboard", true, true, true],
+      ["Read assignments and chats", true, true, true],
+      ["Hide and restore reviews", true, true, true],
+      ["Suspend and restore users", true, true, true],
+      ["Record background check results", true, true, true],
+      ["Retry Grade Angel payouts", false, true, true],
+      ["Cancel unpaid assignments", false, true, true],
+      ["Download the payments spreadsheet", false, true, true],
+      ["Approve staff and change access", false, false, false],
+    ];
+    const LEVEL_TEXT = {
+      support: "View everything, hide reviews, suspend users, record background checks.",
+      manager: "Support, plus retry payouts, cancel unpaid assignments, and download money reports.",
+      owner: "Everything on the dashboard except staff access, which only the master admin controls.",
     };
-    document.getElementById("staff-table").addEventListener("change", async (e) => {
-      const sel = e.target.closest("[data-level]");
-      if (!sel) return;
+    document.getElementById("levels-card").innerHTML = Object.entries(LEVEL_TEXT)
+      .map(([k, v]) => `<div><strong>${k[0].toUpperCase() + k.slice(1)}</strong><span>${v}</span></div>`).join("");
+
+    const levelLabel = (s) => (s.is_master ? "Master admin" : (s.staff_level || "support").replace(/^./, (c) => c.toUpperCase()));
+
+    loaders.staff = async () => {
+      const { staff } = await apiGet("/api/admin/staff");
+      document.getElementById("staff-table").innerHTML = `
+        <thead><tr><th>Name</th><th>Access</th><th>Last action</th></tr></thead>
+        <tbody>${staff.map((s) => `<tr>
+          <td><strong>${escapeHtml(s.full_name)}</strong><br /><span class="muted">${escapeHtml(s.email)}</span>${s.suspended_at ? ' <span class="pill status-cancelled">Revoked</span>' : ""}</td>
+          <td>${s.is_master ? '<span class="role-badge">Master admin</span>' : levelLabel(s)}</td>
+          <td>${s.last_action_at ? fmtDate(s.last_action_at) : '<span class="muted">Never</span>'}</td></tr>`).join("")}</tbody>`;
+    };
+
+    // ---------- Master admin ----------
+    const levelSelect = (id, current, attr) =>
+      `<select ${attr}="${id}">${["support", "manager", "owner"].map((l) => `<option value="${l}" ${current === l ? "selected" : ""}>${l[0].toUpperCase() + l.slice(1)}</option>`).join("")}</select>`;
+
+    loaders.master = async () => {
+      const d = await apiGet("/api/admin/master");
+      const count = document.getElementById("pending-count");
+      count.hidden = !d.pending.length;
+      count.textContent = d.pending.length;
+
+      document.getElementById("pending").innerHTML = d.pending.length
+        ? `<ul class="request-list">${d.pending.map((p) => `
+            <li>
+              <span><strong>${escapeHtml(p.full_name)}</strong><br /><span class="muted">${escapeHtml(p.email)} · asked ${fmtDate(p.staff_requested_at || p.created_at)}</span></span>
+              <span class="row-actions">
+                ${levelSelect(p.id, "support", "data-approve-level")}
+                <button class="btn small" data-master="approve" data-id="${p.id}">Approve</button>
+                <button class="btn small ghost" data-master="deny" data-id="${p.id}">Deny</button>
+              </span>
+            </li>`).join("")}</ul>`
+        : emptyStateHtml("check", "No requests waiting", "When someone asks for staff access from the Staff sign in page, it shows up here.");
+
+      document.getElementById("master-staff").innerHTML = `
+        <thead><tr><th>Name</th><th>Access</th><th>Approved</th><th>Activity</th><th></th></tr></thead>
+        <tbody>${d.staff.map((s) => `<tr>
+          <td><strong>${escapeHtml(s.full_name)}</strong><br /><span class="muted">${escapeHtml(s.email)}</span>${s.suspended_at ? ' <span class="pill status-cancelled">Revoked</span>' : ""}</td>
+          <td>${s.is_master ? '<span class="role-badge">Master admin</span>' : s.suspended_at ? levelLabel(s) : levelSelect(s.id, s.staff_level, "data-set-level")}</td>
+          <td>${s.is_master ? '<span class="muted">Built in</span>' : `${fmtDate(s.staff_approved_at)}${s.approved_by ? `<br /><span class="muted">by ${escapeHtml(s.approved_by)}</span>` : ""}`}</td>
+          <td>${s.action_count} actions${s.last_action_at ? `<br /><span class="muted">last ${fmtDate(s.last_action_at)}</span>` : ""}</td>
+          <td>${s.is_master ? "" : s.suspended_at
+            ? `<button class="btn small" data-master="restore" data-id="${s.id}">Restore</button>`
+            : `<button class="btn small ghost" data-master="revoke" data-id="${s.id}">Revoke</button>`}</td>
+        </tr>`).join("")}</tbody>`;
+
+      document.getElementById("invites").innerHTML = d.invites.length
+        ? d.invites.map((i) => `<li><strong>${escapeHtml(i.email)}</strong> as ${escapeHtml(i.staff_level)}
+            <span class="muted">· ${fmtDate(i.created_at)}</span>
+            <button class="btn small ghost" data-uninvite="${escapeHtml(i.email)}">Remove</button></li>`).join("")
+        : '<li class="muted">No pre-approved emails.</li>';
+
+      document.getElementById("perm-table").innerHTML = `
+        <thead><tr><th>Ability</th><th>Support</th><th>Manager</th><th>Owner</th><th>Master</th></tr></thead>
+        <tbody>${PERMS.map(([label, ...levels]) => `<tr><td>${label}</td>${levels.map((ok) => `<td class="${ok ? "yes" : "no"}">${ok ? "✓" : "·"}</td>`).join("")}<td class="yes">✓</td></tr>`).join("")}</tbody>`;
+      document.getElementById("masters-line").textContent = `Master admin emails: ${d.masters.join(", ")}.`;
+
+      document.getElementById("access-log").innerHTML = `
+        <thead><tr><th>When</th><th>Who</th><th>What</th><th>Details</th></tr></thead>
+        <tbody>${d.changes.map((x) => `<tr><td>${formatDateTime(x.created_at)}</td><td>${escapeHtml(x.actor || "")}</td><td>${escapeHtml(x.action)}</td><td>${escapeHtml(x.details || "")}</td></tr>`).join("")
+          || '<tr><td colspan="4" class="muted">No access changes yet.</td></tr>'}</tbody>`;
+    };
+
+    async function master(body, done) {
       try {
-        await apiPostJson("/api/admin/staff", { action: "set_level", user_id: Number(sel.dataset.level), staff_level: sel.value });
-        flash("Access updated.");
+        await apiPostJson("/api/admin/master", body);
+        if (done) flash(done);
+        loaders.master();
       } catch (err) {
         alert(err.message);
-        loaders.staff();
+        loaders.master();
       }
-    });
-    document.getElementById("staff-table").addEventListener("click", async (e) => {
-      const b = e.target.closest("[data-staff-act]");
-      if (!b) return;
-      if (b.dataset.staffAct === "remove" && !confirm("Remove this staff member? They will be signed out and cannot sign back in.")) return;
-      try {
-        await apiPostJson("/api/admin/staff", { action: b.dataset.staffAct, user_id: Number(b.dataset.id) });
-        loaders.staff();
-      } catch (err) {
-        alert(err.message);
+    }
+    document.getElementById("tab-master").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-master]");
+      if (b) {
+        const id = Number(b.dataset.id);
+        const act = b.dataset.master;
+        if (act === "approve") {
+          const level = document.querySelector(`[data-approve-level="${id}"]`).value;
+          return master({ action: "approve", user_id: id, staff_level: level }, "Approved. They can sign in now.");
+        }
+        if (act === "deny" && !confirm("Deny this request? Their pending account is deleted.")) return;
+        if (act === "revoke" && !confirm("Revoke this person's staff access? They are signed out on their next click.")) return;
+        return master({ action: act, user_id: id }, act === "deny" ? "Request denied." : act === "revoke" ? "Access revoked." : "Access restored.");
       }
+      const u = e.target.closest("[data-uninvite]");
+      if (u) master({ action: "uninvite", email: u.dataset.uninvite }, "Pre-approval removed.");
     });
-    document.getElementById("staff-add").addEventListener("submit", async (e) => {
+    document.getElementById("tab-master").addEventListener("change", (e) => {
+      const sel = e.target.closest("[data-set-level]");
+      if (sel) master({ action: "set_level", user_id: Number(sel.dataset.setLevel), staff_level: sel.value }, "Access updated.");
+    });
+    document.getElementById("invite-form").addEventListener("submit", (e) => {
       e.preventDefault();
-      try {
-        await apiPostJson("/api/admin/staff", {
-          action: "add",
-          full_name: document.getElementById("st-name").value,
-          email: document.getElementById("st-email").value,
-          password: document.getElementById("st-pass").value,
-          staff_level: document.getElementById("st-level").value,
-        });
-        e.target.reset();
-        flash("Staff member added. Share their email and temporary password with them privately.");
-        loaders.staff();
-      } catch (err) {
-        flash(err.message, "error");
-      }
+      master({ action: "invite", email: document.getElementById("inv-email").value, staff_level: document.getElementById("inv-level").value }, "Email pre-approved.");
+      e.target.reset();
     });
 
     // ---------- Activity ----------

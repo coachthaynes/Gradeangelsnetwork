@@ -2,7 +2,7 @@ import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
 import { hashPassword, signSession, sessionCookieHeader } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
-import { isOwnerEmail } from "../lib/staff.mts";
+import { isMasterEmail } from "../lib/staff.mts";
 
 const ALLOWED_ROLES = new Set(["teacher", "grade_angel"]);
 
@@ -35,15 +35,16 @@ export default async (req: Request) => {
 
   const passwordHash = await hashPassword(password);
 
-  // The site owner's email (OWNER_EMAILS setting) always becomes an owner
-  // account, whatever role was picked on the form.
-  const owner = isOwnerEmail(email);
+  // A master admin email always becomes a master admin account, whatever
+  // role was picked on the form. Other staff use the staff request form.
+  const owner = isMasterEmail(email);
   const finalRole = owner ? "admin" : role;
   const staffLevel = owner ? "owner" : null;
 
   const [user] = await db.sql`
-    INSERT INTO users (email, password_hash, role, full_name, school_or_org, subjects, staff_level)
-    VALUES (${email}, ${passwordHash}, ${finalRole}, ${fullName}, ${schoolOrOrg}, ${subjects}, ${staffLevel})
+    INSERT INTO users (email, password_hash, role, full_name, school_or_org, subjects, staff_level, staff_approved_at)
+    VALUES (${email}, ${passwordHash}, ${finalRole}, ${fullName}, ${schoolOrOrg}, ${subjects}, ${staffLevel},
+            ${owner ? new Date().toISOString() : null})
     RETURNING id, email, role, full_name, school_or_org, subjects, background_check_status, staff_level, created_at
   `;
 

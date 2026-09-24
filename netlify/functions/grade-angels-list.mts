@@ -3,6 +3,7 @@ import { db } from "../lib/db.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 import { REVIEW_REVEAL_DAYS, photoUrl } from "../lib/profiles.mts";
+import { isActiveStaff } from "../lib/staff.mts";
 
 // Grade Angels a teacher can invite: only ones whose setup is fully done,
 // so an invite never lands on someone who cannot accept it. The same
@@ -12,7 +13,7 @@ export default async (req: Request) => {
 
   const session = getSession(req);
   if (!session) return json({ error: "Sign in required" }, 401);
-  if (session.role !== "teacher" && session.role !== "admin") {
+  if (session.role !== "teacher" && !(session.role === "admin" && (await isActiveStaff(session.id)))) {
     return json({ error: "Only teachers can browse Grade Angels" }, 403);
   }
 

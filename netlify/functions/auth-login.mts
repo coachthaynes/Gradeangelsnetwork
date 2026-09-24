@@ -2,6 +2,7 @@ import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
 import { verifyPassword, signSession, sessionCookieHeader } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
+import { isMasterEmail } from "../lib/staff.mts";
 
 export default async (req: Request) => {
   if (req.method !== "POST") return methodNotAllowed(["POST"]);
@@ -19,7 +20,7 @@ export default async (req: Request) => {
 
   const rows = await db.sql`
     SELECT id, email, password_hash, role, full_name, school_or_org, subjects, background_check_status,
-           staff_level, suspended_at
+           staff_level, suspended_at, staff_approved_at
     FROM users WHERE email = ${email}
   `;
   const user = rows[0];
@@ -33,7 +34,11 @@ export default async (req: Request) => {
   if (user.suspended_at) {
     return json({ error: "This account is suspended. Contact Grade Angels Network support." }, 403);
   }
+  if (user.role === "admin" && !user.staff_approved_at && !isMasterEmail(user.email)) {
+    return json({ error: "Your staff access is waiting for the master admin's approval." }, 403);
+  }
   delete user.suspended_at;
+  delete user.staff_approved_at;
 
   const token = signSession({ id: user.id, email: user.email, role: user.role, full_name: user.full_name });
   delete user.password_hash;

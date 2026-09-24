@@ -3,6 +3,7 @@ import { db } from "../lib/db.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 import { photoUrl, publicName, publicReviews, ratingSummary } from "../lib/profiles.mts";
+import { isActiveStaff } from "../lib/staff.mts";
 
 // Someone's public About me: photo, bio, star rating, reviews, and a few
 // facts about their work here. Teachers look at Grade Angels and Grade
@@ -25,7 +26,8 @@ export default async (req: Request) => {
   if (!user || user.role === "admin") return json({ error: "Profile not found" }, 404);
 
   const isSelf = user.id === session.id;
-  const allowed = isSelf || session.role === "admin" || session.role !== user.role;
+  const staff = session.role === "admin" && (await isActiveStaff(session.id));
+  const allowed = isSelf || staff || (session.role !== "admin" && session.role !== user.role);
   if (!allowed) return json({ error: "Profile not found" }, 404);
 
   const profile: Record<string, unknown> = {

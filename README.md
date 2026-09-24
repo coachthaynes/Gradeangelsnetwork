@@ -137,16 +137,20 @@ Staff are users with role `admin` and a `staff_level`:
 
 * support: view everything, hide reviews, suspend users, record background checks
 * manager: support, plus retry payouts, cancel unpaid assignments, download the payments spreadsheet
-* owner: manager, plus add, change, and remove staff
+* owner: everything on the dashboard except staff access
 
-Levels are checked on the server for every request (`netlify/lib/staff.mts`)
-and every staff action is written to `admin_actions`, shown in the Activity
-log.
+Only the master admin approves staff and changes access, from the Master
+admin tab. haynes.tenise@gmail.com is built in as master admin
+(`netlify/lib/staff.mts`); more can be added with the `MASTER_EMAILS`
+setting. The master admin signs up on the normal Create account page with
+that email and becomes master admin automatically.
 
-The first owner: set `OWNER_EMAILS` in Netlify to the email you will use
-(comma separated for more than one), then sign up with that email. It must
-not already have an account. Owners add other staff from the Staff tab with a
-temporary password; staff change it under My account.
+Other staff request access from the Staff sign in page (footer link). They
+cannot sign in until the master admin approves them, unless their email was
+pre-approved. Approval, level, and suspension are read from the database on
+every request (`requireStaff`, `isActiveStaff`), so changes apply on the
+next click, and a pending request gets no extra access anywhere.
+Every staff action goes to `admin_actions`, shown in the Activity log.
 
 Suspended accounts cannot sign in, are signed out on their next page load,
 and are refused by every endpoint that changes anything.

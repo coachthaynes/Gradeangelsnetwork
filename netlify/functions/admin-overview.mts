@@ -93,7 +93,7 @@ export default async (req: Request) => {
 
   return json(
     {
-      me: { name: staff.name, level: staff.level },
+      me: { name: staff.name, level: staff.level, is_master: staff.isMaster },
       users,
       assignments,
       money: Object.fromEntries(Object.entries(money).map(([k, v]) => [k, Number(v)])),

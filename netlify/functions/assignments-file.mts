@@ -3,6 +3,7 @@ import { db } from "../lib/db.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 import { assignmentFilesStore } from "../lib/blobs.mts";
+import { isActiveStaff } from "../lib/staff.mts";
 
 // Streams back the source file a teacher uploaded, or the graded file a
 // Grade Angel uploaded, to whichever of the two people are on this
@@ -29,7 +30,7 @@ export default async (req: Request, _context: Context) => {
   if (!assignment) return json({ error: "Assignment not found" }, 404);
 
   const isParty =
-    session.role === "admin" ||
+    (session.role === "admin" && (await isActiveStaff(session.id))) ||
     assignment.teacher_id === session.id ||
     assignment.grade_angel_id === session.id;
   if (!isParty) return json({ error: "You do not have access to this file" }, 403);

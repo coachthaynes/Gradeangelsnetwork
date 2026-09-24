@@ -2,7 +2,7 @@ import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
-import { isSuspended } from "../lib/staff.mts";
+import { isActiveStaff, isSuspended } from "../lib/staff.mts";
 import { readJson } from "../lib/assignments.mts";
 import { MAX_MESSAGES_PER_MINUTE, MAX_MESSAGE_LENGTH, chatAccess, stripContactInfo, type ChatRow } from "../lib/chat.mts";
 import { photoUrl, publicName } from "../lib/profiles.mts";
@@ -46,7 +46,8 @@ export default async (req: Request) => {
 
   const a = await loadAssignment(assignmentId);
   if (!a) return json({ error: "Assignment not found" }, 404);
-  const access = chatAccess(session, a as ChatRow);
+  const activeStaff = session.role === "admin" && (await isActiveStaff(session.id));
+  const access = chatAccess(session, a as ChatRow, activeStaff);
   if (!access.canRead) return json({ error: "This chat is not available" }, 403);
 
   if (req.method === "POST") {

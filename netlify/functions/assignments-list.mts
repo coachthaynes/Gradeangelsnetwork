@@ -4,6 +4,7 @@ import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 import { gradeAngelEarningsCents } from "../lib/grade-angel.mts";
 import { photoUrl, publicName } from "../lib/profiles.mts";
+import { isActiveStaff } from "../lib/staff.mts";
 
 // What each role sees on the marketplace board:
 //   teacher     -> the assignments they posted, any status, with who has it
@@ -100,7 +101,7 @@ export default async (req: Request) => {
         ORDER BY a.published_at ASC NULLS LAST, a.created_at ASC
       `;
     }
-  } else if (session.role === "admin") {
+  } else if (session.role === "admin" && (await isActiveStaff(session.id))) {
     rows = statusFilter
       ? await db.sql`
           SELECT * FROM assignments WHERE status = ${statusFilter} ORDER BY created_at DESC
