@@ -2,6 +2,7 @@ import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
 import { hashPassword, signSession, sessionCookieHeader } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
+import { TERMS_VERSION } from "../lib/terms.mts";
 import { isMasterEmail } from "../lib/staff.mts";
 import { sendNow } from "../lib/drips.mts";
 
@@ -32,6 +33,11 @@ export default async (req: Request) => {
   if (!fullName) return json({ error: "Full name is required" }, 400);
   if (!ALLOWED_ROLES.has(role)) return json({ error: "Role must be teacher or grade_angel" }, 400);
 
+  const owner = isMasterEmail(email);
+  if (!owner && body.accept_terms !== true) {
+    return json({ error: "Please agree to the Terms of Use to create an account" }, 400);
+  }
+
   const existing = await db.sql`SELECT id FROM users WHERE email = ${email}`;
   if (existing.length > 0) {
     return json({ error: "An account with that email already exists" }, 409);
@@ -41,16 +47,16 @@ export default async (req: Request) => {
 
   // A master admin email always becomes a master admin account, whatever
   // role was picked on the form. Other staff use the staff request form.
-  const owner = isMasterEmail(email);
   const finalRole = owner ? "admin" : role;
   const staffLevel = owner ? "owner" : null;
 
   const [user] = await db.sql`
     INSERT INTO users (email, password_hash, role, full_name, school_or_org, subjects, staff_level, staff_approved_at,
-                       signup_source, signup_medium, signup_campaign, signup_referrer)
+                       signup_source, signup_medium, signup_campaign, signup_referrer, terms_accepted_at, terms_version)
     VALUES (${email}, ${passwordHash}, ${finalRole}, ${fullName}, ${schoolOrOrg}, ${subjects}, ${staffLevel},
             ${owner ? new Date().toISOString() : null},
-            ${clip(body.source, 80)}, ${clip(body.medium, 80)}, ${clip(body.campaign, 120)}, ${clip(body.referrer, 300)})
+            ${clip(body.source, 80)}, ${clip(body.medium, 80)}, ${clip(body.campaign, 120)}, ${clip(body.referrer, 300)},
+            ${body.accept_terms === true ? new Date().toISOString() : null}, ${body.accept_terms === true ? TERMS_VERSION : null})
     RETURNING id, email, role, full_name, school_or_org, subjects, background_check_status, staff_level, created_at
   `;
 

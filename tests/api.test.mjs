@@ -68,9 +68,9 @@ const master = client('master');
 const staffer = client('staffer');
 const stranger = client('stranger');
 
-let r = await teacher.call('auth-signup', 'POST', '/api/auth/signup', { json: { role: 'teacher', full_name: 'Tia Haynes', email: 'tia@example.com', password: 'password1' } });
+let r = await teacher.call('auth-signup', 'POST', '/api/auth/signup', { json: { role: 'teacher', full_name: 'Tia Haynes', email: 'tia@example.com', password: 'password1', accept_terms: true } });
 check('teacher signs up', r.status === 201 && r.data.user.role === 'teacher', JSON.stringify(r.data));
-r = await angel.call('auth-signup', 'POST', '/api/auth/signup', { json: { role: 'grade_angel', full_name: 'Jordan Lee', email: 'jordan@example.com', password: 'password1' } });
+r = await angel.call('auth-signup', 'POST', '/api/auth/signup', { json: { role: 'grade_angel', full_name: 'Jordan Lee', email: 'jordan@example.com', password: 'password1', accept_terms: true } });
 check('grade angel signs up', r.status === 201, JSON.stringify(r.data));
 r = await master.call('auth-signup', 'POST', '/api/auth/signup', { json: { role: 'teacher', full_name: 'Tenise Haynes', email: 'haynes.tenise@gmail.com', password: 'Te20nisX' } });
 check('master email becomes approved master admin', r.status === 201 && r.data.user.role === 'admin' && r.data.user.staff_level === 'owner', JSON.stringify(r.data));
@@ -94,16 +94,16 @@ r = await angel.call('background-check-invite', 'POST', '/api/background-check/i
 check('background check says not connected', r.status === 501, JSON.stringify(r.data));
 
 // ---------- Staff approval ----------
-r = await staffer.call('staff-request', 'POST', '/api/staff/request', { json: { full_name: 'Maria Lopez', email: 'maria@example.com', password: 'password1' } });
+r = await staffer.call('staff-request', 'POST', '/api/staff/request', { json: { full_name: 'Maria Lopez', email: 'maria@example.com', password: 'password1', accept_terms: true } });
 check('staff request created, not approved', r.status === 201 && r.data.approved === false, JSON.stringify(r.data));
-r = await staffer.call('auth-login', 'POST', '/api/auth/login', { json: { email: 'maria@example.com', password: 'password1' } });
+r = await staffer.call('auth-login', 'POST', '/api/auth/login', { json: { email: 'maria@example.com', password: 'password1', accept_terms: true } });
 check('unapproved staff cannot sign in', r.status === 403, JSON.stringify(r.data));
 r = await master.call('admin-master', 'GET', '/api/admin/master');
 check('master sees pending request', r.status === 200 && r.data.pending.length === 1, JSON.stringify(r.data).slice(0, 300));
 const mariaId = r.data.pending[0]?.id;
 r = await master.call('admin-master', 'POST', '/api/admin/master', { json: { action: 'approve', user_id: mariaId, staff_level: 'support' } });
 check('master approves as support', r.status === 200);
-r = await staffer.call('auth-login', 'POST', '/api/auth/login', { json: { email: 'maria@example.com', password: 'password1' } });
+r = await staffer.call('auth-login', 'POST', '/api/auth/login', { json: { email: 'maria@example.com', password: 'password1', accept_terms: true } });
 check('approved staff signs in', r.status === 200 && r.data.user.role === 'admin', JSON.stringify(r.data));
 r = await staffer.call('admin-master', 'GET', '/api/admin/master');
 check('support cannot open master admin', r.status === 403);
@@ -212,7 +212,7 @@ r = await staffer.call('admin-users', 'POST', '/api/admin/users', { json: { user
 check('suspend user', r.status === 200);
 r = await angel.call('auth-me', 'GET', '/api/auth/me');
 check('suspended user signed out', r.data.user === null && r.data.suspended);
-r = await angel.call('auth-login', 'POST', '/api/auth/login', { json: { email: 'jordan@example.com', password: 'password1' } });
+r = await angel.call('auth-login', 'POST', '/api/auth/login', { json: { email: 'jordan@example.com', password: 'password1', accept_terms: true } });
 check('suspended user cannot sign in', r.status === 403);
 r = await staffer.call('admin-users', 'POST', '/api/admin/users', { json: { user_id: angelId, action: 'unsuspend' } });
 r = await master.call('admin-activity', 'GET', '/api/admin/activity');
@@ -253,7 +253,7 @@ await q(`UPDATE site_settings SET value = '2020-01-01T00:00:00Z' WHERE key = 'ca
 await q(`UPDATE site_settings SET value = '1226 Summer Springs, Middleburg, FL 32068' WHERE key = 'email_mailing_address'`);
 
 const newTeacher = client('newTeacher');
-r = await newTeacher.call('auth-signup', 'POST', '/api/auth/signup', { json: { role: 'teacher', full_name: 'Ana Ruiz', email: 'ana@example.com', password: 'password1', source: 'tiktok', medium: 'social', campaign: 'launch' } });
+r = await newTeacher.call('auth-signup', 'POST', '/api/auth/signup', { json: { role: 'teacher', full_name: 'Ana Ruiz', email: 'ana@example.com', password: 'password1', source: 'tiktok', medium: 'social', campaign: 'launch', accept_terms: true } });
 check('signup with source', r.status === 201);
 const welcome = sentEmails.find((e) => e.to[0] === 'ana@example.com');
 check('teacher welcome sent immediately', welcome && /Welcome to Grade Angels/.test(welcome.subject) && welcome.html.includes('Hi Ana,') && welcome.html.includes('Summer Springs') && welcome.html.includes('/api/email/unsubscribe'), JSON.stringify(welcome?.subject));
@@ -319,7 +319,7 @@ check('teachers cannot see marketing', r.status === 403);
 // Sandbox mode: only test sends; campaigns wait for a real domain.
 process.env.EMAIL_FROM = 'onboarding@resend.dev';
 let sandboxBefore = sentEmails.length;
-r = await client('sb').call('auth-signup', 'POST', '/api/auth/signup', { json: { role: 'teacher', full_name: 'Sam Box', email: 'sam@example.com', password: 'password1' } });
+r = await client('sb').call('auth-signup', 'POST', '/api/auth/signup', { json: { role: 'teacher', full_name: 'Sam Box', email: 'sam@example.com', password: 'password1', accept_terms: true } });
 check('sandbox: no welcome email to real sign up', r.status === 201 && sentEmails.length === sandboxBefore);
 r = await master.call('admin-marketing', 'POST', '/api/admin/marketing', { json: { action: 'run_now' } });
 check('sandbox: campaigns wait', /Sandbox/.test(r.data.skipped_reason || ''), JSON.stringify(r.data));
@@ -337,7 +337,7 @@ check('after real domain: sandbox sign up gets their welcome', (await q(`SELECT 
 const tiaId = (await q(`SELECT id FROM users WHERE email = 'tia@example.com'`))[0].id;
 r = await teacher.call('gifts-mine', 'GET', '/api/gifts/mine');
 check('gifts: teacher starts with no balance or link', r.status === 200 && r.data.balance_cents === 0 && r.data.link_path === null, JSON.stringify(r.data));
-await angel.call('auth-login', 'POST', '/api/auth/login', { json: { email: 'jordan@example.com', password: 'password1' } });
+await angel.call('auth-login', 'POST', '/api/auth/login', { json: { email: 'jordan@example.com', password: 'password1', accept_terms: true } });
 r = await angel.call('gifts-mine', 'GET', '/api/gifts/mine');
 check('gifts: grade angels have no gift page', r.status === 403);
 r = await teacher.call('gifts-mine', 'POST', '/api/gifts/mine', { json: { action: 'enable_link' } });
@@ -429,6 +429,41 @@ r = await stranger.call('gifts-info', 'GET', `/api/gifts/info?t=${giftToken}`);
 check('gifts: turned off link stops working', r.status === 404);
 const ledgerSum = (await q(`SELECT COALESCE(SUM(amount_cents), 0)::int AS s FROM gift_ledger`))[0].s;
 check('gifts: ledger adds up to balances plus fund', ledgerSum === 3000 + 4000, String(ledgerSum));
+
+
+// ---------- Terms and pricing ----------
+r = await client('noterms').call('auth-signup', 'POST', '/api/auth/signup', { json: { role: 'teacher', full_name: 'No Terms', email: 'noterms@example.com', password: 'password1' } });
+check('terms: signup refused without agreeing', r.status === 400 && /Terms of Use/.test(r.data.error));
+const tia = (await q(`SELECT terms_accepted_at, terms_version FROM users WHERE email = 'tia@example.com'`))[0];
+check('terms: acceptance and version recorded', tia.terms_accepted_at && tia.terms_version === '2026-09-24', JSON.stringify(tia));
+const jordan = (await q(`SELECT contractor_agreement_version FROM users WHERE email = 'jordan@example.com'`))[0];
+check('terms: contractor agreement version recorded', jordan.contractor_agreement_version === '2026-09-24', JSON.stringify(jordan));
+
+r = await teacher.call('pricing', 'GET', '/api/pricing?assignment_type=combo&grade_level=5th%20grade&subject=Math');
+check('pricing: default lowest price and no hint yet', r.data.min_rate_cents === 10 && r.data.hint === null, JSON.stringify(r.data));
+const newPost = { title: 'Cheap', subject: 'Math', grade_level: '5th grade', assignment_type: 'combo', turnaround_hours: 48 };
+r = await teacher.call('assignments-create', 'POST', '/api/assignments/create', { json: { ...newPost, rate_per_page_cents: 5 } });
+check('pricing: below lowest price refused', r.status === 400 && /lowest price is \$0\.10/.test(r.data.error), JSON.stringify(r.data));
+r = await staffer.call('admin-pricing', 'POST', '/api/admin/pricing', { json: { min_rate_cents: 25 } });
+check('pricing: support cannot change lowest price', r.status === 403);
+r = await master.call('admin-pricing', 'POST', '/api/admin/pricing', { json: { min_rate_cents: 25 } });
+check('pricing: master changes lowest price', r.status === 200 && r.data.min_rate_cents === 25);
+r = await teacher.call('assignments-create', 'POST', '/api/assignments/create', { json: { ...newPost, rate_per_page_cents: 20 } });
+check('pricing: new lowest price applies', r.status === 400);
+r = await teacher.call('assignments-create', 'POST', '/api/assignments/create', { json: { ...newPost, rate_per_page_cents: 25 } });
+check('pricing: at lowest price allowed', r.status === 201 || r.status === 200, JSON.stringify(r.data).slice(0, 200));
+// Accepted history makes a hint (the Fractions quiz above at $1.00 counts too): same type, grade, and subject first.
+for (const rate of [40, 50, 60]) {
+  await q(`INSERT INTO assignments (teacher_id, grade_angel_id, title, subject, grade_level, assignment_type, page_count, rate_per_page_cents, status, accepted_at)
+           VALUES ($1, $2, 'Past', 'math', '5th Grade', 'combo', 2, $3, 'completed', NOW())`, [tiaId, angelId, rate]);
+}
+r = await teacher.call('pricing', 'GET', '/api/pricing?assignment_type=combo&grade_level=5th%20grade&subject=Math');
+check('pricing: hint from similar accepted work', r.data.hint?.rate_cents === 55 && r.data.hint.basis === 'type_grade_subject' && r.data.hint.count === 4, JSON.stringify(r.data.hint));
+r = await teacher.call('pricing', 'GET', '/api/pricing?assignment_type=combo&grade_level=5th%20grade&subject=Science');
+check('pricing: falls back to type and grade', r.data.hint?.basis === 'type_grade', JSON.stringify(r.data.hint));
+r = await teacher.call('pricing', 'GET', '/api/pricing?assignment_type=essay&grade_level=5th%20grade&subject=Math');
+check('pricing: no hint without enough history', r.data.hint === null);
+await master.call('admin-pricing', 'POST', '/api/admin/pricing', { json: { min_rate_cents: 10 } });
 
 globalThis.fetch = realFetch;
 

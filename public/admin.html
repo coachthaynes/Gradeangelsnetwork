@@ -111,6 +111,15 @@
           <a class="btn small secondary" id="pay-csv" href="/api/admin/payments?format=csv">Download spreadsheet</a>
         </form>
         <div class="table-wrap"><table class="admin-table" id="pay-table"></table></div>
+        <div class="card mt" id="pricing-card">
+          <h2>Lowest price per page</h2>
+          <p class="muted">Teachers set their own price, but never below this, so Grade Angels are paid fairly. It applies to new assignments only.</p>
+          <form id="pricing-form" class="filters">
+            <label for="min-rate" class="inline-label">Dollars per page</label>
+            <input id="min-rate" type="number" min="0.01" max="10" step="0.01" required style="max-width:8rem" />
+            <button class="btn small" type="submit">Save</button>
+          </form>
+        </div>
       </section>
 
       <!-- Gift Angels -->
@@ -563,6 +572,7 @@
 
     // ---------- Payouts ----------
     loaders.payouts = async () => {
+      loadPricing().catch(() => {});
       const status = document.getElementById("pay-status").value;
       document.getElementById("pay-csv").href = `/api/admin/payments?format=csv&payout=${status}`;
       const { payments } = await apiGet(`/api/admin/payments?payout=${status}`);
@@ -584,6 +594,23 @@
         }).join("") || '<tr><td colspan="6" class="muted">No payments yet.</td></tr>'}</tbody>`;
     };
     document.getElementById("pay-filters").addEventListener("submit", (e) => (e.preventDefault(), loaders.payouts()));
+    async function loadPricing() {
+      const { min_rate_cents } = await apiGet("/api/admin/pricing");
+      const input = document.getElementById("min-rate");
+      input.value = (min_rate_cents / 100).toFixed(2);
+      const canEdit = can("manager");
+      input.disabled = !canEdit;
+      document.querySelector("#pricing-form button").hidden = !canEdit;
+    }
+    document.getElementById("pricing-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        const { min_rate_cents } = await apiPostJson("/api/admin/pricing", { min_rate_cents: Math.round(parseFloat(document.getElementById("min-rate").value) * 100) });
+        flash(`Teachers can now set prices from ${formatCents(min_rate_cents)} a page.`);
+      } catch (err) {
+        flash(err.message, "error");
+      }
+    });
     document.getElementById("pay-table").addEventListener("click", async (e) => {
       const b = e.target.closest("[data-retry]");
       if (!b) return;

@@ -1163,3 +1163,18 @@ code { background: var(--bg-alt); border: 1px solid var(--border); border-radius
 .compare thead th:last-child { color: var(--seafoam); }
 .compare td:first-child { font-weight: 600; width: 28%; }
 .compare td:last-child { background: var(--seafoam-soft); }
+
+/* Terms and agreements */
+.legal { max-width: 780px; margin: 0 auto; padding: 2rem 16px 3rem; }
+.legal h1 { margin: 0.25rem 0; }
+.legal h2 { font-size: 1.25rem; margin-top: 2rem; scroll-margin-top: 1rem; }
+.legal li { margin-bottom: 0.5rem; }
+.legal-toc { display: grid; gap: 0.3rem 1.5rem; background: var(--bg-alt); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; margin: 1.5rem 0; font-size: 0.92rem; }
+@media (min-width: 640px) { .legal-toc { grid-template-columns: 1fr 1fr; } }
+.legal-toc a { color: var(--ink); text-decoration: none; }
+.legal-toc a:hover { color: var(--seafoam-deep); text-decoration: underline; }
+.legal-contact { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--ink-soft); }
+.terms-check { align-items: flex-start; font-size: 0.92rem; }
+.terms-check input { margin-top: 0.3rem; }
+.price-help { font-size: 0.9rem; margin: 0.35rem 0 0; }
+.price-help strong { color: var(--seafoam-deep); }
