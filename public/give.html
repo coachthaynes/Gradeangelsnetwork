@@ -34,6 +34,22 @@
       <section class="card give-form" id="give-card">
         <form id="give-form">
           <h2>Your gift</h2>
+          <label id="for-label">Who is this gift for?</label>
+          <div class="recipient-choice" role="radiogroup" aria-labelledby="for-label">
+            <button type="button" role="radio" aria-checked="true" class="active" data-for="teacher">A teacher I know</button>
+            <button type="button" role="radio" aria-checked="false" data-for="fund">Teachers who need it most</button>
+          </div>
+          <div id="teacher-picker">
+            <div id="teacher-chosen" hidden></div>
+            <div id="teacher-find">
+              <label for="teacher-search">Teacher's @username or name</label>
+              <input id="teacher-search" autocomplete="off" placeholder="@mshaynes" role="combobox" aria-expanded="false" aria-controls="teacher-results" aria-autocomplete="list" />
+              <div id="teacher-results" class="teacher-results" role="listbox" hidden></div>
+              <p class="muted small-print">Ask your teacher for their @username. Only teachers who have turned on gifts can be found here.</p>
+            </div>
+          </div>
+          <p class="muted small-print" id="fund-note" hidden>Your gift goes to the community fund, and our team shares it with teachers who need grading help most.</p>
+
           <label>Amount</label>
           <div class="amounts" id="amounts">
             <button type="button" data-amt="1000">$10</button>
@@ -69,9 +85,10 @@
   <script src="/js/api.js"></script>
   <script>
     const params = new URLSearchParams(location.search);
-    const token = params.get("t");
     let amountCents = 2500;
     let min = 500, max = 500000;
+    let giveTo = "teacher";   // "teacher" or "fund"
+    let recipient = null;     // { name, handle, school, note, token }
 
     function setAmount(cents) {
       amountCents = cents;
@@ -91,6 +108,116 @@
       setAmount(dollars > 0 ? Math.round(dollars * 100) : 0);
     });
 
+    // ---------- Who the gift is for ----------
+    function teacherLine(t) {
+      return `<strong>${escapeHtml(t.name)}</strong> <span class="muted">@${escapeHtml(t.handle || "")}${t.school ? ` · ${escapeHtml(t.school)}` : ""}</span>`;
+    }
+
+    function renderRecipient() {
+      document.querySelectorAll("[data-for]").forEach((b) => {
+        const on = b.dataset.for === giveTo;
+        b.classList.toggle("active", on);
+        b.setAttribute("aria-checked", String(on));
+      });
+      document.getElementById("teacher-picker").hidden = giveTo !== "teacher";
+      document.getElementById("fund-note").hidden = giveTo !== "fund";
+      const chosen = document.getElementById("teacher-chosen");
+      chosen.hidden = !recipient;
+      document.getElementById("teacher-find").hidden = Boolean(recipient);
+      if (recipient) {
+        chosen.innerHTML = `<div class="teacher-pick">${teacherLine(recipient)}<button type="button" class="link" id="change-teacher">Change</button></div>`;
+      }
+      // The story on the left follows the choice.
+      const t = giveTo === "teacher" ? recipient : null;
+      document.getElementById("give-title").textContent = t ? `Give ${t.name} an evening back.` : "Give a teacher their evening back.";
+      document.getElementById("give-for").innerHTML = t
+        ? `<div class="give-for">
+            <strong>Your gift goes straight to ${escapeHtml(t.name)}'s gift balance.</strong>
+            ${t.note ? `<blockquote>"${escapeHtml(t.note)}"</blockquote>` : ""}
+          </div>`
+        : "";
+      document.getElementById("how-1").textContent = t
+        ? `It is saved for ${t.name} and used automatically the next time they pay for grading.`
+        : giveTo === "fund"
+          ? "Gifts to the community fund are shared with teachers who need help most."
+          : "Gifts to a teacher are saved in their gift balance and used the next time they pay for grading.";
+      document.getElementById("message").placeholder = t ? `Thank you, ${t.name}, for everything you do!` : "Thank you for everything you do for our kids!";
+    }
+
+    document.querySelector(".recipient-choice").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-for]");
+      if (!b) return;
+      giveTo = b.dataset.for;
+      renderRecipient();
+      if (giveTo === "teacher" && !recipient) document.getElementById("teacher-search").focus();
+    });
+
+    async function chooseTeacher(handle) {
+      const info = await apiGet(`/api/gifts/info?to=${encodeURIComponent(handle)}`);
+      recipient = info.teacher;
+      closeResults();
+      renderRecipient();
+    }
+
+    document.getElementById("teacher-picker").addEventListener("click", (e) => {
+      if (e.target.id === "change-teacher") {
+        recipient = null;
+        renderRecipient();
+        const input = document.getElementById("teacher-search");
+        input.value = "";
+        input.focus();
+        return;
+      }
+      const opt = e.target.closest("[data-handle]");
+      if (opt) chooseTeacher(opt.dataset.handle).catch((err) => showMessage(document.getElementById("give-msg"), err.message, "error"));
+    });
+
+    const search = document.getElementById("teacher-search");
+    const results = document.getElementById("teacher-results");
+    let searchTimer = null, searchSeq = 0;
+    function closeResults() {
+      results.hidden = true;
+      search.setAttribute("aria-expanded", "false");
+    }
+    search.addEventListener("input", () => {
+      clearTimeout(searchTimer);
+      const q = search.value.trim();
+      if (q.replace(/^@/, "").length < 2) return closeResults();
+      searchTimer = setTimeout(async () => {
+        const seq = ++searchSeq;
+        try {
+          const { teachers } = await apiGet(`/api/gifts/search?q=${encodeURIComponent(q)}`);
+          if (seq !== searchSeq) return;
+          results.innerHTML = teachers.length
+            ? teachers.map((t) => `<button type="button" role="option" class="teacher-option" data-handle="${escapeHtml(t.handle)}">${teacherLine(t)}</button>`).join("")
+            : `<p class="muted no-match">No teacher found. Check the @username with your teacher, or give to teachers who need it most.</p>`;
+          results.hidden = false;
+          search.setAttribute("aria-expanded", "true");
+        } catch {
+          closeResults();
+        }
+      }, 250);
+    });
+    search.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown") {
+        const first = results.querySelector("[data-handle]");
+        if (first) { e.preventDefault(); first.focus(); }
+      } else if (e.key === "Escape") {
+        closeResults();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        const first = results.querySelector("[data-handle]");
+        if (first) first.click();
+      }
+    });
+    results.addEventListener("keydown", (e) => {
+      const opts = [...results.querySelectorAll("[data-handle]")];
+      const i = opts.indexOf(document.activeElement);
+      if (e.key === "ArrowDown" && i < opts.length - 1) { e.preventDefault(); opts[i + 1].focus(); }
+      if (e.key === "ArrowUp") { e.preventDefault(); (i > 0 ? opts[i - 1] : search).focus(); }
+      if (e.key === "Escape") { closeResults(); search.focus(); }
+    });
+
     function showThanks(teacherName) {
       document.getElementById("give-card").innerHTML = `
         <div class="give-thanks">
@@ -102,8 +229,11 @@
     }
 
     async function load() {
+      const token = params.get("t");
+      const handle = params.get("to");
+      if (params.get("fund")) giveTo = "fund";
       try {
-        const info = await apiGet(`/api/gifts/info${token ? `?t=${encodeURIComponent(token)}` : ""}`);
+        const info = await apiGet(`/api/gifts/info${token ? `?t=${encodeURIComponent(token)}` : handle ? `?to=${encodeURIComponent(handle)}` : ""}`);
         min = info.min_cents;
         max = info.max_cents;
         const s = info.stats;
@@ -114,24 +244,25 @@
             <div><strong>${s.teachers_helped}</strong><span>teacher${s.teachers_helped === 1 ? "" : "s"} helped</span></div>`;
         }
         if (info.teacher) {
-          document.getElementById("give-title").textContent = `Give ${info.teacher.name} an evening back.`;
-          document.getElementById("give-for").innerHTML = `
-            <div class="give-for">
-              <strong>Your gift goes straight to ${escapeHtml(info.teacher.name)}'s gift balance.</strong>
-              ${info.teacher.note ? `<blockquote>"${escapeHtml(info.teacher.note)}"</blockquote>` : ""}
-            </div>`;
-          document.getElementById("how-1").textContent = `It is saved for ${info.teacher.name} and used automatically the next time they pay for grading.`;
+          recipient = { ...info.teacher, token: info.teacher.handle ? null : token };
+          giveTo = "teacher";
         }
+        renderRecipient();
         if (params.get("thanks")) showThanks(info.teacher?.name);
       } catch (err) {
-        document.getElementById("give-for").innerHTML = `<div class="msg error">${escapeHtml(err.message)} You can still give to the community fund <a href="/give.html">here</a>.</div>`;
-        document.getElementById("give-card").hidden = true;
+        renderRecipient();
+        showMessage(document.getElementById("give-msg"), `${err.message} You can search for the teacher below, or give to teachers who need it most.`, "error");
       }
     }
 
     document.getElementById("give-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       const msg = document.getElementById("give-msg");
+      if (giveTo === "teacher" && !recipient) {
+        showMessage(msg, "Find the teacher by their @username or name, or choose Teachers who need it most.", "error");
+        search.focus();
+        return;
+      }
       if (!amountCents || amountCents < min || amountCents > max) {
         showMessage(msg, `Choose an amount from ${formatCents(min)} to ${formatCents(max)}.`, "error");
         return;
@@ -139,6 +270,7 @@
       const btn = document.getElementById("give-btn");
       btn.disabled = true;
       try {
+        const forTeacher = giveTo === "teacher" ? recipient : null;
         const { url } = await apiPostJson("/api/gifts/checkout", {
           amount_cents: amountCents,
           name: document.getElementById("name").value,
@@ -146,7 +278,8 @@
           message: document.getElementById("message").value,
           anonymous: document.getElementById("anonymous").checked,
           website: document.getElementById("website").value,
-          t: token || undefined,
+          to: forTeacher?.handle || undefined,
+          t: forTeacher?.token || undefined,
           source: getAttribution().source,
         });
         window.location.href = url;

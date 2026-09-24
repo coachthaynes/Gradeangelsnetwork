@@ -512,23 +512,38 @@
       const box = document.getElementById("gift-link-box");
       if (!gifts.link_path) {
         box.innerHTML = `
-          <p>Turn on your gift link to share with families. The page shows only your display name and a note you write, never your full name or school.</p>
-          <button class="btn small" type="button" data-gift="enable_link">Turn on my gift link</button>`;
+          <p>Turn on gifts to get an @username and a link to share with families. Supporters see only your display name, your @username, and a note you write, never your full name.</p>
+          <button class="btn small" type="button" data-gift="enable_link">Turn on gifts</button>`;
       } else {
-        const url = location.origin + gifts.link_path;
+        const url = location.origin + (gifts.handle_path || gifts.link_path);
         box.innerHTML = `
+          <label for="gift-handle">Your @username</label>
+          <div class="handle-row">
+            <span class="at">@</span>
+            <input id="gift-handle" maxlength="20" value="${escapeHtml(gifts.handle || "")}" autocomplete="off" spellcheck="false" />
+            <button class="btn small" type="button" data-gift="save_handle">Save</button>
+          </div>
+          <p class="muted small-print">Supporters can search for @${escapeHtml(gifts.handle || "")} on the Give page. Letters, numbers, and underscores only. It never shows your full name.</p>
           <label for="gift-url">Your gift link</label>
           <div class="copy-row">
             <input id="gift-url" readonly value="${escapeHtml(url)}" />
             <button class="btn small" type="button" data-gift="copy">Copy</button>
-            <a class="btn small secondary" href="${escapeHtml(gifts.link_path)}" target="_blank" rel="noopener">Preview</a>
+            <a class="btn small secondary" href="${escapeHtml(gifts.handle_path || gifts.link_path)}" target="_blank" rel="noopener">Preview</a>
           </div>
+          <label for="gift-school">Your school (optional)</label>
+          <div class="handle-row">
+            <input id="gift-school" maxlength="120" value="${escapeHtml(gifts.school || "")}" placeholder="Lake Asbury Elementary" />
+            <button class="btn small" type="button" data-gift="save_school">Save</button>
+          </div>
+          <label class="check-row">
+            <input type="checkbox" id="gift-show-school" ${gifts.show_school ? "checked" : ""} />
+            <span>Show my school next to my @username, so families know it is me</span>
+          </label>
           <label for="gift-note">A note for supporters (optional)</label>
           <textarea id="gift-note" maxlength="300" placeholder="Thank you for helping me spend more evenings with my own family. Every gift pays for grading so I can focus on teaching.">${escapeHtml(gifts.note || "")}</textarea>
           <div class="row-actions">
             <button class="btn small" type="button" data-gift="save_note">Save note</button>
-            <button class="btn small ghost" type="button" data-gift="new_link">Make a new link</button>
-            <button class="btn small ghost" type="button" data-gift="disable_link">Turn off my link</button>
+            <button class="btn small ghost" type="button" data-gift="disable_link">Turn off gifts</button>
           </div>`;
       }
       document.getElementById("gift-list").innerHTML = gifts.received.length
@@ -541,6 +556,11 @@
            <p class="muted">Received ${formatCents(gifts.received_cents)} in all, ${formatCents(gifts.spent_cents)} spent on grading.</p>`
         : '<p class="muted">No gifts yet. Share your link in your class newsletter or at open house.</p>';
     }
+
+    // Ticking "show my school" saves right away, along with the school box.
+    document.getElementById("gifts").addEventListener("change", (e) => {
+      if (e.target.id === "gift-show-school") document.querySelector('[data-gift="save_school"]').click();
+    });
 
     document.getElementById("gifts").addEventListener("click", async (e) => {
       const btn = e.target.closest("[data-gift]");
@@ -558,16 +578,18 @@
         showMessage(giftMsg, "Link copied.", "success");
         return;
       }
-      if (action === "new_link" && !confirm("Make a new link? The old one will stop working.")) return;
-      if (action === "disable_link" && !confirm("Turn off your gift link? Anyone with it will no longer be able to give.")) return;
+      if (action === "disable_link" && !confirm("Turn off gifts? Supporters will no longer be able to find you or use your link.")) return;
       btn.disabled = true;
       try {
         gifts = await apiPostJson("/api/gifts/mine", {
           action,
           note: action === "save_note" ? document.getElementById("gift-note").value : undefined,
+          handle: action === "save_handle" ? document.getElementById("gift-handle").value : undefined,
+          school: action === "save_school" ? document.getElementById("gift-school").value : undefined,
+          show: action === "save_school" ? document.getElementById("gift-show-school").checked : undefined,
         });
         renderGifts();
-        const done = { enable_link: "Your gift link is on.", new_link: "New link made. The old one no longer works.", disable_link: "Your gift link is off.", save_note: "Note saved." };
+        const done = { enable_link: `Gifts are on. Your @username is @${gifts.handle}.`, disable_link: "Gifts are off. Supporters can no longer find you.", save_note: "Note saved.", save_handle: `Saved. You are now @${gifts.handle}.`, save_school: gifts.show_school && gifts.school ? "Saved. Supporters see your school." : "Saved. Your school is hidden from supporters." };
         showMessage(document.getElementById("gift-msg"), done[action], "success");
       } catch (err) {
         showMessage(giftMsg, err.message, "error");

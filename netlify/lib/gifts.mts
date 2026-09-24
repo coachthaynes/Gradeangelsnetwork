@@ -202,3 +202,62 @@ export async function returnGiftForAssignment(assignmentId: number): Promise<num
   `;
   return row?.returned ?? 0;
 }
+
+// A teacher's @username: 3 to 20 lowercase letters, numbers, or underscores.
+export const HANDLE_RE = /^[a-z0-9_]{3,20}$/;
+
+export function cleanHandle(raw: unknown): string {
+  return String(raw || "").trim().replace(/^@+/, "").toLowerCase();
+}
+
+// Gives a teacher an @username if they do not have one yet, built from
+// their public name (like "mshaynes" or "leep"), with a number added if
+// it is taken. Returns the handle.
+export async function ensureHandle(userId: number): Promise<string> {
+  const [u] = await db.sql`SELECT id, role, full_name, display_name, handle FROM users WHERE id = ${userId}`;
+  if (u.handle) return u.handle;
+  let base = publicName(u).toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16);
+  if (base.length < 3) base = (base + "teacher").slice(0, 16);
+  for (let i = 0; i < 50; i++) {
+    const candidate = i === 0 ? base : `${base}${i + 1}`;
+    const rows = await db.sql`
+      UPDATE users SET handle = ${candidate}
+      WHERE id = ${userId} AND handle IS NULL
+        AND NOT EXISTS (SELECT 1 FROM users WHERE LOWER(handle) = ${candidate})
+      RETURNING handle
+    `;
+    if (rows.length) return rows[0].handle;
+    const [again] = await db.sql`SELECT handle FROM users WHERE id = ${userId}`;
+    if (again.handle) return again.handle;
+  }
+  const fallback = `${base.slice(0, 12)}${Math.floor(Math.random() * 90000) + 10000}`;
+  await db.sql`UPDATE users SET handle = ${fallback} WHERE id = ${userId} AND handle IS NULL`;
+  return fallback;
+}
+
+// Finds a teacher who can receive gifts, by gift link token or @username.
+// Only teachers who have turned their gift link on can be found.
+export async function findGiftTeacher(opts: { token?: unknown; handle?: unknown }) {
+  const token = opts.token ? String(opts.token) : null;
+  const handle = opts.handle ? cleanHandle(opts.handle) : null;
+  if (!token && !handle) return null;
+  const [t] = await db.sql`
+    SELECT id, role, full_name, display_name, handle, gift_note, school_or_org, gift_show_school
+    FROM users
+    WHERE role = 'teacher' AND suspended_at IS NULL AND gift_link_token IS NOT NULL
+      AND (${token}::text IS NOT NULL AND gift_link_token = ${token}
+           OR ${handle}::text IS NOT NULL AND LOWER(handle) = ${handle})
+  `;
+  return t || null;
+}
+
+// What supporters may see about a teacher: public name, @username, their
+// note, and their school only if they chose to show it.
+export function publicGiftTeacher(t: any) {
+  return {
+    name: publicName(t),
+    handle: t.handle,
+    note: t.gift_note ?? null,
+    school: t.gift_show_school && t.school_or_org ? t.school_or_org : null,
+  };
+}

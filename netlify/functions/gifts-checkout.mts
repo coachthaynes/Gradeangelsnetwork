@@ -3,7 +3,7 @@ import { db } from "../lib/db.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 import { readJson } from "../lib/assignments.mts";
 import { getStripe, StripeNotConfiguredError } from "../lib/stripe.mts";
-import { formatDollars, MAX_GIFT_CENTS, MIN_GIFT_CENTS } from "../lib/gifts.mts";
+import { ensureHandle, findGiftTeacher, formatDollars, MAX_GIFT_CENTS, MIN_GIFT_CENTS } from "../lib/gifts.mts";
 import { publicName } from "../lib/profiles.mts";
 
 const clip = (v: unknown, n: number) => (v ? String(v).trim().slice(0, n) : "");
@@ -30,12 +30,10 @@ export default async (req: Request) => {
   const anonymous = Boolean(body.anonymous);
 
   let teacher: any = null;
-  if (body.t) {
-    [teacher] = await db.sql`
-      SELECT id, role, full_name, display_name FROM users
-      WHERE gift_link_token = ${String(body.t)} AND role = 'teacher' AND suspended_at IS NULL
-    `;
-    if (!teacher) return json({ error: "This gift link is no longer active" }, 404);
+  if (body.t || body.to) {
+    teacher = await findGiftTeacher({ token: body.t, handle: body.to });
+    if (!teacher) return json({ error: "We could not find that teacher. Check their @username." }, 404);
+    if (!teacher.handle) teacher.handle = await ensureHandle(teacher.id);
   }
 
   let stripe;
@@ -56,7 +54,7 @@ export default async (req: Request) => {
 
   // Stripe sends the supporter back to the page they gave from.
   const origin = new URL(req.url).origin;
-  const back = `${origin}/give.html${body.t ? `?t=${encodeURIComponent(String(body.t))}&` : "?"}`;
+  const back = `${origin}/give.html${teacher ? `?to=${encodeURIComponent(teacher.handle || "")}&` : "?"}`;
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",

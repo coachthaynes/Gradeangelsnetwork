@@ -18,7 +18,7 @@ export default async (req: Request) => {
   if (!Number.isInteger(userId)) return json({ error: "id is required" }, 400);
 
   const [user] = await db.sql`
-    SELECT id, role, full_name, display_name, bio, photo_updated_at, created_at,
+    SELECT id, role, full_name, display_name, handle, bio, photo_updated_at, created_at,
            subjects, grade_levels, assignment_types, qualifications, years_experience,
            highest_degree, teaching_certificate, city, state
     FROM users WHERE id = ${userId}
@@ -64,7 +64,7 @@ export default async (req: Request) => {
              COUNT(*) FILTER (WHERE status = 'completed')::int AS completed
       FROM assignments WHERE teacher_id = ${user.id}
     `;
-    Object.assign(profile, { assignments_posted: stats.posted, assignments_completed: stats.completed });
+    Object.assign(profile, { handle: user.handle, assignments_posted: stats.posted, assignments_completed: stats.completed });
   }
 
   return json({ profile, is_self: isSelf }, 200);

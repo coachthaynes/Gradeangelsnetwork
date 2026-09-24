@@ -1178,3 +1178,18 @@ code { background: var(--bg-alt); border: 1px solid var(--border); border-radius
 .terms-check input { margin-top: 0.3rem; }
 .price-help { font-size: 0.9rem; margin: 0.35rem 0 0; }
 .price-help strong { color: var(--seafoam-deep); }
+.recipient-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin: 0.5rem 0 0.25rem; }
+.recipient-choice button { font: inherit; font-weight: 600; font-size: 0.92rem; padding: 0.65rem 0.5rem; border: 2px solid var(--border); background: #fff; border-radius: 12px; cursor: pointer; }
+.recipient-choice button.active { background: var(--black); border-color: var(--black); color: var(--seafoam); }
+.teacher-results { border: 1px solid var(--border); border-radius: 12px; margin-top: 0.35rem; overflow: hidden; box-shadow: var(--shadow); }
+.teacher-option { display: block; width: 100%; text-align: left; font: inherit; background: #fff; border: none; border-bottom: 1px solid var(--border); padding: 0.7rem 0.9rem; cursor: pointer; }
+.teacher-option:last-child { border-bottom: none; }
+.teacher-option:hover, .teacher-option:focus { background: var(--seafoam-soft); outline: none; }
+.no-match { margin: 0; padding: 0.75rem 0.9rem; font-size: 0.9rem; }
+.teacher-pick { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; background: var(--seafoam-soft); border-radius: 12px; padding: 0.75rem 1rem; margin-top: 0.5rem; }
+.teacher-pick .link { background: none; border: none; padding: 0; cursor: pointer; font: inherit; color: var(--seafoam-deep); font-weight: 700; text-decoration: underline; }
+.hero-handle { margin: 0.1rem 0 0; color: var(--seafoam); font-weight: 600; }
+.handle-row { display: flex; gap: 0.5rem; align-items: center; }
+.handle-row .at { font-weight: 700; color: var(--ink-soft); }
+.handle-row input { flex: 1; }
+.handle-row .btn { margin-top: 0; }
