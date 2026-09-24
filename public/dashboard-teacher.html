@@ -279,12 +279,18 @@
     function renderTiles() {
       const count = (fn) => assignments.filter(fn).length;
       const pages = assignments.filter((a) => a.status === "completed").reduce((s, a) => s + a.page_count, 0);
-      const spent = assignments.filter((a) => a.payment_status === "paid").reduce((s, a) => s + a.page_count * a.rate_per_page_cents, 0);
+      // A rough guess at the grading time a teacher got back: minutes per
+      // page for each kind of work, counted once the work is graded.
+      const MINUTES_PER_PAGE = { multiple_choice: 1, combo: 3, essay: 6 };
+      const minutes = assignments.filter((a) => a.status === "submitted" || a.status === "completed")
+        .reduce((s, a) => s + a.page_count * (MINUTES_PER_PAGE[a.assignment_type] || 3), 0);
+      const hours = minutes / 60;
+      const hoursText = hours === 0 ? "0" : hours < 10 ? String(Math.round(hours * 10) / 10) : String(Math.round(hours));
       document.getElementById("tiles").innerHTML = [
         statTileHtml("clock", "Being graded", count((a) => a.status === "accepted")),
         statTileHtml("inbox", "Ready for you", count((a) => a.status === "submitted"), count((a) => a.status === "submitted") ? "hot" : ""),
         statTileHtml("pages", "Pages graded for you", pages),
-        statTileHtml("money", "Invested in your time", formatCents(spent)),
+        statTileHtml("clock", "Hours saved (estimated)", hoursText),
       ].join("");
 
       const toReview = assignments.filter((a) => a.status === "completed" && !a.my_rating && a.grade_angel_id);
