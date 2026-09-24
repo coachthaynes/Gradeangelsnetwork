@@ -1,5 +1,6 @@
 import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
+import { isTestUser } from "../lib/test-accounts.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 import { isSuspended } from "../lib/staff.mts";
@@ -63,11 +64,12 @@ export default async (req: Request) => {
   // If gift money cannot cover it all, a card payment is needed. Check
   // Stripe is connected before setting anything aside.
   const useGift = body.use_gift !== false;
+  const testAccount = await isTestUser(session.id);
   const [{ gift_balance_cents: balanceCents }] = await db.sql`SELECT gift_balance_cents FROM users WHERE id = ${session.id}`;
   const [{ gift_cents: alreadySetAside = 0 } = {}] = existingPayment
     ? await db.sql`SELECT gift_cents FROM payments WHERE id = ${existingPayment.id}`
     : [];
-  if (alreadySetAside + (useGift ? balanceCents : 0) < amountCents) {
+  if (!testAccount && alreadySetAside + (useGift ? balanceCents : 0) < amountCents) {
     try {
       getStripe();
     } catch (err) {
@@ -96,6 +98,15 @@ export default async (req: Request) => {
     !useGift
       ? ((await db.sql`SELECT gift_cents FROM payments WHERE id = ${paymentId}`)[0]?.gift_cents ?? 0)
       : await applyGiftToPayment(paymentId, session.id, amountCents);
+
+  // Test accounts: whatever gifts did not cover is recorded as paid without
+  // charging a card, and the payment is marked test so its payout never
+  // moves real money either.
+  if (testAccount) {
+    await db.sql`UPDATE payments SET status = 'paid', paid_at = NOW(), test_mode = true WHERE id = ${paymentId} AND status = 'pending'`;
+    await recordEvent(assignmentId, session.id, "paid_test_mode", "Test account, no card charged");
+    return json({ paid: true, test: true, gift_cents: giftCents }, 200);
+  }
 
   if (giftCents >= amountCents) {
     await db.sql`UPDATE payments SET status = 'paid', paid_at = NOW() WHERE id = ${paymentId} AND status = 'pending'`;

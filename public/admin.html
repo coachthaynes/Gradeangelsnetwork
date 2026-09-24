@@ -583,7 +583,7 @@
           return `
           <tr>
             <td><a href="/assignment.html?id=${p.assignment_id}" target="_blank" rel="noopener">${escapeHtml(p.title)}</a><br /><span class="muted">${escapeHtml(p.teacher)} · ${p.paid_at ? fmtDate(p.paid_at) : p.status}</span></td>
-            <td>${formatCents(p.amount_cents)}${p.gift_cents ? `<br /><span class="muted small-text">${formatCents(p.gift_cents)} from gifts</span>` : ""}</td>
+            <td>${formatCents(p.amount_cents)}${p.test_mode ? ' <span class="pill">Test</span>' : ""}${p.gift_cents ? `<br /><span class="muted small-text">${formatCents(p.gift_cents)} from gifts</span>` : ""}</td>
             <td>${formatCents(p.platform_fee_cents)}</td>
             <td>${escapeHtml(p.grade_angel || "")}<br /><span class="muted">${formatCents(p.payout_cents)}</span></td>
             <td><span class="pill ${p.payout_status === "transferred" ? "status-completed" : p.payout_status === "failed" ? "status-cancelled" : ""}">${PAYOUT[p.payout_status] || p.payout_status}</span>
@@ -656,7 +656,7 @@
             <td>${formatCents(g.amount_cents)}</td>
             <td>${g.teacher_id ? escapeHtml(g.teacher_name || "") : "Community fund"}</td>
             <td>${escapeHtml(g.message || "")}</td>
-            <td><span class="pill ${g.status === "paid" ? "status-completed" : ""}">${GIFT_STATUS[g.status] || g.status}</span></td>
+            <td><span class="pill ${g.status === "paid" ? "status-completed" : ""}">${GIFT_STATUS[g.status] || g.status}</span>${g.test_mode ? ' <span class="pill">Test</span>' : ""}</td>
           </tr>`).join("") || '<tr><td colspan="5" class="muted">No gifts yet. Share the Give page: /give.html</td></tr>'}</tbody>`;
     };
     document.getElementById("gift-teachers").addEventListener("click", (e) => {

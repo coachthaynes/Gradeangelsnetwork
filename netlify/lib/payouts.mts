@@ -25,7 +25,7 @@ export async function attemptPayout(assignmentId: number): Promise<PayoutResult>
   const [row] = await db.sql`
     SELECT a.status AS assignment_status, a.grade_angel_id,
            p.id AS payment_id, p.status AS payment_status, p.payout_status,
-           p.amount_cents, p.platform_fee_cents, p.gift_cents, p.stripe_charge_id, p.stripe_payment_intent_id,
+           p.amount_cents, p.platform_fee_cents, p.gift_cents, p.test_mode, p.stripe_charge_id, p.stripe_payment_intent_id,
            u.stripe_account_id, u.stripe_payouts_ready
     FROM assignments a
     JOIN LATERAL (
@@ -39,6 +39,20 @@ export async function attemptPayout(assignmentId: number): Promise<PayoutResult>
   if (row.assignment_status !== "completed") return { status: "skipped", note: "This assignment is not complete yet." };
   if (row.payout_status === "transferred") return { status: "transferred", note: "Payout already sent." };
   if (!row.grade_angel_id) return { status: "skipped", note: "No Grade Angel on this assignment." };
+
+  // A test account's payment was never charged, so no money moves here
+  // either. The payout is recorded as sent so the rest of the flow runs.
+  if (row.test_mode) {
+    const done = await db.sql`
+      UPDATE payments
+      SET payout_status = 'transferred', stripe_transfer_id = ${"test_transfer_" + row.payment_id},
+          transferred_at = NOW(), payout_error = NULL
+      WHERE id = ${row.payment_id} AND payout_status <> 'transferred'
+      RETURNING id
+    `;
+    if (done.length) await recordEvent(assignmentId, null, "payout_sent", "Test mode, no money moved");
+    return { status: "transferred", note: "Test mode: the payout is recorded as sent. No money moved." };
+  }
 
   if (!row.stripe_account_id || !row.stripe_payouts_ready) {
     await db.sql`

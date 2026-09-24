@@ -72,6 +72,7 @@
       completed: "Marked complete",
       payout_sent: "Grade Angel paid",
       paid_with_gift: "Paid with Gift Angels money",
+      paid_test_mode: "Marked paid (test account)",
     };
 
     function detailRows() {
@@ -301,7 +302,9 @@
           showMessage(pageMsg, "Handed back. Thanks for letting the teacher know.", "success");
         } else if (kind === "pay") {
           const res = await apiPostJson("/api/assignments/pay", { assignment_id: id, success_url: location.href, cancel_url: location.href });
-          if (res.paid) {
+          if (res.paid && res.test) {
+            showMessage(pageMsg, "Test account: marked as paid. No card was charged.", "success");
+          } else if (res.paid) {
             showMessage(pageMsg, `Paid in full with ${formatCents(res.gift_cents)} from Gift Angels. No card needed.`, "success");
           } else {
             window.location.href = res.url;

@@ -242,7 +242,7 @@ export async function findGiftTeacher(opts: { token?: unknown; handle?: unknown 
   const handle = opts.handle ? cleanHandle(opts.handle) : null;
   if (!token && !handle) return null;
   const [t] = await db.sql`
-    SELECT id, role, full_name, display_name, handle, gift_note, school_or_org, gift_show_school
+    SELECT id, email, role, full_name, display_name, handle, gift_note, school_or_org, gift_show_school
     FROM users
     WHERE role = 'teacher' AND suspended_at IS NULL AND gift_link_token IS NOT NULL
       AND (${token}::text IS NOT NULL AND gift_link_token = ${token}

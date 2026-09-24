@@ -410,7 +410,7 @@
           cancel_url: window.location.href,
         });
         if (res.paid) {
-          alert(`Paid in full with ${formatCents(res.gift_cents)} from Gift Angels. No card needed.`);
+          alert(res.test ? "Test account: marked as paid. No card was charged." : `Paid in full with ${formatCents(res.gift_cents)} from Gift Angels. No card needed.`);
           loadAssignments();
           loadGifts();
         } else {

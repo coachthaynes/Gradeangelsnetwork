@@ -427,7 +427,7 @@
       status = data.status;
       profile = data.profile;
       fillProfile();
-      if (status.stripe_available && status.info_complete) {
+      if (status.stripe_available && status.info_complete && !status.test_account) {
         try {
           // Refreshes the payouts flag from Stripe, which matters right after
           // someone comes back from Stripe's onboarding pages.

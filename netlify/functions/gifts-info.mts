@@ -22,10 +22,11 @@ export default async (req: Request) => {
   const [stats] = await db.sql`
     SELECT COALESCE(SUM(amount_cents), 0)::int AS total_cents,
            COUNT(*)::int AS gifts
-    FROM gifts WHERE status = 'paid'
+    FROM gifts WHERE status = 'paid' AND NOT test_mode
   `;
   const [helped] = await db.sql`
-    SELECT COUNT(DISTINCT teacher_id)::int AS teachers FROM gift_ledger WHERE teacher_id IS NOT NULL AND kind IN ('gift', 'grant')
+    SELECT COUNT(DISTINCT teacher_id)::int AS teachers FROM gift_ledger l WHERE teacher_id IS NOT NULL AND kind IN ('gift', 'grant')
+      AND NOT EXISTS (SELECT 1 FROM gifts g WHERE g.id = l.gift_id AND g.test_mode)
   `;
 
   return json({

@@ -1,9 +1,10 @@
 import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
+import { isTestEmail } from "../lib/test-accounts.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 import { readJson } from "../lib/assignments.mts";
 import { getStripe, StripeNotConfiguredError } from "../lib/stripe.mts";
-import { ensureHandle, findGiftTeacher, formatDollars, MAX_GIFT_CENTS, MIN_GIFT_CENTS } from "../lib/gifts.mts";
+import { creditPaidGift, ensureHandle, findGiftTeacher, formatDollars, sendGiftEmails, MAX_GIFT_CENTS, MIN_GIFT_CENTS } from "../lib/gifts.mts";
 import { publicName } from "../lib/profiles.mts";
 
 const clip = (v: unknown, n: number) => (v ? String(v).trim().slice(0, n) : "");
@@ -34,6 +35,22 @@ export default async (req: Request) => {
     teacher = await findGiftTeacher({ token: body.t, handle: body.to });
     if (!teacher) return json({ error: "We could not find that teacher. Check their @username." }, 404);
     if (!teacher.handle) teacher.handle = await ensureHandle(teacher.id);
+  }
+
+  // A gift from a test account email to a test account teacher is credited
+  // right away, without a card, so the Gift Angels flow can be tried before
+  // Stripe is on. Both must be test accounts: anyone can type an email
+  // here, so free money must never reach a real teacher or the fund.
+  if (isTestEmail(email) && teacher && isTestEmail(teacher.email)) {
+    const [testGift] = await db.sql`
+      INSERT INTO gifts (teacher_id, amount_cents, donor_name, donor_email, message, anonymous, source, test_mode)
+      VALUES (${teacher?.id ?? null}, ${amountCents}, ${name}, ${email}, ${message}, ${anonymous}, 'test', true)
+      RETURNING id
+    `;
+    const credited = await creditPaidGift(testGift.id, null);
+    if (credited) await sendGiftEmails(credited);
+    const origin = new URL(req.url).origin;
+    return json({ url: `${origin}/give.html?${teacher ? `to=${encodeURIComponent(teacher.handle)}&` : ""}thanks=1`, test: true }, 200);
   }
 
   let stripe;

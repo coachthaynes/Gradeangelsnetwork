@@ -42,7 +42,7 @@ export default async (req: Request) => {
       COALESCE(SUM(amount_cents - platform_fee_cents) FILTER (WHERE payout_status = 'transferred'), 0)::bigint AS paid_out_cents,
       COALESCE(SUM(amount_cents - platform_fee_cents) FILTER (WHERE status = 'paid' AND payout_status <> 'transferred'), 0)::bigint AS owed_cents,
       COALESCE(SUM(amount_cents - gift_cents) FILTER (WHERE status = 'paid' AND paid_at > NOW() - INTERVAL '30 days'), 0)::bigint AS collected_30d_cents
-    FROM payments
+    FROM payments WHERE NOT test_mode
   `;
 
   // Things that need a person, most urgent first.

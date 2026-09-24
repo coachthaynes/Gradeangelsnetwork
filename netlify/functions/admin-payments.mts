@@ -16,7 +16,7 @@ export default async (req: Request) => {
   const payout = url.searchParams.get("payout") || "";
   const rows = await db.sql`
     SELECT p.id, p.assignment_id, a.title, t.full_name AS teacher, g.full_name AS grade_angel,
-           p.amount_cents, p.gift_cents, p.platform_fee_cents, (p.amount_cents - p.platform_fee_cents) AS payout_cents,
+           p.amount_cents, p.gift_cents, p.test_mode, p.platform_fee_cents, (p.amount_cents - p.platform_fee_cents) AS payout_cents,
            p.status, p.payout_status, p.payout_attempts, p.payout_error, p.paid_at, p.transferred_at,
            p.stripe_payment_intent_id, p.stripe_transfer_id, a.status AS assignment_status
     FROM payments p

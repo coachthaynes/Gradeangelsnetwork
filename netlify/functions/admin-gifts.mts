@@ -35,7 +35,7 @@ export default async (req: Request) => {
            COUNT(*) FILTER (WHERE status = 'paid')::int AS gifts,
            COUNT(DISTINCT LOWER(donor_email)) FILTER (WHERE status = 'paid')::int AS donors,
            COALESCE(SUM(amount_cents) FILTER (WHERE status = 'paid' AND paid_at > NOW() - INTERVAL '30 days'), 0)::int AS raised_30d_cents
-    FROM gifts
+    FROM gifts WHERE NOT test_mode
   `;
   const [spent] = await db.sql`
     SELECT COALESCE(-SUM(amount_cents), 0)::int AS spent_cents FROM gift_ledger WHERE kind = 'applied'
@@ -43,7 +43,7 @@ export default async (req: Request) => {
   const [held] = await db.sql`SELECT COALESCE(SUM(gift_balance_cents), 0)::int AS cents FROM users WHERE role = 'teacher'`;
 
   const gifts = await db.sql`
-    SELECT g.id, g.amount_cents, g.donor_name, g.donor_email, g.message, g.anonymous, g.status, g.created_at, g.paid_at,
+    SELECT g.id, g.amount_cents, g.donor_name, g.donor_email, g.message, g.anonymous, g.status, g.created_at, g.paid_at, g.test_mode,
            g.teacher_id, t.full_name AS teacher_name
     FROM gifts g LEFT JOIN users t ON t.id = g.teacher_id
     WHERE g.status <> 'pending' OR g.created_at > NOW() - INTERVAL '2 days'

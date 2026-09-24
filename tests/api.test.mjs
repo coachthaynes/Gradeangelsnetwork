@@ -492,6 +492,49 @@ r = await teacher.call('pricing', 'GET', '/api/pricing?assignment_type=essay&gra
 check('pricing: no hint without enough history', r.data.hint === null);
 await master.call('admin-pricing', 'POST', '/api/admin/pricing', { json: { min_rate_cents: 10 } });
 
+
+// ---------- Test accounts ----------
+process.env.TEST_ACCOUNT_EMAILS = 'grader.test@example.com, TEACHER.test@example.com';
+const tTeacher = client('test teacher');
+const tAngel = client('test angel');
+await tTeacher.call('auth-signup', 'POST', '/api/auth/signup', { json: { role: 'teacher', full_name: 'Test Teacher', email: 'teacher.test@example.com', password: 'password1', accept_terms: true } });
+await tAngel.call('auth-signup', 'POST', '/api/auth/signup', { json: { role: 'grade_angel', full_name: 'Test Grader', email: 'grader.test@example.com', password: 'password1', accept_terms: true } });
+r = await tAngel.call('grade-angel-setup', 'GET', '/api/grade-angel/setup');
+check('test mode: background check and payouts count as done', r.data.status.background_check_clear && r.data.status.payouts_ready && r.data.status.test_account && !r.data.status.ready, JSON.stringify(r.data.status));
+r = await angel.call('grade-angel-setup', 'GET', '/api/grade-angel/setup');
+check('test mode: real grade angels are not affected', r.data.status.test_account === false);
+const ttId = (await q(`SELECT id FROM users WHERE email = 'teacher.test@example.com'`))[0].id;
+const taId = (await q(`SELECT id FROM users WHERE email = 'grader.test@example.com'`))[0].id;
+const [ta] = await q(`INSERT INTO assignments (teacher_id, grade_angel_id, title, subject, grade_level, assignment_type, page_count, rate_per_page_cents, status, accepted_at)
+  VALUES ($1, $2, 'Test run', 'Math', '4th', 'essay', 4, 150, 'accepted', NOW()) RETURNING id`, [ttId, taId]);
+r = await tTeacher.call('assignments-pay', 'POST', '/api/assignments/pay', { json: { assignment_id: ta.id, success_url: 'https://ga.test/x' } });
+let tp = (await q(`SELECT status, test_mode FROM payments WHERE assignment_id = $1`, [ta.id]))[0];
+check('test mode: teacher pays without a card', r.status === 200 && r.data.paid && r.data.test && tp.status === 'paid' && tp.test_mode, JSON.stringify([r.data, tp]));
+await q(`UPDATE assignments SET status = 'submitted', submitted_at = NOW() WHERE id = $1`, [ta.id]);
+r = await tTeacher.call('assignments-complete', 'POST', '/api/assignments/complete', { json: { assignment_id: ta.id } });
+tp = (await q(`SELECT payout_status, stripe_transfer_id FROM payments WHERE assignment_id = $1`, [ta.id]))[0];
+check('test mode: payout recorded, no money moved', r.status === 200 && tp.payout_status === 'transferred' && tp.stripe_transfer_id.startsWith('test_transfer_'), JSON.stringify([r.data, tp]));
+r = await teacher.call('assignments-pay', 'POST', '/api/assignments/pay', { json: { assignment_id: big, success_url: 'https://ga.test/x' } });
+check('test mode: real teachers still need Stripe', r.status === 501);
+r = await master.call('admin-overview', 'GET', '/api/admin/overview');
+check('test mode: test money left out of real totals', Number(r.data.money.fees_cents) === 60, JSON.stringify(r.data.money));
+// Gifts: a test email can give to a test teacher, never to a real one or the fund.
+r = await tTeacher.call('gifts-mine', 'POST', '/api/gifts/mine', { json: { action: 'enable_link' } });
+const tHandle = r.data.handle;
+r = await stranger.call('gifts-checkout', 'POST', '/api/gifts/checkout', { json: { amount_cents: 2500, name: 'Coach', email: 'grader.test@example.com', to: tHandle } });
+bal = (await q(`SELECT gift_balance_cents FROM users WHERE id = $1`, [ttId]))[0].gift_balance_cents;
+check('test mode: test gift to test teacher credited', r.status === 200 && r.data.test && r.data.url.includes('thanks=1') && bal === 2500, JSON.stringify([r.data, bal]));
+await teacher.call('gifts-mine', 'POST', '/api/gifts/mine', { json: { action: 'enable_link' } });
+const tiaHandle = (await q(`SELECT handle FROM users WHERE id = $1`, [tiaId]))[0].handle;
+const tiaBefore = (await q(`SELECT gift_balance_cents FROM users WHERE id = $1`, [tiaId]))[0].gift_balance_cents;
+r = await stranger.call('gifts-checkout', 'POST', '/api/gifts/checkout', { json: { amount_cents: 2500, name: 'Coach', email: 'grader.test@example.com', to: tiaHandle } });
+check('test mode: test email cannot give free money to a real teacher', r.status === 501 && (await q(`SELECT gift_balance_cents FROM users WHERE id = $1`, [tiaId]))[0].gift_balance_cents === tiaBefore, JSON.stringify(r.data));
+r = await stranger.call('gifts-checkout', 'POST', '/api/gifts/checkout', { json: { amount_cents: 2500, name: 'Coach', email: 'grader.test@example.com' } });
+check('test mode: test email cannot fill the community fund', r.status === 501);
+r = await stranger.call('gifts-info', 'GET', '/api/gifts/info');
+check('test mode: test gifts left out of public totals', r.data.stats.total_cents === 7000, JSON.stringify(r.data.stats));
+delete process.env.TEST_ACCOUNT_EMAILS;
+
 globalThis.fetch = realFetch;
 
 await db.end();
