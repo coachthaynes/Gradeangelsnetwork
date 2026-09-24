@@ -32,13 +32,22 @@ top of the repo. Set a `SESSION_SECRET` environment variable before going live.
 
 ## Grade Angel setup
 
-A Grade Angel must finish three steps on `/grade-angel-setup.html` before
-the server lets them accept work (see `netlify/lib/grade-angel.mts`):
+A Grade Angel's account goes live, and the server lets them accept work, only
+after five steps on `/grade-angel-setup.html`, done in order (see
+`netlify/lib/grade-angel.mts`):
 
-1. Profile plus the confidentiality agreement
-2. A clear background check (Checkr, or recorded by an admin through
+1. Personal information (legal name, phone, city, state, ZIP)
+2. Teaching background (experience, degree, certificate, subjects, bio)
+3. Agreements (confidentiality, plus the independent contractor agreement
+   signed by typing their full legal name)
+4. A clear background check (Checkr, or recorded by an admin through
    `POST /api/admin/background-check` with `user_id` and `status`)
-3. A Stripe Connect account that can receive payouts
+5. A Stripe Connect account that can receive payouts
+
+Until they are live they can still sign in, use their dashboard, and browse
+open assignments. While `CHECKR_API_KEY` or `STRIPE_SECRET_KEY` is not set,
+steps 4 and 5 show as opening soon, so Grade Angels can finish steps 1 to 3
+now; those steps switch on by themselves once the keys are added.
 
 Environment variables used: `SESSION_SECRET`, `STRIPE_SECRET_KEY`,
 `STRIPE_WEBHOOK_SECRET`, `CHECKR_API_KEY`, `CHECKR_WEBHOOK_SECRET`, and

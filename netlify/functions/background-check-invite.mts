@@ -2,6 +2,7 @@ import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
+import { getSetupStatus } from "../lib/grade-angel.mts";
 import { createCandidateAndInvitation, CheckrNotConfiguredError } from "../lib/checkr.mts";
 
 // A Grade Angel can invite themselves; an admin can invite anyone by
@@ -28,6 +29,13 @@ export default async (req: Request) => {
     targetId = Number(body.user_id);
   } else if (session.role !== "grade_angel") {
     return json({ error: "Only Grade Angels go through a background check" }, 403);
+  }
+
+  // Steps 1 to 3 come first so we have someone's details before sending
+  // them to an outside service.
+  const setup = await getSetupStatus(session.id);
+  if (session.role === "grade_angel" && !setup?.info_complete) {
+    return json({ error: "Finish steps 1 to 3 of your setup first" }, 409);
   }
 
   const [target] = await db.sql`SELECT id, email, full_name FROM users WHERE id = ${targetId}`;

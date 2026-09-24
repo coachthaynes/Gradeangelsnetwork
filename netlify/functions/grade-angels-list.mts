@@ -23,8 +23,10 @@ export default async (req: Request) => {
              WHERE a.grade_angel_id = u.id AND a.status = 'completed') AS pages_graded
     FROM users u
     WHERE u.role = 'grade_angel'
+      AND u.personal_completed_at IS NOT NULL
       AND u.profile_completed_at IS NOT NULL
       AND u.confidentiality_agreed_at IS NOT NULL
+      AND u.contractor_agreement_signed_at IS NOT NULL
       AND u.background_check_status = 'clear'
       AND u.stripe_payouts_ready
     ORDER BY completed_count DESC, u.full_name

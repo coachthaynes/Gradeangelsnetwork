@@ -16,8 +16,10 @@ export default async (req: Request) => {
   }
 
   const [profile] = await db.sql`
-    SELECT full_name, email, subjects, grade_levels, assignment_types, qualifications, bio,
-           confidentiality_agreed_at, profile_completed_at
+    SELECT full_name, email, phone, city, state, zip, personal_completed_at,
+           subjects, grade_levels, assignment_types, qualifications, highest_degree, degree_field,
+           teaching_certificate, certification_state, years_experience, bio, profile_completed_at,
+           confidentiality_agreed_at, contractor_agreement_signed_at, contractor_signature_name
     FROM users WHERE id = ${session.id}
   `;
   const status = await getSetupStatus(session.id);

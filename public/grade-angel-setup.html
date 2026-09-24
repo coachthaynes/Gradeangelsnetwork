@@ -17,110 +17,238 @@
   <main class="wrap">
     <span class="eyebrow dark">Grade Angel setup</span>
     <h1>Get ready to take your first assignment</h1>
-    <p class="muted">Finish these three steps and the Accept button unlocks on every open assignment. You can come back and pick up where you left off at any time.</p>
+
+    <div class="notice">
+      <strong>Your account goes live once all five steps are complete.</strong>
+      Until then you can use your dashboard and browse open assignments, but you cannot accept any.
+      Complete the steps in order; each one unlocks the next.
+    </div>
 
     <div class="progress" aria-hidden="true"><div class="progress-bar" id="progress-bar"></div></div>
     <p class="muted" id="progress-text"></p>
 
+    <ol class="stepper" id="stepper"></ol>
+
     <div id="ready-banner" class="card ready-banner" style="display:none">
-      <h2>You are all set</h2>
-      <p>Your setup is complete. Head to your dashboard to pick up open assignments.</p>
+      <h2>Your account is live</h2>
+      <p>Every step is complete. Head to your dashboard to pick up open assignments.</p>
       <a class="btn" href="/dashboard-grade-angel.html">Go to my dashboard</a>
     </div>
 
-    <!-- Step 1: profile -->
-    <section class="card step" id="step-profile">
+    <div id="waiting-banner" class="card accent" style="display:none">
+      <h2>You are done for now</h2>
+      <p>Thanks for finishing your information. The background check and payout steps open soon, and we will email you when they do. Until then, your dashboard lets you browse open assignments.</p>
+      <a class="btn" href="/dashboard-grade-angel.html">Go to my dashboard</a>
+    </div>
+
+    <!-- Step 1 -->
+    <section class="card step" id="step-personal" data-step="1">
       <div class="step-head">
         <span class="step-num">1</span>
-        <div>
-          <h2>Your profile</h2>
-          <p class="muted">Tell us what you can grade so we can show you the right work.</p>
-        </div>
-        <span class="step-state" id="state-profile"></span>
+        <div><h2>Personal information</h2><p class="muted">How we reach you and where you are.</p></div>
+        <span class="step-state" id="state-personal"></span>
       </div>
+      <div class="step-body">
+        <div id="msg-personal" class="msg" style="display:none"></div>
+        <form id="form-personal">
+          <label for="full_name">Full legal name</label>
+          <input id="full_name" required autocomplete="name" />
+          <p class="muted">Use the name on your ID. Background checks and payouts are matched to it.</p>
 
-      <div id="profile-msg" class="msg" style="display:none"></div>
-      <form id="profile-form">
-        <label for="full_name">Full name</label>
-        <input id="full_name" required autocomplete="name" />
+          <label for="phone">Mobile phone</label>
+          <input id="phone" type="tel" required autocomplete="tel" placeholder="(904) 555 0123" />
 
-        <fieldset>
-          <legend>Subjects you can grade</legend>
-          <div class="check-grid" id="subject-options"></div>
-          <label for="other_subjects" class="sub-label">Other subjects (separate with commas)</label>
-          <input id="other_subjects" placeholder="Chemistry, French" />
-        </fieldset>
-
-        <fieldset>
-          <legend>Grade levels</legend>
-          <div class="check-grid">
-            <label class="check"><input type="checkbox" name="grade_levels" value="elementary" /> Elementary (K to 5)</label>
-            <label class="check"><input type="checkbox" name="grade_levels" value="middle" /> Middle school (6 to 8)</label>
-            <label class="check"><input type="checkbox" name="grade_levels" value="high" /> High school (9 to 12)</label>
+          <div class="grid cols-3">
+            <div>
+              <label for="city">City</label>
+              <input id="city" required autocomplete="address-level2" />
+            </div>
+            <div>
+              <label for="state">State</label>
+              <select id="state" required autocomplete="address-level1"></select>
+            </div>
+            <div>
+              <label for="zip">ZIP code</label>
+              <input id="zip" required inputmode="numeric" pattern="[0-9]{5}" maxlength="5" autocomplete="postal-code" />
+            </div>
           </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>Types of assignments</legend>
-          <div class="check-grid">
-            <label class="check"><input type="checkbox" name="assignment_types" value="multiple_choice" /> Multiple choice</label>
-            <label class="check"><input type="checkbox" name="assignment_types" value="combo" /> Combination</label>
-            <label class="check"><input type="checkbox" name="assignment_types" value="essay" /> Essay</label>
-          </div>
-        </fieldset>
-
-        <label for="qualifications">Your background</label>
-        <select id="qualifications" required>
-          <option value="">Choose one</option>
-          <option value="certified_teacher">Certified teacher</option>
-          <option value="retired_teacher">Retired teacher</option>
-          <option value="substitute_teacher">Substitute teacher</option>
-          <option value="tutor">Tutor</option>
-          <option value="education_student">College student in education</option>
-          <option value="other">Other</option>
-        </select>
-
-        <label for="bio">About you</label>
-        <textarea id="bio" required minlength="20" maxlength="1000" placeholder="Years of experience, subjects you have taught, anything that helps teachers trust you with their students' work."></textarea>
-
-        <label class="check agreement">
-          <input type="checkbox" id="agreement" required />
-          <span>I agree to keep all student work and names confidential, to use assignments only for grading, and to delete downloaded files once the grading is submitted.</span>
-        </label>
-
-        <button class="btn" type="submit">Save profile</button>
-      </form>
+          <button class="btn" type="submit">Save and continue</button>
+        </form>
+      </div>
     </section>
 
-    <!-- Step 2: background check -->
-    <section class="card step" id="step-check">
+    <!-- Step 2 -->
+    <section class="card step" id="step-background" data-step="2">
       <div class="step-head">
         <span class="step-num">2</span>
-        <div>
-          <h2>Background check</h2>
-          <p class="muted">Every Grade Angel is screened before they see student work. It is sent by email and usually takes a few days.</p>
-        </div>
-        <span class="step-state" id="state-check"></span>
+        <div><h2>Teaching background</h2><p class="muted">Your experience, and what you can grade.</p></div>
+        <span class="step-state" id="state-background"></span>
       </div>
-      <div id="check-msg" class="msg" style="display:none"></div>
-      <p id="check-status"></p>
-      <button class="btn small" id="check-btn" type="button">Start background check</button>
+      <div class="step-body">
+        <div id="msg-background" class="msg" style="display:none"></div>
+        <form id="form-background">
+          <div class="grid cols-2">
+            <div>
+              <label for="qualifications">Which best describes you?</label>
+              <select id="qualifications" required>
+                <option value="">Choose one</option>
+                <option value="certified_teacher">Certified teacher</option>
+                <option value="retired_teacher">Retired teacher</option>
+                <option value="substitute_teacher">Substitute teacher</option>
+                <option value="tutor">Tutor</option>
+                <option value="education_student">College student in education</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label for="years_experience">Years of experience in education</label>
+              <input id="years_experience" type="number" min="0" max="60" step="1" required />
+            </div>
+          </div>
+
+          <div class="grid cols-2">
+            <div>
+              <label for="highest_degree">Highest degree</label>
+              <select id="highest_degree" required>
+                <option value="">Choose one</option>
+                <option value="high_school">High school diploma</option>
+                <option value="associate">Associate degree</option>
+                <option value="bachelor">Bachelor's degree</option>
+                <option value="master">Master's degree</option>
+                <option value="doctorate">Doctorate</option>
+              </select>
+            </div>
+            <div>
+              <label for="degree_field">Field of study (optional)</label>
+              <input id="degree_field" placeholder="Elementary education" />
+            </div>
+          </div>
+
+          <div class="grid cols-2">
+            <div>
+              <label for="teaching_certificate">Teaching certificate</label>
+              <select id="teaching_certificate" required>
+                <option value="">Choose one</option>
+                <option value="current">Yes, current</option>
+                <option value="expired">Yes, expired</option>
+                <option value="none">No certificate</option>
+              </select>
+            </div>
+            <div id="cert-state-wrap">
+              <label for="certification_state">State that issued it</label>
+              <select id="certification_state"></select>
+            </div>
+          </div>
+
+          <fieldset>
+            <legend>Subjects you can grade</legend>
+            <div class="check-grid" id="subject-options"></div>
+            <label for="other_subjects" class="sub-label">Other subjects (separate with commas)</label>
+            <input id="other_subjects" placeholder="Chemistry, French" />
+          </fieldset>
+
+          <fieldset>
+            <legend>Grade levels</legend>
+            <div class="check-grid">
+              <label class="check"><input type="checkbox" name="grade_levels" value="elementary" /> Elementary (K to 5)</label>
+              <label class="check"><input type="checkbox" name="grade_levels" value="middle" /> Middle school (6 to 8)</label>
+              <label class="check"><input type="checkbox" name="grade_levels" value="high" /> High school (9 to 12)</label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Types of assignments</legend>
+            <div class="check-grid">
+              <label class="check"><input type="checkbox" name="assignment_types" value="multiple_choice" /> Multiple choice</label>
+              <label class="check"><input type="checkbox" name="assignment_types" value="combo" /> Combination</label>
+              <label class="check"><input type="checkbox" name="assignment_types" value="essay" /> Essay</label>
+            </div>
+          </fieldset>
+
+          <label for="bio">About you</label>
+          <textarea id="bio" required minlength="20" maxlength="1000" placeholder="Subjects you have taught, grade levels, anything that helps teachers trust you with their students' work."></textarea>
+          <p class="muted">Teachers see this when choosing who to send work to.</p>
+
+          <button class="btn" type="submit">Save and continue</button>
+        </form>
+      </div>
     </section>
 
-    <!-- Step 3: payouts -->
-    <section class="card step" id="step-payouts">
+    <!-- Step 3 -->
+    <section class="card step" id="step-agreement" data-step="3">
       <div class="step-head">
         <span class="step-num">3</span>
-        <div>
-          <h2>Payouts</h2>
-          <p class="muted">Connect a bank account through Stripe so you get paid when a teacher marks your grading complete. You keep 80% of each assignment.</p>
-        </div>
+        <div><h2>Agreements</h2><p class="muted">How you handle student work, and how you work with us.</p></div>
+        <span class="step-state" id="state-agreement"></span>
+      </div>
+      <div class="step-body">
+        <div id="msg-agreement" class="msg" style="display:none"></div>
+        <form id="form-agreement">
+          <div class="agreement-box">
+            <h3>Student confidentiality</h3>
+            <ul>
+              <li>Keep all student work and names private.</li>
+              <li>Use assignments only to grade them.</li>
+              <li>Delete any downloaded files once your grading is submitted.</li>
+            </ul>
+          </div>
+          <label class="check agreement">
+            <input type="checkbox" id="confidentiality" required />
+            <span>I agree to keep student work confidential as described above.</span>
+          </label>
+
+          <div class="agreement-box">
+            <h3>Independent contractor agreement</h3>
+            <ul>
+              <li>You work with The Grade Angels Network as an independent contractor, not an employee.</li>
+              <li>You choose which assignments to accept and when you work.</li>
+              <li>You are paid 80% of each assignment's total once the teacher marks your grading complete.</li>
+              <li>You are responsible for your own taxes. You may receive a 1099 tax form.</li>
+            </ul>
+          </div>
+          <label class="check agreement">
+            <input type="checkbox" id="contractor" required />
+            <span>I have read and accept the independent contractor agreement.</span>
+          </label>
+
+          <label for="signature_name">Sign by typing your full legal name</label>
+          <input id="signature_name" required autocomplete="off" class="signature" />
+          <p class="muted" id="signature-hint"></p>
+
+          <button class="btn" type="submit">Sign and continue</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Step 4 -->
+    <section class="card step" id="step-check" data-step="4">
+      <div class="step-head">
+        <span class="step-num">4</span>
+        <div><h2>Background check</h2><p class="muted">Every Grade Angel is screened before they see student work.</p></div>
+        <span class="step-state" id="state-check"></span>
+      </div>
+      <div class="step-body">
+        <div id="msg-check" class="msg" style="display:none"></div>
+        <p id="check-status"></p>
+        <button class="btn small" id="check-btn" type="button">Start background check</button>
+      </div>
+    </section>
+
+    <!-- Step 5 -->
+    <section class="card step" id="step-payouts" data-step="5">
+      <div class="step-head">
+        <span class="step-num">5</span>
+        <div><h2>Payouts</h2><p class="muted">Connect a bank account through Stripe so you get paid. You keep 80% of each assignment.</p></div>
         <span class="step-state" id="state-payouts"></span>
       </div>
-      <div id="payout-msg" class="msg" style="display:none"></div>
-      <p id="payout-status"></p>
-      <button class="btn small" id="payout-btn" type="button">Set up payouts with Stripe</button>
+      <div class="step-body">
+        <div id="msg-payouts" class="msg" style="display:none"></div>
+        <p id="payout-status"></p>
+        <button class="btn small" id="payout-btn" type="button">Set up payouts with Stripe</button>
+      </div>
     </section>
+
+    <p class="muted"><a href="/dashboard-grade-angel.html">Go to my dashboard</a></p>
   </main>
 
   <footer><span class="brand-line">Grade Angels Network</span><br />Helping teachers get their evenings back.</footer>
@@ -128,147 +256,271 @@
   <script src="/js/api.js"></script>
   <script>
     const SUBJECTS = ["Math", "Reading", "Writing", "Science", "Social studies", "History", "Spanish", "English language arts"];
+    const STATES = ["AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"];
+    const STEP_NAMES = ["Personal", "Background", "Agreements", "Background check", "Payouts"];
 
-    const subjectBox = document.getElementById("subject-options");
-    subjectBox.innerHTML = SUBJECTS.map(
+    const stateOptions = '<option value="">Choose</option>' + STATES.map((s) => `<option>${s}</option>`).join("");
+    document.getElementById("state").innerHTML = stateOptions;
+    document.getElementById("certification_state").innerHTML = stateOptions;
+    document.getElementById("subject-options").innerHTML = SUBJECTS.map(
       (s) => `<label class="check"><input type="checkbox" name="subjects" value="${escapeHtml(s)}" /> ${escapeHtml(s)}</label>`
     ).join("");
 
-    function setStepState(id, done, text) {
-      const el = document.getElementById("state-" + id);
-      el.className = "step-state " + (done ? "done" : "todo");
-      el.textContent = text || (done ? "Done" : "To do");
-      document.getElementById("step-" + id).classList.toggle("complete", done);
+    let status = null;
+    let profile = null;
+    let payoutInfo = null;
+    let openStep = null;
+
+    // For each step: done, and whether it can be opened yet. Steps 4 and 5
+    // are "soon" while Checkr or Stripe is not connected.
+    function stepStates() {
+      const checkStarted = status.background_check_status !== "not_started";
+      return [
+        { id: "personal", done: status.personal_complete, unlocked: true },
+        { id: "background", done: status.profile_complete, unlocked: status.personal_complete },
+        { id: "agreement", done: status.agreement_signed, unlocked: status.personal_complete && status.profile_complete },
+        { id: "check", done: status.background_check_clear, unlocked: status.info_complete, soon: !status.checkr_available },
+        {
+          id: "payouts",
+          done: status.payouts_ready,
+          unlocked: status.info_complete && (checkStarted || !status.checkr_available),
+          soon: !status.stripe_available,
+        },
+      ];
     }
 
-    function renderProgress(status) {
-      const steps = [status.profile_complete && status.agreement_signed, status.background_check_clear, status.payouts_ready];
-      const done = steps.filter(Boolean).length;
-      document.getElementById("progress-bar").style.width = (done / 3) * 100 + "%";
-      document.getElementById("progress-text").textContent = `${done} of 3 steps complete`;
+    function render() {
+      const steps = stepStates();
+      const done = steps.filter((s) => s.done).length;
+      document.getElementById("progress-bar").style.width = (done / 5) * 100 + "%";
+      document.getElementById("progress-text").textContent = status.ready
+        ? "All 5 steps complete. Your account is live."
+        : `${done} of 5 steps complete. Your account is not live yet.`;
       document.getElementById("ready-banner").style.display = status.ready ? "block" : "none";
+      // Everything they can do is done, and the rest is waiting on us.
+      const waitingOnUs = status.info_complete && !status.ready &&
+        steps.slice(3).every((s) => s.done || s.soon);
+      document.getElementById("waiting-banner").style.display = waitingOnUs ? "block" : "none";
+
+      // Open the first step that still needs doing, unless the person chose one.
+      const firstTodo = steps.find((s) => !s.done && s.unlocked && !s.soon);
+      if (!openStep || !steps.find((s) => s.id === openStep).unlocked) openStep = firstTodo ? firstTodo.id : null;
+
+      document.getElementById("stepper").innerHTML = steps.map((s, i) => {
+        const cls = s.done ? "done" : s.id === openStep ? "current" : s.unlocked ? "" : "locked";
+        return `<li class="${cls}"><span>${i + 1}</span>${STEP_NAMES[i]}</li>`;
+      }).join("");
+
+      steps.forEach((s) => {
+        const card = document.getElementById("step-" + s.id);
+        const state = document.getElementById("state-" + s.id);
+        card.classList.toggle("complete", s.done);
+        card.classList.toggle("locked", !s.unlocked);
+        card.classList.toggle("open", s.id === openStep);
+        let label = "To do";
+        if (s.done) label = "Done";
+        else if (!s.unlocked) label = "Locked";
+        else if (s.soon) label = "Opens soon";
+        else if (s.id === "check" && ["invited", "pending"].includes(status.background_check_status)) label = "Waiting";
+        state.textContent = label;
+        state.className = "step-state " + (s.done ? "done" : s.soon && s.unlocked ? "soon" : "todo");
+      });
+
+      renderCheck(steps[3]);
+      renderPayouts(steps[4]);
     }
 
-    function fillProfile(profile) {
-      document.getElementById("full_name").value = profile.full_name || "";
+    function renderCheck(step) {
+      const el = document.getElementById("check-status");
+      const btn = document.getElementById("check-btn");
+      btn.style.display = "none";
+      if (!step.unlocked) {
+        el.textContent = "Unlocks after steps 1 to 3.";
+      } else if (step.soon && !step.done) {
+        el.innerHTML = "<strong>Background checks open soon.</strong> We will email you when it is time to start yours. Your account goes live after it clears and payouts are set up.";
+      } else {
+        const s = status.background_check_status;
+        el.textContent = {
+          not_started: "Start your check below. The invitation arrives by email and usually takes a few days.",
+          invited: "Invitation sent. Check your email to finish the check.",
+          pending: "In progress. We will update this page when the result comes back.",
+          clear: "Clear. Thank you.",
+          consider: "Your result needs a closer look. Our team will reach out by email.",
+        }[s] || "Status: " + s;
+        btn.style.display = s === "not_started" ? "" : "none";
+      }
+    }
+
+    function renderPayouts(step) {
+      const el = document.getElementById("payout-status");
+      const btn = document.getElementById("payout-btn");
+      btn.style.display = "none";
+      if (step.done) {
+        el.textContent = "Payouts are set up.";
+      } else if (!step.unlocked) {
+        el.textContent = status.info_complete ? "Unlocks once your background check has started." : "Unlocks after steps 1 to 3.";
+      } else if (step.soon) {
+        el.innerHTML = "<strong>Payout setup opens soon.</strong> We will email you when it is ready.";
+      } else {
+        btn.style.display = "";
+        if (payoutInfo && payoutInfo.connected && payoutInfo.details_submitted) {
+          el.textContent = "Stripe is reviewing your details. This usually clears within a day.";
+          btn.textContent = "Review my Stripe details";
+        } else if (payoutInfo && payoutInfo.connected) {
+          el.textContent = "You started Stripe setup but have not finished it yet.";
+          btn.textContent = "Continue Stripe setup";
+        } else {
+          el.textContent = "Connect your bank account through Stripe.";
+        }
+      }
+    }
+
+    function fillProfile() {
+      const set = (id, v) => (document.getElementById(id).value = v ?? "");
+      set("full_name", profile.full_name);
+      set("phone", profile.phone);
+      set("city", profile.city);
+      set("state", profile.state);
+      set("zip", profile.zip);
+      set("qualifications", profile.qualifications);
+      set("years_experience", profile.years_experience);
+      set("highest_degree", profile.highest_degree);
+      set("degree_field", profile.degree_field);
+      set("teaching_certificate", profile.teaching_certificate);
+      set("certification_state", profile.certification_state);
+      set("bio", profile.bio);
+      toggleCertState();
+
       const saved = (profile.subjects || "").split(",").map((s) => s.trim()).filter(Boolean);
       const known = new Set(SUBJECTS.map((s) => s.toLowerCase()));
       document.querySelectorAll('input[name="subjects"]').forEach((box) => {
         box.checked = saved.some((s) => s.toLowerCase() === box.value.toLowerCase());
       });
-      document.getElementById("other_subjects").value = saved.filter((s) => !known.has(s.toLowerCase())).join(", ");
+      set("other_subjects", saved.filter((s) => !known.has(s.toLowerCase())).join(", "));
       const levels = (profile.grade_levels || "").split(",");
-      document.querySelectorAll('input[name="grade_levels"]').forEach((box) => (box.checked = levels.includes(box.value)));
+      document.querySelectorAll('input[name="grade_levels"]').forEach((b) => (b.checked = levels.includes(b.value)));
       const types = (profile.assignment_types || "").split(",");
-      document.querySelectorAll('input[name="assignment_types"]').forEach((box) => (box.checked = types.includes(box.value)));
-      document.getElementById("qualifications").value = profile.qualifications || "";
-      document.getElementById("bio").value = profile.bio || "";
-      document.getElementById("agreement").checked = Boolean(profile.confidentiality_agreed_at);
+      document.querySelectorAll('input[name="assignment_types"]').forEach((b) => (b.checked = types.includes(b.value)));
+
+      document.getElementById("confidentiality").checked = Boolean(profile.confidentiality_agreed_at);
+      document.getElementById("contractor").checked = Boolean(profile.contractor_agreement_signed_at);
+      set("signature_name", profile.contractor_signature_name);
+      document.getElementById("signature-hint").textContent = profile.contractor_agreement_signed_at
+        ? `Signed ${formatDateTime(profile.contractor_agreement_signed_at)}.`
+        : `Type: ${profile.full_name}`;
     }
 
-    function renderCheck(status) {
-      const el = document.getElementById("check-status");
-      const btn = document.getElementById("check-btn");
-      const s = status.background_check_status;
-      btn.style.display = s === "not_started" ? "" : "none";
-      const text = {
-        not_started: "Not started yet.",
-        invited: "Invitation sent. Check your email to finish the check.",
-        pending: "In progress. We will update this page when the result comes back.",
-        clear: "Clear. Thank you.",
-        consider: "Your result needs a closer look. Our team will reach out by email.",
-      }[s] || "Status: " + s;
-      el.textContent = text;
-      setStepState("check", s === "clear", s === "clear" ? "Done" : s === "not_started" ? "To do" : "Waiting");
+    function toggleCertState() {
+      const none = ["", "none"].includes(document.getElementById("teaching_certificate").value);
+      document.getElementById("cert-state-wrap").style.visibility = none ? "hidden" : "visible";
+      document.getElementById("certification_state").required = !none;
     }
-
-    async function loadPayouts(status) {
-      const el = document.getElementById("payout-status");
-      const btn = document.getElementById("payout-btn");
-      const msg = document.getElementById("payout-msg");
-      try {
-        // Refreshes the cached payouts flag from Stripe, which matters right
-        // after someone comes back from Stripe's onboarding pages.
-        const p = await apiGet("/api/payments/connect/status");
-        status.payouts_ready = p.payouts_ready;
-        if (p.payouts_ready) {
-          el.textContent = "Payouts are set up.";
-          btn.style.display = "none";
-        } else if (p.connected && p.details_submitted) {
-          el.textContent = "Stripe is reviewing your details. This usually clears within a day.";
-          btn.textContent = "Review my Stripe details";
-        } else if (p.connected) {
-          el.textContent = "You started Stripe setup but have not finished it yet.";
-          btn.textContent = "Continue Stripe setup";
-        } else {
-          el.textContent = "Not set up yet.";
-        }
-      } catch (err) {
-        el.textContent = "";
-        showMessage(msg, err.message, "error");
-        btn.disabled = true;
-      }
-      setStepState("payouts", status.payouts_ready);
-    }
-
-    let currentStatus = null;
+    document.getElementById("teaching_certificate").addEventListener("change", toggleCertState);
 
     async function refresh() {
-      const { profile, status } = await apiGet("/api/grade-angel/setup");
-      currentStatus = status;
-      fillProfile(profile);
-      setStepState("profile", status.profile_complete && status.agreement_signed);
-      renderCheck(status);
-      await loadPayouts(status);
-      renderProgress(status);
+      const data = await apiGet("/api/grade-angel/setup");
+      status = data.status;
+      profile = data.profile;
+      fillProfile();
+      if (status.stripe_available && status.info_complete) {
+        try {
+          // Refreshes the payouts flag from Stripe, which matters right after
+          // someone comes back from Stripe's onboarding pages.
+          payoutInfo = await apiGet("/api/payments/connect/status");
+          status.payouts_ready = payoutInfo.payouts_ready;
+          status.ready = status.info_complete && status.background_check_clear && status.payouts_ready;
+        } catch (err) {
+          showMessage(document.getElementById("msg-payouts"), err.message, "error");
+        }
+      }
+      render();
     }
 
-    document.getElementById("profile-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const msg = document.getElementById("profile-msg");
+    const checked = (name) => [...document.querySelectorAll(`input[name="${name}"]:checked`)].map((b) => b.value);
+
+    async function saveStep(step, body, form) {
+      const msg = document.getElementById("msg-" + step);
       showMessage(msg, "", "");
-      const btn = e.target.querySelector('button[type="submit"]');
+      const btn = form.querySelector('button[type="submit"]');
       btn.disabled = true;
-      const checked = (name) => [...document.querySelectorAll(`input[name="${name}"]:checked`)].map((b) => b.value);
-      const other = document.getElementById("other_subjects").value.split(",").map((s) => s.trim()).filter(Boolean);
       try {
-        const { status } = await apiPostJson("/api/grade-angel/profile", {
-          full_name: document.getElementById("full_name").value,
-          subjects: [...checked("subjects"), ...other],
-          grade_levels: checked("grade_levels"),
-          assignment_types: checked("assignment_types"),
-          qualifications: document.getElementById("qualifications").value,
-          bio: document.getElementById("bio").value,
-          confidentiality_agreed: document.getElementById("agreement").checked,
-        });
-        status.payouts_ready = currentStatus ? currentStatus.payouts_ready : status.payouts_ready;
-        currentStatus = status;
-        showMessage(msg, "Profile saved.", "success");
-        setStepState("profile", true);
-        renderProgress(status);
+        const res = await apiPostJson("/api/grade-angel/profile", { step, ...body });
+        status = res.status;
+        openStep = null; // move on to the next step
+        await refresh();
+        const next = document.querySelector(".step.open");
+        if (next) next.scrollIntoView({ behavior: "smooth", block: "start" });
       } catch (err) {
         showMessage(msg, err.message, "error");
       } finally {
         btn.disabled = false;
       }
+    }
+
+    document.getElementById("form-personal").addEventListener("submit", (e) => {
+      e.preventDefault();
+      saveStep("personal", {
+        full_name: document.getElementById("full_name").value,
+        phone: document.getElementById("phone").value,
+        city: document.getElementById("city").value,
+        state: document.getElementById("state").value,
+        zip: document.getElementById("zip").value,
+      }, e.target);
+    });
+
+    document.getElementById("form-background").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const other = document.getElementById("other_subjects").value.split(",").map((s) => s.trim()).filter(Boolean);
+      saveStep("background", {
+        qualifications: document.getElementById("qualifications").value,
+        years_experience: Number(document.getElementById("years_experience").value),
+        highest_degree: document.getElementById("highest_degree").value,
+        degree_field: document.getElementById("degree_field").value,
+        teaching_certificate: document.getElementById("teaching_certificate").value,
+        certification_state: document.getElementById("certification_state").value,
+        subjects: [...checked("subjects"), ...other],
+        grade_levels: checked("grade_levels"),
+        assignment_types: checked("assignment_types"),
+        bio: document.getElementById("bio").value,
+      }, e.target);
+    });
+
+    document.getElementById("form-agreement").addEventListener("submit", (e) => {
+      e.preventDefault();
+      saveStep("agreement", {
+        confidentiality_agreed: document.getElementById("confidentiality").checked,
+        contractor_agreed: document.getElementById("contractor").checked,
+        signature_name: document.getElementById("signature_name").value,
+      }, e.target);
+    });
+
+    // Clicking a finished or unlocked step's header opens it for editing.
+    document.querySelectorAll(".step .step-head").forEach((head) => {
+      head.addEventListener("click", () => {
+        const card = head.closest(".step");
+        if (card.classList.contains("locked")) return;
+        openStep = card.id.replace("step-", "");
+        render();
+      });
     });
 
     document.getElementById("check-btn").addEventListener("click", async (e) => {
-      const msg = document.getElementById("check-msg");
+      const msg = document.getElementById("msg-check");
       showMessage(msg, "", "");
       e.target.disabled = true;
       try {
         await apiPostJson("/api/background-check/invite", {});
-        currentStatus.background_check_status = "invited";
-        renderCheck(currentStatus);
+        status.background_check_status = "invited";
+        render();
       } catch (err) {
         showMessage(msg, err.message, "error");
+      } finally {
         e.target.disabled = false;
       }
     });
 
     document.getElementById("payout-btn").addEventListener("click", async (e) => {
-      const msg = document.getElementById("payout-msg");
+      const msg = document.getElementById("msg-payouts");
       showMessage(msg, "", "");
       e.target.disabled = true;
       try {
@@ -283,7 +535,7 @@
 
     requireRole("grade_angel").then((user) => {
       if (!user) return;
-      refresh().catch((err) => showMessage(document.getElementById("profile-msg"), err.message, "error"));
+      refresh().catch((err) => showMessage(document.getElementById("msg-personal"), err.message, "error"));
     });
   </script>
 </body>

@@ -525,3 +525,83 @@ dialog.reason-dialog form { padding: 1.5rem; }
   .timeline li { flex-direction: column; gap: 0.1rem; }
   .card-top { flex-direction: column; gap: 0.35rem; }
 }
+
+.field-error { color: var(--danger); font-size: 0.88rem; margin: 0.35rem 0 0; }
+
+/* Five step Grade Angel setup */
+.notice {
+  background: var(--black);
+  color: #fff;
+  border-left: 4px solid var(--seafoam);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin: 1.25rem 0 0;
+  font-size: 0.95rem;
+}
+.notice strong { color: var(--seafoam); display: block; margin-bottom: 0.2rem; }
+
+.stepper {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
+  counter-reset: none;
+}
+.stepper li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.stepper li span {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+}
+.stepper li.current { color: var(--ink); }
+.stepper li.current span { border-color: var(--black); background: var(--black); color: var(--seafoam); }
+.stepper li.done span { border-color: var(--seafoam); background: var(--seafoam); color: var(--black); }
+.stepper li.locked { opacity: 0.5; }
+
+.step .step-head { cursor: pointer; }
+.step.locked .step-head { cursor: default; }
+.step.locked { opacity: 0.55; }
+.step .step-body { display: none; margin-top: 1rem; }
+.step.open .step-body { display: block; }
+.step:not(.open) { padding-top: 1rem; padding-bottom: 1rem; }
+.step-state.soon { background: var(--seafoam-soft); color: var(--seafoam-deep); }
+
+.agreement-box {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  margin-top: 1rem;
+}
+.agreement-box h3 { font-size: 1rem; margin-bottom: 0.35rem; }
+.agreement-box ul { margin: 0; padding-left: 1.2rem; font-size: 0.92rem; }
+input.signature { font-family: "Fraunces", Georgia, serif; font-size: 1.2rem; font-style: italic; }
+
+@media (max-width: 520px) {
+  .stepper li { font-size: 0.68rem; }
+}
+.soon-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--seafoam-soft);
+  color: var(--seafoam-deep);
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+}

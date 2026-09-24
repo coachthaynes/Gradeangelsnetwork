@@ -2,6 +2,7 @@ import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
+import { getSetupStatus } from "../lib/grade-angel.mts";
 import { getStripe, StripeNotConfiguredError } from "../lib/stripe.mts";
 
 // Sends a Grade Angel to Stripe's hosted onboarding so they can add their
@@ -26,6 +27,13 @@ export default async (req: Request) => {
   const refreshUrl = String(body.refresh_url || returnUrl);
   if (!returnUrl) {
     return json({ error: "return_url is required so Stripe knows where to send them back" }, 400);
+  }
+
+  // Steps 1 to 3 come first so we have someone's details before sending
+  // them to an outside service.
+  const setup = await getSetupStatus(session.id);
+  if (session.role === "grade_angel" && !setup?.info_complete) {
+    return json({ error: "Finish steps 1 to 3 of your setup first" }, 409);
   }
 
   try {

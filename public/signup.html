@@ -35,6 +35,10 @@
         <input id="password" type="password" required minlength="8" autocomplete="new-password" />
         <p class="muted">At least 8 characters.</p>
 
+        <label for="password_confirm">Confirm password</label>
+        <input id="password_confirm" type="password" required minlength="8" autocomplete="new-password" />
+        <p class="field-error" id="password-mismatch" hidden>The passwords do not match.</p>
+
         <label for="school_or_org">School or organization (optional)</label>
         <input id="school_or_org" />
 
@@ -56,9 +60,29 @@
     const form = document.getElementById("signup-form");
     const msg = document.getElementById("msg");
 
+    const password = document.getElementById("password");
+    const confirmPassword = document.getElementById("password_confirm");
+    const mismatch = document.getElementById("password-mismatch");
+
+    // Shows the mismatch note once the second box has something in it, and
+    // blocks the browser's own submit until the two match.
+    function checkPasswords() {
+      const matches = password.value === confirmPassword.value;
+      mismatch.hidden = matches || !confirmPassword.value;
+      confirmPassword.setCustomValidity(matches ? "" : "The passwords do not match.");
+      return matches;
+    }
+    password.addEventListener("input", checkPasswords);
+    confirmPassword.addEventListener("input", checkPasswords);
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       showMessage(msg, "", "");
+      if (!checkPasswords()) {
+        mismatch.hidden = false;
+        confirmPassword.focus();
+        return;
+      }
       const submitBtn = form.querySelector("button");
       submitBtn.disabled = true;
       try {

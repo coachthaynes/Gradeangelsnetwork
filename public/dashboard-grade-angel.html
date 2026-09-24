@@ -18,10 +18,10 @@
     <h1 id="greeting">Welcome</h1>
 
     <div class="card accent" id="setup-card" style="display:none">
-      <h2>Finish your setup</h2>
-      <p class="muted">You can browse open assignments now. You can accept them once these steps are done.</p>
+      <h2>Your account is not live yet</h2>
+      <p class="muted">You can browse open assignments now, but you cannot accept any until all five setup steps are complete.</p>
       <ul class="checklist" id="setup-checklist"></ul>
-      <a class="btn" href="/grade-angel-setup.html">Continue setup</a>
+      <a class="btn" id="setup-button" href="/grade-angel-setup.html">Continue setup</a>
     </div>
 
     <div class="stats" id="stats" style="display:none">
@@ -81,13 +81,17 @@
         return;
       }
       const items = [
-        ["Profile and confidentiality agreement", setup.profile_complete && setup.agreement_signed],
-        ["Background check", setup.background_check_clear],
-        ["Payouts", setup.payouts_ready],
+        ["Personal information", setup.personal_complete],
+        ["Teaching background", setup.profile_complete],
+        ["Agreements", setup.agreement_signed],
+        ["Background check", setup.background_check_clear, !setup.checkr_available],
+        ["Payouts", setup.payouts_ready, !setup.stripe_available],
       ];
       document.getElementById("setup-checklist").innerHTML = items
-        .map(([label, done]) => `<li class="${done ? "done" : ""}">${label}</li>`)
+        .map(([label, done, soon]) =>
+          `<li class="${done ? "done" : ""}">${label}${!done && soon ? ' <span class="soon-tag">Opens soon</span>' : ""}</li>`)
         .join("");
+      document.getElementById("setup-button").textContent = setup.info_complete ? "View setup" : "Continue setup";
       card.style.display = "block";
     }
 
@@ -269,7 +273,7 @@
         // Leave setup as not ready; the accept endpoint checks again anyway.
       }
       renderSetup();
-      if (profile && profile.profile_completed_at) document.getElementById("match-only").checked = true;
+      if (profile && profile.subjects) document.getElementById("match-only").checked = true;
       loadInvites();
       loadOpen();
       loadMine();
