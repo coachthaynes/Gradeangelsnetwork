@@ -314,6 +314,22 @@ r = await master.call('admin-marketing', 'GET', '/api/admin/marketing?view=leads
 check('export leads csv', r.status === 200 && new TextDecoder().decode(r.data).includes('lead@example.com'));
 r = await teacher.call('admin-marketing', 'GET', '/api/admin/marketing?view=overview');
 check('teachers cannot see marketing', r.status === 403);
+// Sandbox mode: only test sends; campaigns wait for a real domain.
+process.env.EMAIL_FROM = 'onboarding@resend.dev';
+let sandboxBefore = sentEmails.length;
+r = await client('sb').call('auth-signup', 'POST', '/api/auth/signup', { json: { role: 'teacher', full_name: 'Sam Box', email: 'sam@example.com', password: 'password1' } });
+check('sandbox: no welcome email to real sign up', r.status === 201 && sentEmails.length === sandboxBefore);
+r = await master.call('admin-marketing', 'POST', '/api/admin/marketing', { json: { action: 'run_now' } });
+check('sandbox: campaigns wait', /Sandbox/.test(r.data.skipped_reason || ''), JSON.stringify(r.data));
+check('sandbox: nothing recorded as failed for Sam', (await q(`SELECT 1 FROM email_sends s JOIN users u ON u.id = s.user_id WHERE u.email = 'sam@example.com'`)).length === 0);
+r = await master.call('admin-marketing', 'POST', '/api/admin/marketing', { json: { action: 'test_send', key: 'teacher_trust' } });
+check('sandbox: test send still works', r.status === 200 && sentEmails.at(-1).from.includes('onboarding@resend.dev'));
+r = await master.call('admin-marketing', 'GET', '/api/admin/marketing?view=overview');
+check('sandbox: overview says test mode', r.data.email_sandbox === true);
+process.env.EMAIL_FROM = 'hello@gradeangels.test';
+await master.call('admin-marketing', 'POST', '/api/admin/marketing', { json: { action: 'toggle_template', key: 'teacher_welcome', enabled: true } });
+await master.call('admin-marketing', 'POST', '/api/admin/marketing', { json: { action: 'run_now' } });
+check('after real domain: sandbox sign up gets their welcome', (await q(`SELECT 1 FROM email_sends s JOIN users u ON u.id = s.user_id WHERE u.email = 'sam@example.com' AND s.template_key = 'teacher_welcome' AND s.status = 'sent'`)).length === 1);
 globalThis.fetch = realFetch;
 
 await db.end();

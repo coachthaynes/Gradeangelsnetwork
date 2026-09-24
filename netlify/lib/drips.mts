@@ -1,6 +1,7 @@
 import { db } from "./db.mts";
 import {
   emailConfigured,
+  emailSandbox,
   firstName,
   getSettings,
   renderEmail,
@@ -145,6 +146,10 @@ export async function runCampaigns(limit = 150) {
     result.skipped_reason = "Email is not connected (RESEND_API_KEY and EMAIL_FROM)";
     return result;
   }
+  if (emailSandbox()) {
+    result.skipped_reason = "Sandbox mode: only test sends go out until your own domain is connected";
+    return result;
+  }
   await stampGoLive();
   const settings = await getSettings();
   const startedAt = settings.campaigns_started_at || new Date().toISOString();
@@ -167,7 +172,7 @@ export async function runCampaigns(limit = 150) {
 // because of email.
 export async function sendNow(key: string, r: Recipient) {
   try {
-    if (!emailConfigured()) return;
+    if (!emailConfigured() || emailSandbox()) return;
     const [t] = await db.sql`SELECT * FROM email_templates WHERE key = ${key} AND enabled`;
     if (!t) return;
     await sendTemplate(t, r, await getSettings());

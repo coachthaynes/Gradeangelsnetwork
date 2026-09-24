@@ -10,6 +10,13 @@ export function emailConfigured(): boolean {
   return Boolean(Netlify.env.get("RESEND_API_KEY") && Netlify.env.get("EMAIL_FROM"));
 }
 
+// Resend's shared sandbox address only delivers to the Resend account's own
+// email, so real campaign emails would all fail. While it is in use, only
+// test sends go out and campaigns wait for a real domain.
+export function emailSandbox(): boolean {
+  return /@resend\.dev$/i.test(String(Netlify.env.get("EMAIL_FROM") || "").trim());
+}
+
 export function siteUrl(): string {
   return (Netlify.env.get("SITE_URL") || Netlify.env.get("URL") || "https://grade-angels-network.netlify.app").replace(/\/$/, "");
 }

@@ -630,7 +630,13 @@
     mkLoaders.overview = async () => {
       const d = await apiGet("/api/admin/marketing?view=overview");
       mkCanEdit = d.can_edit;
-      document.getElementById("mk-connect").innerHTML = d.email_connected
+      document.getElementById("mk-connect").innerHTML = d.email_connected && d.email_sandbox
+        ? `<div class="card setup-steps">
+             <h2>Email is in test mode</h2>
+             <p>You are using Resend's sandbox address, which only delivers to the email on your Resend account. <strong>Send me a test</strong> works from Email campaigns; campaign emails to teachers and Grade Angels wait until you connect your own domain, so nobody misses their welcome series.</p>
+             <p class="muted">To go live: add your domain in Resend, verify it, then change EMAIL_FROM in Netlify to an address on that domain and redeploy.</p>
+           </div>`
+        : d.email_connected
         ? ""
         : `<div class="card setup-steps">
              <h2>Connect email to turn campaigns on</h2>

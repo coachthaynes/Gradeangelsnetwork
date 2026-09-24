@@ -2,7 +2,7 @@ import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 import { readJson } from "../lib/assignments.mts";
-import { emailConfigured, getSettings, renderEmail, sendEmail, siteUrl } from "../lib/email.mts";
+import { emailConfigured, emailSandbox, getSettings, renderEmail, sendEmail, siteUrl } from "../lib/email.mts";
 import { runCampaigns } from "../lib/drips.mts";
 import { logAction, requireStaff } from "../lib/staff.mts";
 
@@ -46,6 +46,7 @@ export default async (req: Request) => {
         counts,
         sources,
         email_connected: emailConfigured(),
+        email_sandbox: emailSandbox(),
         settings: Object.fromEntries(SETTING_KEYS.map((k) => [k, settings[k] || ""])),
         campaigns_started_at: settings.campaigns_started_at,
         site_url: siteUrl(),
