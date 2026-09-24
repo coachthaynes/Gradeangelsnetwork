@@ -63,6 +63,8 @@
       declined: "Declined",
       handed_back: "Handed back",
       cancelled: "Cancelled",
+      completed: "Marked complete",
+      payout_sent: "Grade Angel paid",
     };
 
     function detailRows() {
@@ -74,6 +76,7 @@
         ["Rate", formatCents(a.rate_per_page_cents) + " per page"],
       ];
       if (user.role === "grade_angel") rows.push(["You earn", `<strong>${formatCents(a.earnings_cents)}</strong>`]);
+      if (user.role === "grade_angel" && a.status === "completed") rows.push(["Payout", payoutPillHtml(a)]);
       else rows.push(["Total", `<strong>${formatCents(a.total_cents)}</strong>`]);
       rows.push(["Turnaround", a.turnaround_hours + " hours after it is accepted"]);
       if (a.due_at) rows.push(["Due", `${formatDateTime(a.due_at)} <span class="due ${new Date(a.due_at) < new Date() ? "late" : ""}">${formatDue(a.due_at)}</span>`]);

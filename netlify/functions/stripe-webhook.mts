@@ -47,9 +47,28 @@ export default async (req: Request, context: Context) => {
   const paymentIntentId = checkoutSession?.payment_intent as string | undefined;
   if (!Number.isInteger(paymentId)) return json({ ok: true }, 200);
 
+  // Card payments arrive as "paid" here. Slower methods (bank debits) can
+  // complete checkout while still "unpaid"; those are not marked paid.
+  if (checkoutSession?.payment_status !== "paid") return json({ ok: true }, 200);
+
+  // Remember the charge so the Grade Angel's transfer can name it as its
+  // source (see lib/payouts.mts). If this lookup fails, the payout code
+  // looks it up again later.
+  let chargeId: string | null = null;
+  if (paymentIntentId) {
+    try {
+      const intent = await getStripe().paymentIntents.retrieve(paymentIntentId);
+      const latest = intent.latest_charge;
+      chargeId = typeof latest === "string" ? latest : latest?.id ?? null;
+    } catch {
+      chargeId = null;
+    }
+  }
+
   await db.sql`
     UPDATE payments
-    SET status = 'paid', paid_at = NOW(), stripe_payment_intent_id = ${paymentIntentId || null}
+    SET status = 'paid', paid_at = NOW(), stripe_payment_intent_id = ${paymentIntentId || null},
+        stripe_charge_id = COALESCE(${chargeId}, stripe_charge_id)
     WHERE id = ${paymentId}
   `;
 

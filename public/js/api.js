@@ -130,3 +130,13 @@ function formatDateTime(iso) {
 function pageImageUrl(assignmentId, pageIndex) {
   return `/api/assignments/page?assignment_id=${assignmentId}&page=${pageIndex}`;
 }
+
+// How a completed assignment's payout looks to the Grade Angel. Failed and
+// in flight payouts read as "on the way" because the hourly retry job keeps
+// working on them; only "held" needs the Grade Angel to do something.
+function payoutPillHtml(a) {
+  if (a.status !== "completed") return "";
+  if (a.payout_status === "transferred") return '<span class="pill status-completed">Paid out</span>';
+  if (a.payout_status === "held") return '<a class="pill status-cancelled" href="/grade-angel-setup.html">Payout on hold: finish Stripe setup</a>';
+  return '<span class="pill status-accepted">Payout on the way</span>';
+}

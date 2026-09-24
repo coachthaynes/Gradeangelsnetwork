@@ -2,14 +2,16 @@ import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
-import { getStripe, StripeNotConfiguredError } from "../lib/stripe.mts";
+import { attemptPayout } from "../lib/payouts.mts";
+import { recordEvent } from "../lib/assignments.mts";
 
 // The teacher reviews the graded work and marks the assignment complete.
 // This is also the moment the Grade Angel actually gets paid: their 80%
 // share transfers to their connected Stripe account right here, which is
 // the timing the user chose (payout happens once the teacher verifies the
 // work is done, not on a schedule). It requires the teacher to have
-// already paid for the assignment through assignments-pay.mts.
+// already paid for the assignment through assignments-pay.mts. If the
+// payout cannot go out right now it is held or retried by payouts-retry.
 export default async (req: Request) => {
   if (req.method !== "POST") return methodNotAllowed(["POST"]);
 
@@ -43,7 +45,7 @@ export default async (req: Request) => {
   }
 
   const [payment] = await db.sql`
-    SELECT id, amount_cents, platform_fee_cents, status, payout_status
+    SELECT id, status
     FROM payments WHERE assignment_id = ${assignmentId} ORDER BY id DESC LIMIT 1
   `;
   if (!payment || payment.status !== "paid") {
@@ -53,43 +55,14 @@ export default async (req: Request) => {
   const [updated] = await db.sql`
     UPDATE assignments
     SET status = 'completed', completed_at = NOW()
-    WHERE id = ${assignmentId}
+    WHERE id = ${assignmentId} AND status = 'submitted'
     RETURNING id, teacher_id, grade_angel_id, title, status, created_at, completed_at
   `;
+  if (!updated) return json({ error: "This assignment was already marked complete" }, 409);
 
-  let payoutNote = "Payout already sent earlier.";
-  if (payment.payout_status !== "transferred" && assignment.grade_angel_id) {
-    const [gradeAngel] = await db.sql`
-      SELECT stripe_account_id, stripe_payouts_ready FROM users WHERE id = ${assignment.grade_angel_id}
-    `;
-
-    if (!gradeAngel?.stripe_account_id || !gradeAngel.stripe_payouts_ready) {
-      payoutNote = "The Grade Angel has not finished setting up payouts yet, their share is on hold until they do.";
-    } else {
-      try {
-        const stripe = getStripe();
-        const payoutAmount = payment.amount_cents - payment.platform_fee_cents;
-        const transfer = await stripe.transfers.create({
-          amount: payoutAmount,
-          currency: "usd",
-          destination: gradeAngel.stripe_account_id,
-          transfer_group: `assignment_${assignmentId}`,
-        });
-        await db.sql`
-          UPDATE payments
-          SET payout_status = 'transferred', stripe_transfer_id = ${transfer.id}, transferred_at = NOW()
-          WHERE id = ${payment.id}
-        `;
-        payoutNote = "Payout sent to the Grade Angel.";
-      } catch (err) {
-        await db.sql`UPDATE payments SET payout_status = 'failed' WHERE id = ${payment.id}`;
-        payoutNote =
-          err instanceof StripeNotConfiguredError
-            ? err.message
-            : "The assignment is marked complete, but the payout could not be sent. Check Stripe and try again.";
-      }
-    }
-  }
+  await recordEvent(assignmentId, session.id, "completed");
+  const payout = await attemptPayout(assignmentId);
+  const payoutNote = payout.note;
 
   return json({ assignment: updated, payout_note: payoutNote }, 200);
 };

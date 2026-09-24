@@ -171,9 +171,7 @@
 
     function payoutLabel(a) {
       if (a.status !== "completed") return "";
-      if (a.payout_status === "transferred") return '<span class="pill status-completed">Paid out</span>';
-      if (a.payout_status === "failed") return '<span class="pill status-cancelled">Payout failed</span>';
-      return '<span class="pill status-accepted">Payout pending</span>';
+      return payoutPillHtml(a);
     }
 
     function renderStats(mine) {

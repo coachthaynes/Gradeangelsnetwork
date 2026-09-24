@@ -70,3 +70,20 @@ Posting is three calls: `POST /api/assignments/create` (saves a draft),
 
 pdf.js and pdf-lib are served from `public/vendor/` rather than a CDN, so
 school web filters that block outside script hosts do not break uploads.
+
+## Payouts
+
+The platform keeps 20% (`PLATFORM_FEE_RATE` in `netlify/lib/grade-angel.mts`).
+The teacher pays the full amount through Stripe Checkout into the platform's
+Stripe balance. When the teacher marks the work complete,
+`netlify/lib/payouts.mts` transfers the other 80% to the Grade Angel's
+connected Stripe account. Stripe's card fees come out of the platform's share.
+
+* Each transfer names the teacher's charge as its `source_transaction`, so it
+  waits for those funds to settle instead of failing.
+* A lock on the payment row, plus a check for an existing transfer, keeps a
+  Grade Angel from ever being paid twice for the same assignment.
+* If the Grade Angel's Stripe account is not ready, the payout is `held`.
+* `payouts-retry` runs hourly. It releases held payouts once the Grade Angel's
+  account is ready and retries failed ones up to 24 times. After that, an
+  admin can retry with `POST /api/admin/payouts/retry` and an `assignment_id`.
