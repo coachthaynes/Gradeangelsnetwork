@@ -25,7 +25,7 @@ export async function attemptPayout(assignmentId: number): Promise<PayoutResult>
   const [row] = await db.sql`
     SELECT a.status AS assignment_status, a.grade_angel_id,
            p.id AS payment_id, p.status AS payment_status, p.payout_status,
-           p.amount_cents, p.platform_fee_cents, p.stripe_charge_id, p.stripe_payment_intent_id,
+           p.amount_cents, p.platform_fee_cents, p.gift_cents, p.stripe_charge_id, p.stripe_payment_intent_id,
            u.stripe_account_id, u.stripe_payouts_ready
     FROM assignments a
     JOIN LATERAL (
@@ -95,8 +95,11 @@ export async function attemptPayout(assignmentId: number): Promise<PayoutResult>
         destination: row.stripe_account_id,
         transfer_group: `assignment_${assignmentId}`,
         // Ties the transfer to the teacher's charge, so it waits for those
-        // funds to settle rather than failing on an empty balance.
-        ...(chargeId ? { source_transaction: chargeId } : {}),
+        // funds to settle rather than failing on an empty balance. Only
+        // possible when that charge covers the whole transfer; when gift
+        // money paid for most of it, the transfer comes from the platform
+        // balance, where the gifts were paid in.
+        ...(chargeId && row.gift_cents <= row.platform_fee_cents ? { source_transaction: chargeId } : {}),
         metadata: { assignment_id: String(assignmentId), payment_id: String(row.payment_id) },
       },
       // One key per attempt: Stripe replays a key's first result for 24

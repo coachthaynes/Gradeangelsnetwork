@@ -106,6 +106,24 @@
         <div id="list"></div>
       </section>
 
+      <section class="card gift-card" id="gifts">
+        <div class="gift-head">
+          <div>
+            <span class="eyebrow dark">Gift Angels</span>
+            <h2>Let supporters cover your grading</h2>
+            <p class="muted">Parents, family, and friends can send you gift money for grading. It is used automatically the next time you pay for an assignment.</p>
+          </div>
+          <div class="gift-balance">
+            <span class="muted">Gift balance</span>
+            <strong id="gift-balance">$0</strong>
+          </div>
+        </div>
+        <div id="gift-link-box"></div>
+        <div id="gift-msg" class="msg" style="display:none"></div>
+        <h3 class="mt">Gifts you have received</h3>
+        <div id="gift-list"></div>
+      </section>
+
       <section class="grid about-grid">
         <div class="card">
           <h2>Grade Angels on the network</h2>
@@ -122,7 +140,7 @@
 
   <footer>
     <span class="brand-line">Grade Angels Network</span><br />Helping teachers get their evenings back.
-    <nav class="footer-links" aria-label="Footer"><a href="/login.html?staff=1">Staff sign in</a></nav>
+    <nav class="footer-links" aria-label="Footer"><a href="/give.html">Become a Gift Angel</a><a href="/login.html?staff=1">Staff sign in</a></nav>
   </footer>
 
   <script src="/js/api.js"></script>
@@ -353,12 +371,18 @@
     async function payForAssignment(id, btn) {
       btn.disabled = true;
       try {
-        const { url } = await apiPostJson("/api/assignments/pay", {
+        const res = await apiPostJson("/api/assignments/pay", {
           assignment_id: Number(id),
           success_url: window.location.href,
           cancel_url: window.location.href,
         });
-        window.location.href = url;
+        if (res.paid) {
+          alert(`Paid in full with ${formatCents(res.gift_cents)} from Gift Angels. No card needed.`);
+          loadAssignments();
+          loadGifts();
+        } else {
+          window.location.href = res.url;
+        }
       } catch (err) {
         alert(err.message);
         btn.disabled = false;
@@ -439,11 +463,93 @@
       }
     });
 
+    // ---------- Gift Angels ----------
+    let gifts = null;
+    async function loadGifts() {
+      try {
+        gifts = await apiGet("/api/gifts/mine");
+        renderGifts();
+      } catch (err) {
+        document.getElementById("gift-list").innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    function renderGifts() {
+      document.getElementById("gift-balance").textContent = formatCents(gifts.balance_cents);
+      const box = document.getElementById("gift-link-box");
+      if (!gifts.link_path) {
+        box.innerHTML = `
+          <p>Turn on your gift link to share with families. The page shows only your display name and a note you write, never your full name or school.</p>
+          <button class="btn small" type="button" data-gift="enable_link">Turn on my gift link</button>`;
+      } else {
+        const url = location.origin + gifts.link_path;
+        box.innerHTML = `
+          <label for="gift-url">Your gift link</label>
+          <div class="copy-row">
+            <input id="gift-url" readonly value="${escapeHtml(url)}" />
+            <button class="btn small" type="button" data-gift="copy">Copy</button>
+            <a class="btn small secondary" href="${escapeHtml(gifts.link_path)}" target="_blank" rel="noopener">Preview</a>
+          </div>
+          <label for="gift-note">A note for supporters (optional)</label>
+          <textarea id="gift-note" maxlength="300" placeholder="Thank you for helping me spend more evenings with my own family. Every gift pays for grading so I can focus on teaching.">${escapeHtml(gifts.note || "")}</textarea>
+          <div class="row-actions">
+            <button class="btn small" type="button" data-gift="save_note">Save note</button>
+            <button class="btn small ghost" type="button" data-gift="new_link">Make a new link</button>
+            <button class="btn small ghost" type="button" data-gift="disable_link">Turn off my link</button>
+          </div>`;
+      }
+      document.getElementById("gift-list").innerHTML = gifts.received.length
+        ? `<ul class="gift-list">${gifts.received.map((g) => `
+            <li>
+              <span class="gift-amount">${formatCents(g.amount_cents)}</span>
+              <span><strong>${escapeHtml(g.from)}</strong><span class="muted">${new Date(g.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+              ${g.message ? `<span class="gift-message">"${escapeHtml(g.message)}"</span>` : ""}</span>
+            </li>`).join("")}</ul>
+           <p class="muted">Received ${formatCents(gifts.received_cents)} in all, ${formatCents(gifts.spent_cents)} spent on grading.</p>`
+        : '<p class="muted">No gifts yet. Share your link in your class newsletter or at open house.</p>';
+    }
+
+    document.getElementById("gifts").addEventListener("click", async (e) => {
+      const btn = e.target.closest("[data-gift]");
+      if (!btn) return;
+      const action = btn.dataset.gift;
+      const giftMsg = document.getElementById("gift-msg");
+      if (action === "copy") {
+        const input = document.getElementById("gift-url");
+        try {
+          await navigator.clipboard.writeText(input.value);
+        } catch {
+          input.select();
+          document.execCommand("copy");
+        }
+        showMessage(giftMsg, "Link copied.", "success");
+        return;
+      }
+      if (action === "new_link" && !confirm("Make a new link? The old one will stop working.")) return;
+      if (action === "disable_link" && !confirm("Turn off your gift link? Anyone with it will no longer be able to give.")) return;
+      btn.disabled = true;
+      try {
+        gifts = await apiPostJson("/api/gifts/mine", {
+          action,
+          note: action === "save_note" ? document.getElementById("gift-note").value : undefined,
+        });
+        renderGifts();
+        const done = { enable_link: "Your gift link is on.", new_link: "New link made. The old one no longer works.", disable_link: "Your gift link is off.", save_note: "Note saved." };
+        showMessage(document.getElementById("gift-msg"), done[action], "success");
+      } catch (err) {
+        showMessage(giftMsg, err.message, "error");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
     requireRole("teacher").then((user) => {
       if (!user) return;
       loadProfile().catch((err) => (document.getElementById("hero").innerHTML = `<div class="inner"><p>${escapeHtml(err.message)}</p></div>`));
       loadGradeAngels();
       loadAssignments();
+      loadGifts();
+      if (location.hash === "#gifts") setTimeout(() => document.getElementById("gifts").scrollIntoView({ behavior: "smooth" }), 400);
     });
   </script>
 </body>

@@ -36,11 +36,12 @@ export default async (req: Request) => {
 
   const [money] = await db.sql`
     SELECT
-      COALESCE(SUM(amount_cents) FILTER (WHERE status = 'paid'), 0)::bigint AS collected_cents,
+      COALESCE(SUM(amount_cents - gift_cents) FILTER (WHERE status = 'paid'), 0)::bigint AS collected_cents,
+      COALESCE(SUM(gift_cents) FILTER (WHERE status = 'paid'), 0)::bigint AS gift_paid_cents,
       COALESCE(SUM(platform_fee_cents) FILTER (WHERE status = 'paid'), 0)::bigint AS fees_cents,
       COALESCE(SUM(amount_cents - platform_fee_cents) FILTER (WHERE payout_status = 'transferred'), 0)::bigint AS paid_out_cents,
       COALESCE(SUM(amount_cents - platform_fee_cents) FILTER (WHERE status = 'paid' AND payout_status <> 'transferred'), 0)::bigint AS owed_cents,
-      COALESCE(SUM(amount_cents) FILTER (WHERE status = 'paid' AND paid_at > NOW() - INTERVAL '30 days'), 0)::bigint AS collected_30d_cents
+      COALESCE(SUM(amount_cents - gift_cents) FILTER (WHERE status = 'paid' AND paid_at > NOW() - INTERVAL '30 days'), 0)::bigint AS collected_30d_cents
     FROM payments
   `;
 

@@ -3,6 +3,7 @@ import { db } from "../lib/db.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 import { deleteAssignmentFiles, readJson, recordEvent } from "../lib/assignments.mts";
 import { logAction, requireStaff } from "../lib/staff.mts";
+import { returnGiftForAssignment } from "../lib/gifts.mts";
 
 // GET  ?q=&status=&overdue=1      search every assignment
 // POST { assignment_id, reason }  cancel one (manager). Paid assignments
@@ -19,7 +20,12 @@ export default async (req: Request) => {
     if (reason.length < 3) return json({ error: "Give a reason for cancelling" }, 400);
 
     const [paid] = await db.sql`
-      SELECT 1 FROM payments WHERE assignment_id = ${assignmentId} AND status = 'paid' LIMIT 1
+      SELECT 1 FROM payments
+      WHERE assignment_id = ${assignmentId} AND status = 'paid'
+        -- Paid entirely with gift money and not yet paid out: nothing to
+        -- refund in Stripe, the gift goes back to the teacher instead.
+        AND NOT (gift_cents >= amount_cents AND payout_status NOT IN ('transferred', 'processing'))
+      LIMIT 1
     `;
     if (paid) return json({ error: "This assignment was paid for. Refund it in Stripe before cancelling." }, 409);
 
@@ -33,7 +39,8 @@ export default async (req: Request) => {
     await deleteAssignmentFiles(assignmentId);
     await recordEvent(assignmentId, staff.session.id, "cancelled", `By Grade Angels staff: ${reason}`);
     await logAction(staff.session.id, "cancelled assignment", "assignment", assignmentId, `${rows[0].title}: ${reason}`);
-    return json({ ok: true }, 200);
+    const giftReturnedCents = await returnGiftForAssignment(assignmentId);
+    return json({ ok: true, gift_returned_cents: giftReturnedCents }, 200);
   }
 
   if (req.method !== "GET") return methodNotAllowed(["GET", "POST"]);

@@ -53,6 +53,8 @@ const q = (text, params) => db.query(text, params).then((r) => r.rows);
 // Fresh data for every run.
 await q(`TRUNCATE users, assignments, payments, reviews, assignment_pages, assignment_events, assignment_messages,
          assignment_chat_reads, admin_actions, staff_invites, leads, email_sends RESTART IDENTITY CASCADE`);
+await q(`TRUNCATE gifts, gift_ledger RESTART IDENTITY CASCADE`);
+await q(`UPDATE gift_fund SET balance_cents = 0`);
 // The cleanup above cascades into tables that reference users (templates,
 // settings, calendar), so reload their starting rows from the migration.
 import fs from 'fs';
@@ -330,6 +332,104 @@ process.env.EMAIL_FROM = 'hello@gradeangels.test';
 await master.call('admin-marketing', 'POST', '/api/admin/marketing', { json: { action: 'toggle_template', key: 'teacher_welcome', enabled: true } });
 await master.call('admin-marketing', 'POST', '/api/admin/marketing', { json: { action: 'run_now' } });
 check('after real domain: sandbox sign up gets their welcome', (await q(`SELECT 1 FROM email_sends s JOIN users u ON u.id = s.user_id WHERE u.email = 'sam@example.com' AND s.template_key = 'teacher_welcome' AND s.status = 'sent'`)).length === 1);
+
+// ---------- Gift Angels ----------
+const tiaId = (await q(`SELECT id FROM users WHERE email = 'tia@example.com'`))[0].id;
+r = await teacher.call('gifts-mine', 'GET', '/api/gifts/mine');
+check('gifts: teacher starts with no balance or link', r.status === 200 && r.data.balance_cents === 0 && r.data.link_path === null, JSON.stringify(r.data));
+await angel.call('auth-login', 'POST', '/api/auth/login', { json: { email: 'jordan@example.com', password: 'password1' } });
+r = await angel.call('gifts-mine', 'GET', '/api/gifts/mine');
+check('gifts: grade angels have no gift page', r.status === 403);
+r = await teacher.call('gifts-mine', 'POST', '/api/gifts/mine', { json: { action: 'enable_link' } });
+const giftToken = new URL('https://x' + r.data.link_path).searchParams.get('t');
+check('gifts: teacher turns on gift link', r.status === 200 && giftToken?.length >= 12, JSON.stringify(r.data));
+r = await teacher.call('gifts-mine', 'POST', '/api/gifts/mine', { json: { action: 'save_note', note: 'Thank you for helping my 4th graders!' } });
+check('gifts: note saved', r.data.note === 'Thank you for helping my 4th graders!');
+r = await stranger.call('gifts-info', 'GET', `/api/gifts/info?t=${giftToken}`);
+check('gifts: public page shows display name and note only', r.status === 200 && r.data.teacher.name === 'Ms. Haynes' && r.data.teacher.note.includes('4th') && !JSON.stringify(r.data).includes('tia@'), JSON.stringify(r.data));
+r = await stranger.call('gifts-info', 'GET', '/api/gifts/info?t=nope');
+check('gifts: unknown link refused', r.status === 404);
+r = await stranger.call('gifts-checkout', 'POST', '/api/gifts/checkout', { json: { amount_cents: 100, name: 'Pat', email: 'pat@example.com' } });
+check('gifts: too small refused', r.status === 400);
+r = await stranger.call('gifts-checkout', 'POST', '/api/gifts/checkout', { json: { amount_cents: 2500, name: 'Pat', email: 'pat@example.com', t: giftToken } });
+check('gifts: checkout waits for Stripe', r.status === 501 && (await q(`SELECT 1 FROM gifts`)).length === 0, JSON.stringify(r.data));
+
+// Stripe confirms two gifts: one for Tia, one for the community fund.
+const [g1] = await q(`INSERT INTO gifts (teacher_id, amount_cents, donor_name, donor_email, message, anonymous) VALUES ($1, 2000, 'Pat Parent', 'pat@example.com', 'You are the best!', true) RETURNING id`, [tiaId]);
+const [g2] = await q(`INSERT INTO gifts (teacher_id, amount_cents, donor_name, donor_email) VALUES (NULL, 5000, 'Corner Cafe', 'cafe@example.com') RETURNING id`);
+process.env.STRIPE_SECRET_KEY = 'sk_test_dummy';
+const webhook = async (giftId) => (await fn('stripe-webhook'))(new Request('https://ga.test/api/stripe/webhook', {
+  method: 'POST', headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ type: 'checkout.session.completed', data: { object: { payment_status: 'paid', payment_intent: 'pi_' + giftId, metadata: { kind: 'gift', gift_id: String(giftId) } } } }),
+}), { deploy: { context: 'dev' } });
+const giftMailStart = sentEmails.length;
+await webhook(g1.id);
+await webhook(g1.id); // Stripe sends it again
+await webhook(g2.id);
+delete process.env.STRIPE_SECRET_KEY;
+let bal = (await q(`SELECT gift_balance_cents FROM users WHERE id = $1`, [tiaId]))[0].gift_balance_cents;
+let fund = (await q(`SELECT balance_cents FROM gift_fund`))[0].balance_cents;
+check('gifts: paid gift credited once to the teacher', bal === 2000, String(bal));
+check('gifts: fund gift goes to the community fund', fund === 5000, String(fund));
+const giftMails = sentEmails.slice(giftMailStart);
+check('gifts: thank you and teacher notice emailed', giftMails.some((m) => m.to[0] === 'pat@example.com' && /Thank you/.test(m.subject) && /not tax deductible/.test(m.text))
+  && giftMails.some((m) => m.to[0] === 'tia@example.com' && /\$20/.test(m.subject) && /anonymous/.test(m.text) && !/Pat/.test(m.text)), JSON.stringify(giftMails.map((m) => [m.to, m.subject])));
+check('gifts: receipts have no unsubscribe link', giftMails.every((m) => !/Unsubscribe/.test(m.text)));
+
+r = await staffer.call('admin-gifts', 'POST', '/api/admin/gifts', { json: { action: 'grant', teacher_email: 'tia@example.com', amount_cents: 1000 } });
+check('gifts: support staff cannot grant', r.status === 403);
+r = await master.call('admin-gifts', 'POST', '/api/admin/gifts', { json: { action: 'grant', teacher_email: 'tia@example.com', amount_cents: 999999 } });
+check('gifts: cannot grant more than the fund holds', r.status === 409);
+r = await master.call('admin-gifts', 'POST', '/api/admin/gifts', { json: { action: 'grant', teacher_email: 'tia@example.com', amount_cents: 1000, note: 'Testing season' } });
+bal = (await q(`SELECT gift_balance_cents FROM users WHERE id = $1`, [tiaId]))[0].gift_balance_cents;
+fund = (await q(`SELECT balance_cents FROM gift_fund`))[0].balance_cents;
+check('gifts: master grants from the fund', r.status === 200 && bal === 3000 && fund === 4000, `${bal} ${fund}`);
+r = await teacher.call('gifts-mine', 'GET', '/api/gifts/mine');
+check('gifts: teacher sees both, donor kept private', r.data.received.length === 2 && r.data.received.some((x) => /community fund/.test(x.from)) && r.data.received.some((x) => /anonymous/.test(x.from) && x.message === 'You are the best!') && !JSON.stringify(r.data).includes('Pat'), JSON.stringify(r.data.received));
+
+// Paying for grading uses gift money first.
+const mk = async (pages, rate) => (await q(`INSERT INTO assignments (teacher_id, grade_angel_id, title, subject, grade_level, assignment_type, page_count, rate_per_page_cents, status, accepted_at)
+  VALUES ($1, $2, 'Gift test', 'Math', '4th', 'multiple_choice', $3, $4, 'accepted', NOW()) RETURNING id`, [tiaId, angelId, pages, rate]))[0].id;
+const small = await mk(5, 100);
+r = await teacher.call('assignments-get', 'GET', `/api/assignments/get?id=${small}`);
+check('gifts: assignment shows gift balance to its teacher', r.data.assignment.gift_balance_cents === 3000);
+r = await angel.call('assignments-get', 'GET', `/api/assignments/get?id=${small}`);
+check('gifts: grade angel does not see teacher gift balance', r.data.assignment.gift_balance_cents === undefined);
+r = await teacher.call('assignments-pay', 'POST', '/api/assignments/pay', { json: { assignment_id: small, success_url: 'https://ga.test/x' } });
+bal = (await q(`SELECT gift_balance_cents FROM users WHERE id = $1`, [tiaId]))[0].gift_balance_cents;
+let gp = (await q(`SELECT status, gift_cents, amount_cents FROM payments WHERE assignment_id = $1`, [small]))[0];
+check('gifts: fully covered without a card', r.status === 200 && r.data.paid && gp.status === 'paid' && gp.gift_cents === 500 && bal === 2500, JSON.stringify([r.data, gp, bal]));
+r = await teacher.call('assignments-pay', 'POST', '/api/assignments/pay', { json: { assignment_id: small, success_url: 'https://ga.test/x' } });
+check('gifts: cannot pay twice', r.status === 409);
+const big = await mk(10, 500);
+r = await teacher.call('assignments-pay', 'POST', '/api/assignments/pay', { json: { assignment_id: big, success_url: 'https://ga.test/x' } });
+bal = (await q(`SELECT gift_balance_cents FROM users WHERE id = $1`, [tiaId]))[0].gift_balance_cents;
+check('gifts: partial needs a card, nothing set aside while Stripe is off', r.status === 501 && bal === 2500 && (await q(`SELECT 1 FROM payments WHERE assignment_id = $1`, [big])).length === 0, JSON.stringify([r.data, bal]));
+r = await master.call('admin-assignments', 'POST', '/api/admin/assignments', { json: { assignment_id: small, reason: 'Teacher asked to cancel' } });
+bal = (await q(`SELECT gift_balance_cents FROM users WHERE id = $1`, [tiaId]))[0].gift_balance_cents;
+gp = (await q(`SELECT status, gift_cents FROM payments WHERE assignment_id = $1`, [small]))[0];
+check('gifts: cancelling a gift paid assignment returns the gift', r.status === 200 && r.data.gift_returned_cents === 500 && bal === 3000 && gp.status === 'refunded', JSON.stringify([r.data, bal, gp]));
+// Gift set aside for a pending card payment (Stripe was on) comes back when the teacher cancels.
+const pend = await mk(10, 500);
+const [pp] = await q(`INSERT INTO payments (assignment_id, amount_cents, platform_fee_cents, status, gift_cents) VALUES ($1, 5000, 1000, 'pending', 0) RETURNING id`, [pend]);
+await q(`UPDATE users SET gift_balance_cents = gift_balance_cents - 3000 WHERE id = $1`, [tiaId]);
+await q(`UPDATE payments SET gift_cents = 3000 WHERE id = $1`, [pp.id]);
+await q(`INSERT INTO gift_ledger (teacher_id, amount_cents, kind, payment_id) VALUES ($1, -3000, 'applied', $2)`, [tiaId, pp.id]);
+await q(`UPDATE assignments SET status = 'open', grade_angel_id = NULL WHERE id = $1`, [pend]);
+r = await teacher.call('assignments-cancel', 'POST', '/api/assignments/cancel', { json: { assignment_id: pend } });
+bal = (await q(`SELECT gift_balance_cents FROM users WHERE id = $1`, [tiaId]))[0].gift_balance_cents;
+check('gifts: teacher cancel returns gift set aside', r.status === 200 && r.data.gift_returned_cents === 3000 && bal === 3000, JSON.stringify([r.data, bal]));
+
+r = await master.call('admin-gifts', 'GET', '/api/admin/gifts');
+check('gifts: admin totals', r.status === 200 && r.data.totals.raised_cents === 7000 && r.data.fund_cents === 4000 && r.data.totals.held_by_teachers_cents === 3000 && r.data.gifts.length === 2 && r.data.teachers[0].email === 'tia@example.com', JSON.stringify(r.data.totals));
+r = await stranger.call('gifts-info', 'GET', '/api/gifts/info');
+check('gifts: public totals', r.data.stats.total_cents === 7000 && r.data.stats.gifts === 2 && r.data.stats.teachers_helped === 1 && r.data.teacher === null, JSON.stringify(r.data.stats));
+r = await teacher.call('gifts-mine', 'POST', '/api/gifts/mine', { json: { action: 'disable_link' } });
+r = await stranger.call('gifts-info', 'GET', `/api/gifts/info?t=${giftToken}`);
+check('gifts: turned off link stops working', r.status === 404);
+const ledgerSum = (await q(`SELECT COALESCE(SUM(amount_cents), 0)::int AS s FROM gift_ledger`))[0].s;
+check('gifts: ledger adds up to balances plus fund', ledgerSum === 3000 + 4000, String(ledgerSum));
+
 globalThis.fetch = realFetch;
 
 await db.end();

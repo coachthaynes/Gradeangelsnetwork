@@ -3,6 +3,7 @@ import { db } from "../lib/db.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 import { deleteAssignmentFiles, readJson, recordEvent } from "../lib/assignments.mts";
+import { returnGiftForAssignment } from "../lib/gifts.mts";
 
 // A teacher withdraws an assignment nobody has accepted yet (or a draft
 // whose upload never finished). Its pages are deleted right away since
@@ -32,7 +33,10 @@ export default async (req: Request) => {
 
   await deleteAssignmentFiles(assignmentId);
   await recordEvent(assignmentId, session.id, "cancelled");
-  return json({ ok: true }, 200);
+  // Gift money set aside for it (if a Grade Angel had accepted it before
+  // handing it back) goes back to the teacher's gift balance.
+  const giftReturnedCents = await returnGiftForAssignment(assignmentId);
+  return json({ ok: true, gift_returned_cents: giftReturnedCents }, 200);
 };
 
 export const config: Config = {

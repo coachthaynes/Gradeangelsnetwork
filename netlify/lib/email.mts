@@ -63,16 +63,17 @@ export function renderBody(body: string, vars: Record<string, string>) {
   return { html, text, filled };
 }
 
-// The branded wrapper every marketing email uses: black header, white body,
-// seafoam button, and a footer with the mailing address and unsubscribe
-// link that marketing emails are required to have.
+// The branded wrapper every email uses: black header, white body, seafoam
+// button, and a footer with the mailing address and unsubscribe link that
+// marketing emails are required to have. Receipts and notices about
+// someone's own account leave the unsubscribe link out.
 export function renderEmail(opts: {
   subject: string;
   body: string;
   ctaLabel?: string | null;
   ctaPath?: string | null;
   vars: Record<string, string>;
-  unsubscribe: string;
+  unsubscribe?: string | null;
   mailingAddress: string;
   fromName: string;
 }) {
@@ -93,9 +94,9 @@ ${ctaUrl && opts.ctaLabel ? `<p style="margin:24px 0 8px"><a href="${escape(ctaU
 </td></tr>
 <tr><td style="background:#0B0B0B;color:#9AA3A0;padding:18px 28px;font-size:12px;line-height:1.5">
 Grade Angels Network${opts.mailingAddress ? `<br>${escape(opts.mailingAddress)}` : ""}<br>
-<a href="${escape(opts.unsubscribe)}" style="color:#5FD3B3">Unsubscribe from these emails</a>
+${opts.unsubscribe ? `<a href="${escape(opts.unsubscribe)}" style="color:#5FD3B3">Unsubscribe from these emails</a>` : ""}
 </td></tr></table></td></tr></table></body></html>`;
-  const text = `${bodyText}\n\n${ctaUrl && opts.ctaLabel ? `${opts.ctaLabel}: ${ctaUrl}\n\n` : ""}Warmly,\n${opts.fromName}\n\n\nGrade Angels Network${opts.mailingAddress ? `\n${opts.mailingAddress}` : ""}\nUnsubscribe: ${opts.unsubscribe}`;
+  const text = `${bodyText}\n\n${ctaUrl && opts.ctaLabel ? `${opts.ctaLabel}: ${ctaUrl}\n\n` : ""}Warmly,\n${opts.fromName}\n\n\nGrade Angels Network${opts.mailingAddress ? `\n${opts.mailingAddress}` : ""}${opts.unsubscribe ? `\nUnsubscribe: ${opts.unsubscribe}` : ""}`;
   return { subject, html, text };
 }
 

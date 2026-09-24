@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Become a Gift Angel, Grade Angels Network</title>
+  <meta name="description" content="Pay for grading help for a teacher you want to thank, so they get an evening back." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
+  <meta name="theme-color" content="#0B0B0B" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+  <nav class="nav" id="site-nav"></nav>
+
+  <main>
+    <div class="give-wrap" id="give">
+      <section>
+        <span class="eyebrow dark">Become a Gift Angel</span>
+        <h1 id="give-title">Give a teacher their evening back.</h1>
+        <p class="lead" id="give-lead">Your gift pays a vetted Grade Angel to grade a stack of papers, so a teacher gets hours back without paying for it themselves.</p>
+        <div id="give-for"></div>
+        <div class="give-stats" id="give-stats"></div>
+        <h2>How your gift is used</h2>
+        <ol class="steps">
+          <li><strong>It goes to a gift balance</strong><span class="muted" id="how-1">Gifts to the community fund are shared with teachers who need help most.</span></li>
+          <li><strong>A teacher posts grading work</strong><span class="muted">A background checked Grade Angel grades it with the teacher's own key and rubric.</span></li>
+          <li><strong>Your gift pays for it</strong><span class="muted">80% goes to the Grade Angel who did the grading and 20% keeps the network running.</span></li>
+        </ol>
+      </section>
+
+      <section class="card give-form" id="give-card">
+        <form id="give-form">
+          <h2>Your gift</h2>
+          <label>Amount</label>
+          <div class="amounts" id="amounts">
+            <button type="button" data-amt="1000">$10</button>
+            <button type="button" data-amt="2500" class="active">$25</button>
+            <button type="button" data-amt="5000">$50</button>
+            <button type="button" data-amt="10000">$100</button>
+          </div>
+          <label for="custom">Or another amount, in dollars</label>
+          <input id="custom" type="number" min="5" max="5000" step="1" placeholder="25" inputmode="numeric" />
+
+          <label for="name">Your name</label>
+          <input id="name" required autocomplete="name" maxlength="80" />
+          <label for="email">Email, for your receipt</label>
+          <input id="email" type="email" required autocomplete="email" maxlength="200" />
+          <label for="message">A message for the teacher (optional)</label>
+          <textarea id="message" maxlength="500" placeholder="Thank you for everything you do for our kids!"></textarea>
+          <label class="check-row"><input type="checkbox" id="anonymous" /> Keep my name private from the teacher</label>
+          <input type="text" id="website" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true" />
+
+          <button class="btn" type="submit" id="give-btn">Give $25</button>
+          <p class="muted small-print">You pay securely through Stripe. Grade Angels Network is a for profit company, so gifts are not tax deductible. Gifts cannot be refunded once a teacher has used them.</p>
+          <div id="give-msg" class="msg" style="display:none"></div>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <span class="brand-line">Grade Angels Network</span><br />Helping teachers get their evenings back.
+    <nav class="footer-links" aria-label="Footer"><a href="/give.html">Become a Gift Angel</a><a href="/login.html?staff=1">Staff sign in</a></nav>
+  </footer>
+
+  <script src="/js/api.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const token = params.get("t");
+    let amountCents = 2500;
+    let min = 500, max = 500000;
+
+    function setAmount(cents) {
+      amountCents = cents;
+      document.getElementById("give-btn").textContent = cents ? `Give ${formatCents(cents).replace(/\.00$/, "")}` : "Give";
+    }
+
+    document.getElementById("amounts").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-amt]");
+      if (!b) return;
+      document.querySelectorAll("#amounts button").forEach((x) => x.classList.toggle("active", x === b));
+      document.getElementById("custom").value = "";
+      setAmount(Number(b.dataset.amt));
+    });
+    document.getElementById("custom").addEventListener("input", (e) => {
+      const dollars = parseFloat(e.target.value);
+      document.querySelectorAll("#amounts button").forEach((x) => x.classList.remove("active"));
+      setAmount(dollars > 0 ? Math.round(dollars * 100) : 0);
+    });
+
+    function showThanks(teacherName) {
+      document.getElementById("give-card").innerHTML = `
+        <div class="give-thanks">
+          <div class="mark-big" aria-hidden="true">✓</div>
+          <h2>Thank you, Gift Angel.</h2>
+          <p>Your gift ${teacherName ? `for <strong>${escapeHtml(teacherName)}</strong> ` : ""}is on its way. We emailed you a note, and Stripe sends your receipt.</p>
+          <a class="btn secondary" href="/">Back to Grade Angels Network</a>
+        </div>`;
+    }
+
+    async function load() {
+      try {
+        const info = await apiGet(`/api/gifts/info${token ? `?t=${encodeURIComponent(token)}` : ""}`);
+        min = info.min_cents;
+        max = info.max_cents;
+        const s = info.stats;
+        if (s.gifts > 0) {
+          document.getElementById("give-stats").innerHTML = `
+            <div><strong>${formatCents(s.total_cents).replace(/\.00$/, "")}</strong><span>given so far</span></div>
+            <div><strong>${s.gifts}</strong><span>gift${s.gifts === 1 ? "" : "s"}</span></div>
+            <div><strong>${s.teachers_helped}</strong><span>teacher${s.teachers_helped === 1 ? "" : "s"} helped</span></div>`;
+        }
+        if (info.teacher) {
+          document.getElementById("give-title").textContent = `Give ${info.teacher.name} an evening back.`;
+          document.getElementById("give-for").innerHTML = `
+            <div class="give-for">
+              <strong>Your gift goes straight to ${escapeHtml(info.teacher.name)}'s gift balance.</strong>
+              ${info.teacher.note ? `<blockquote>"${escapeHtml(info.teacher.note)}"</blockquote>` : ""}
+            </div>`;
+          document.getElementById("how-1").textContent = `It is saved for ${info.teacher.name} and used automatically the next time they pay for grading.`;
+        }
+        if (params.get("thanks")) showThanks(info.teacher?.name);
+      } catch (err) {
+        document.getElementById("give-for").innerHTML = `<div class="msg error">${escapeHtml(err.message)} You can still give to the community fund <a href="/give.html">here</a>.</div>`;
+        document.getElementById("give-card").hidden = true;
+      }
+    }
+
+    document.getElementById("give-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById("give-msg");
+      if (!amountCents || amountCents < min || amountCents > max) {
+        showMessage(msg, `Choose an amount from ${formatCents(min)} to ${formatCents(max)}.`, "error");
+        return;
+      }
+      const btn = document.getElementById("give-btn");
+      btn.disabled = true;
+      try {
+        const { url } = await apiPostJson("/api/gifts/checkout", {
+          amount_cents: amountCents,
+          name: document.getElementById("name").value,
+          email: document.getElementById("email").value,
+          message: document.getElementById("message").value,
+          anonymous: document.getElementById("anonymous").checked,
+          website: document.getElementById("website").value,
+          t: token || undefined,
+          source: getAttribution().source,
+        });
+        window.location.href = url;
+      } catch (err) {
+        showMessage(msg, err.message, "error");
+        btn.disabled = false;
+      }
+    });
+
+    load();
+    apiGet("/api/auth/me").then(({ user }) => renderNav(user)).catch(() => renderNav(null));
+  </script>
+</body>
+</html>

@@ -35,13 +35,14 @@ export default async (req: Request) => {
            (SELECT COUNT(*)::int FROM reviews WHERE assignment_id = a.id AND author_id <> ${session.id}) AS their_reviews,
            p.status AS payment_status,
            p.payout_status AS payout_status,
+           COALESCE(p.gift_cents, 0) AS payment_gift_cents,
            (SELECT COUNT(*)::int FROM assignment_pages ap WHERE ap.assignment_id = a.id) AS stored_pages
     FROM assignments a
     JOIN users t ON t.id = a.teacher_id
     LEFT JOIN users ga ON ga.id = a.grade_angel_id
     LEFT JOIN users inv ON inv.id = a.invited_grade_angel_id
     LEFT JOIN LATERAL (
-      SELECT status, payout_status FROM payments WHERE assignment_id = a.id ORDER BY id DESC LIMIT 1
+      SELECT status, payout_status, gift_cents FROM payments WHERE assignment_id = a.id ORDER BY id DESC LIMIT 1
     ) p ON true
     WHERE a.id = ${assignmentId}
   `;
@@ -78,7 +79,12 @@ export default async (req: Request) => {
     assignment.invited_you = a.invited_grade_angel_id === session.id;
     delete assignment.invited_grade_angel_id;
     assignment.earnings_cents = gradeAngelEarningsCents(a.page_count * a.rate_per_page_cents);
+    delete assignment.payment_gift_cents;
   } else {
+    if (session.id === a.teacher_id) {
+      const [me] = await db.sql`SELECT gift_balance_cents FROM users WHERE id = ${session.id}`;
+      assignment.gift_balance_cents = me?.gift_balance_cents ?? 0;
+    }
     events = await db.sql`
       SELECT e.kind, e.note, e.created_at, u.full_name AS actor_name, u.role AS actor_role
       FROM assignment_events e LEFT JOIN users u ON u.id = e.actor_id

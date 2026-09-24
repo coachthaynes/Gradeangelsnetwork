@@ -2,6 +2,7 @@ import type { Config, Context } from "@netlify/functions";
 import { db } from "../lib/db.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 import { getStripe, StripeNotConfiguredError } from "../lib/stripe.mts";
+import { creditPaidGift, sendGiftEmails } from "../lib/gifts.mts";
 
 // Stripe calls this when a Checkout session finishes. Like the Checkr
 // webhook, there is no signed in person here, Stripe proves itself with a
@@ -43,6 +44,16 @@ export default async (req: Request, context: Context) => {
   }
 
   const checkoutSession = event.data?.object;
+
+  // A Gift Angel's gift rather than a teacher paying for an assignment.
+  if (checkoutSession?.metadata?.kind === "gift") {
+    const giftId = Number(checkoutSession.metadata.gift_id);
+    if (!Number.isInteger(giftId) || checkoutSession.payment_status !== "paid") return json({ ok: true }, 200);
+    const gift = await creditPaidGift(giftId, (checkoutSession.payment_intent as string) || null);
+    if (gift) await sendGiftEmails(gift);
+    return json({ ok: true }, 200);
+  }
+
   const paymentId = Number(checkoutSession?.metadata?.payment_id);
   const paymentIntentId = checkoutSession?.payment_intent as string | undefined;
   if (!Number.isInteger(paymentId)) return json({ ok: true }, 200);

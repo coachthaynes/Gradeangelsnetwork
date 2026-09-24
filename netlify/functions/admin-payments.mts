@@ -16,7 +16,7 @@ export default async (req: Request) => {
   const payout = url.searchParams.get("payout") || "";
   const rows = await db.sql`
     SELECT p.id, p.assignment_id, a.title, t.full_name AS teacher, g.full_name AS grade_angel,
-           p.amount_cents, p.platform_fee_cents, (p.amount_cents - p.platform_fee_cents) AS payout_cents,
+           p.amount_cents, p.gift_cents, p.platform_fee_cents, (p.amount_cents - p.platform_fee_cents) AS payout_cents,
            p.status, p.payout_status, p.payout_attempts, p.payout_error, p.paid_at, p.transferred_at,
            p.stripe_payment_intent_id, p.stripe_transfer_id, a.status AS assignment_status
     FROM payments p
@@ -31,7 +31,7 @@ export default async (req: Request) => {
   if (!csv) return json({ payments: rows }, 200);
 
   await logAction(staff.session.id, "exported payments", null, null, `${rows.length} rows`);
-  const cols = ["id", "assignment_id", "title", "teacher", "grade_angel", "amount", "platform_fee", "grade_angel_payout",
+  const cols = ["id", "assignment_id", "title", "teacher", "grade_angel", "amount", "paid_by_gifts", "platform_fee", "grade_angel_payout",
     "payment_status", "payout_status", "paid_at", "transferred_at", "stripe_payment_intent_id", "stripe_transfer_id"];
   const cell = (v: unknown) => {
     const s = v === null || v === undefined ? "" : v instanceof Date ? v.toISOString() : String(v);
@@ -39,7 +39,7 @@ export default async (req: Request) => {
   };
   const dollars = (c: number) => (c / 100).toFixed(2);
   const lines = [cols.join(",")].concat(rows.map((r: any) => [
-    r.id, r.assignment_id, r.title, r.teacher, r.grade_angel, dollars(r.amount_cents), dollars(r.platform_fee_cents),
+    r.id, r.assignment_id, r.title, r.teacher, r.grade_angel, dollars(r.amount_cents), dollars(r.gift_cents), dollars(r.platform_fee_cents),
     dollars(r.payout_cents), r.status, r.payout_status, r.paid_at, r.transferred_at, r.stripe_payment_intent_id, r.stripe_transfer_id,
   ].map(cell).join(",")));
   return new Response(lines.join("\n"), {

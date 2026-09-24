@@ -23,6 +23,7 @@
         <a href="#users" data-tab="users">Users</a>
         <a href="#assignments" data-tab="assignments">Assignments</a>
         <a href="#payouts" data-tab="payouts">Payouts</a>
+        <a href="#gifts" data-tab="gifts">Gift Angels</a>
         <a href="#reviews" data-tab="reviews">Reviews</a>
         <a href="#marketing" data-tab="marketing">Marketing</a>
         <a href="#staff" data-tab="staff">Staff</a>
@@ -110,6 +111,37 @@
           <a class="btn small secondary" id="pay-csv" href="/api/admin/payments?format=csv">Download spreadsheet</a>
         </form>
         <div class="table-wrap"><table class="admin-table" id="pay-table"></table></div>
+      </section>
+
+      <!-- Gift Angels -->
+      <section class="tab" id="tab-gifts" hidden>
+        <h1>Gift Angels</h1>
+        <p class="muted">Gifts people give to a teacher go straight to that teacher's gift balance. Gifts without a teacher go to the community fund, which you grant out below.</p>
+        <div class="tiles" id="gift-tiles"></div>
+        <div class="grid admin-two">
+          <div class="card" id="grant-card">
+            <h2>Grant from the community fund</h2>
+            <p class="muted">Moves money from the fund into a teacher's gift balance. It is used the next time they pay for grading, and they see it came from the community fund.</p>
+            <form id="grant-form">
+              <label for="grant-email">Teacher's email</label>
+              <input id="grant-email" type="email" required list="grant-teachers" />
+              <datalist id="grant-teachers"></datalist>
+              <label for="grant-amount">Amount, in dollars</label>
+              <input id="grant-amount" type="number" min="1" step="0.01" required />
+              <label for="grant-note">Note for the records (optional)</label>
+              <input id="grant-note" maxlength="300" placeholder="Testing season help for 5th grade" />
+              <button class="btn" type="submit">Grant</button>
+            </form>
+          </div>
+          <div class="card">
+            <h2>Teachers with gift money</h2>
+            <div class="table-wrap"><table class="admin-table" id="gift-teachers"></table></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Gifts</h2>
+          <div class="table-wrap"><table class="admin-table" id="gift-table"></table></div>
+        </div>
       </section>
 
       <!-- Reviews -->
@@ -345,6 +377,7 @@
 
       document.getElementById("ov-money").innerHTML = `
         <div><dt>Collected from teachers</dt><dd>${formatCents(m.collected_cents)}</dd></div>
+        <div><dt>Paid by Gift Angels</dt><dd>${formatCents(m.gift_paid_cents)}</dd></div>
         <div><dt>Last 30 days</dt><dd>${formatCents(m.collected_30d_cents)}</dd></div>
         <div><dt>Platform share (20%)</dt><dd>${formatCents(m.fees_cents)}</dd></div>
         <div><dt>Paid to Grade Angels</dt><dd>${formatCents(m.paid_out_cents)}</dd></div>
@@ -540,7 +573,7 @@
           return `
           <tr>
             <td><a href="/assignment.html?id=${p.assignment_id}" target="_blank" rel="noopener">${escapeHtml(p.title)}</a><br /><span class="muted">${escapeHtml(p.teacher)} · ${p.paid_at ? fmtDate(p.paid_at) : p.status}</span></td>
-            <td>${formatCents(p.amount_cents)}</td>
+            <td>${formatCents(p.amount_cents)}${p.gift_cents ? `<br /><span class="muted small-text">${formatCents(p.gift_cents)} from gifts</span>` : ""}</td>
             <td>${formatCents(p.platform_fee_cents)}</td>
             <td>${escapeHtml(p.grade_angel || "")}<br /><span class="muted">${formatCents(p.payout_cents)}</span></td>
             <td><span class="pill ${p.payout_status === "transferred" ? "status-completed" : p.payout_status === "failed" ? "status-cancelled" : ""}">${PAYOUT[p.payout_status] || p.payout_status}</span>
@@ -562,6 +595,65 @@
       } catch (err) {
         alert(err.message);
         b.disabled = false;
+      }
+    });
+
+    // ---------- Gift Angels ----------
+    const GIFT_STATUS = { paid: "Paid", pending: "Not finished", refunded: "Refunded" };
+    loaders.gifts = async () => {
+      const d = await apiGet("/api/admin/gifts");
+      const t = d.totals;
+      document.getElementById("gift-tiles").innerHTML = [
+        statTileHtml("money", "Given so far", formatCents(t.raised_cents)),
+        statTileHtml("star", `Gifts from ${t.donors} supporter${t.donors === 1 ? "" : "s"}`, t.gifts),
+        statTileHtml("inbox", "Community fund", formatCents(d.fund_cents)),
+        statTileHtml("clock", "Waiting in teacher balances", formatCents(t.held_by_teachers_cents)),
+        statTileHtml("check", "Spent on grading", formatCents(t.spent_cents)),
+      ].join("");
+      document.getElementById("grant-card").hidden = !d.can_grant;
+      document.getElementById("grant-teachers").innerHTML = d.teachers.map((x) => `<option value="${escapeHtml(x.email)}">${escapeHtml(x.full_name)}</option>`).join("");
+      document.getElementById("gift-teachers").innerHTML = `
+        <thead><tr><th>Teacher</th><th>Balance</th><th>Received</th><th>Link</th></tr></thead>
+        <tbody>${d.teachers.map((x) => `
+          <tr class="clickable" data-user="${x.id}">
+            <td><strong>${escapeHtml(x.full_name)}</strong><br /><span class="muted">${escapeHtml(x.email)}</span></td>
+            <td>${formatCents(x.gift_balance_cents)}</td>
+            <td>${formatCents(x.received_cents)}</td>
+            <td>${x.link_on ? '<span class="pill status-completed">On</span>' : '<span class="pill">Off</span>'}</td>
+          </tr>`).join("") || '<tr><td colspan="4" class="muted">No teacher has gift money or a gift link yet.</td></tr>'}</tbody>`;
+      document.getElementById("gift-table").innerHTML = `
+        <thead><tr><th>From</th><th>Amount</th><th>For</th><th>Message</th><th>Status</th></tr></thead>
+        <tbody>${d.gifts.map((g) => `
+          <tr>
+            <td><strong>${escapeHtml(g.donor_name)}</strong>${g.anonymous ? ' <span class="pill">Private</span>' : ""}<br /><span class="muted">${escapeHtml(g.donor_email)} · ${fmtDate(g.created_at)}</span></td>
+            <td>${formatCents(g.amount_cents)}</td>
+            <td>${g.teacher_id ? escapeHtml(g.teacher_name || "") : "Community fund"}</td>
+            <td>${escapeHtml(g.message || "")}</td>
+            <td><span class="pill ${g.status === "paid" ? "status-completed" : ""}">${GIFT_STATUS[g.status] || g.status}</span></td>
+          </tr>`).join("") || '<tr><td colspan="5" class="muted">No gifts yet. Share the Give page: /give.html</td></tr>'}</tbody>`;
+    };
+    document.getElementById("gift-teachers").addEventListener("click", (e) => {
+      const row = e.target.closest("[data-user]");
+      if (row) openUser(Number(row.dataset.user));
+    });
+    document.getElementById("grant-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = e.target.querySelector("button");
+      btn.disabled = true;
+      try {
+        const r = await apiPostJson("/api/admin/gifts", {
+          action: "grant",
+          teacher_email: document.getElementById("grant-email").value,
+          amount_cents: Math.round(parseFloat(document.getElementById("grant-amount").value) * 100),
+          note: document.getElementById("grant-note").value,
+        });
+        e.target.reset();
+        flash(r.message);
+        loaders.gifts();
+      } catch (err) {
+        flash(err.message, "error");
+      } finally {
+        btn.disabled = false;
       }
     });
 
