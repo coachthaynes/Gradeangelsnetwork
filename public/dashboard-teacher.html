@@ -85,7 +85,26 @@
             <label for="instructions">Instructions (optional)</label>
             <textarea id="instructions" placeholder="Answer key is on the last page. Flag anything left blank."></textarea>
 
+            <label for="pages_per_student">How many pages did each student turn in?</label>
+            <select id="pages_per_student">
+              <option value="">It varies, or I am not sure</option>
+              <option value="1">1 page</option>
+              <option value="2">2 pages</option>
+              <option value="3">3 pages</option>
+              <option value="4">4 pages</option>
+              <option value="5">5 pages</option>
+              <option value="6">6 pages</option>
+              <option value="8">8 pages</option>
+              <option value="10">10 pages</option>
+            </select>
+            <p class="muted small-print">We use this to keep each student's pages together, so their score adds up to one total.</p>
+
             <label>Pages</label>
+            <ul class="upload-tips">
+              <li><strong>Keep each student's pages together,</strong> in order: student 1 page 1, student 1 page 2, then student 2.</li>
+              <li><strong>Put your answer key first</strong> if you have one, and mention it in the instructions.</li>
+              <li><strong>Lay pages flat in good light,</strong> or scan the whole stack into one PDF.</li>
+            </ul>
             <div id="uploader"></div>
             <p class="privacy-tip">Privacy tip: cover or fold over student names, or have students write an ID number instead. Grade Angels only need the work.</p>
 
@@ -462,6 +481,7 @@
             assignment_type: document.getElementById("assignment_type").value,
             rate_per_page_cents: Math.round(dollars * 100),
             turnaround_hours: Number(document.getElementById("turnaround_hours").value),
+            pages_per_student: document.getElementById("pages_per_student").value || null,
             invited_grade_angel_id: invite ? Number(invite) : null,
             instructions: document.getElementById("instructions").value,
           });

@@ -48,7 +48,17 @@ export default async (req: Request) => {
 
   const [updated] = await db.sql`
     UPDATE assignments
-    SET status = 'open', page_count = ${expectedPages}, published_at = NOW()
+    SET status = 'open', page_count = ${expectedPages}, published_at = NOW(),
+        -- Each student's pages grouped for grading, when the teacher said
+        -- how many pages each student turned in.
+        grading_groups = CASE WHEN pages_per_student IS NULL THEN grading_groups ELSE (
+          SELECT COALESCE(jsonb_agg(jsonb_build_object(
+                   'id', 's' || (n + 1), 'kind', 'student', 'label', 'Student ' || (n + 1),
+                   'pages', (SELECT jsonb_agg(p ORDER BY p) FROM generate_series(n * pages_per_student,
+                             LEAST((n + 1) * pages_per_student, ${expectedPages}) - 1) AS p))
+                 ORDER BY n), '[]'::jsonb)
+          FROM generate_series(0, CEIL(${expectedPages}::numeric / pages_per_student)::int - 1) AS n
+        ) END
     WHERE id = ${assignmentId} AND status = 'draft'
     RETURNING id, status, page_count
   `;

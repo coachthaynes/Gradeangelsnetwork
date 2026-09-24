@@ -251,7 +251,8 @@
       return `<div class="card">
         <h2>Scores</h2>
         <table class="score-table">${list.map((x) => `<tr><td>${escapeHtml(x.label)}</td><td>${x.earned}${x.possible !== null ? " / " + x.possible : ""}</td></tr>`).join("")}</table>
-        <button class="btn small ghost" data-act="copy-scores">Copy for gradebook</button>
+        <button class="btn small ghost" data-act="copy-scores">Copy scores</button>
+        <p class="muted small-print">Copies this list so you can paste it into your gradebook or a spreadsheet.</p>
       </div>`;
     }
 

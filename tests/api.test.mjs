@@ -129,7 +129,7 @@ r = await teacher.call('grade-angels-list', 'GET', '/api/grade-angels');
 check('teacher sees live grade angel with photo', r.data.grade_angels?.length === 1 && r.data.grade_angels[0].photo_url, JSON.stringify(r.data));
 
 // ---------- Posting an assignment ----------
-r = await teacher.call('assignments-create', 'POST', '/api/assignments/create', { json: { title: 'Fractions quiz', subject: 'Math', grade_level: '5th grade', assignment_type: 'combo', rate_per_page_cents: 100, turnaround_hours: 48, instructions: 'Key on last page' } });
+r = await teacher.call('assignments-create', 'POST', '/api/assignments/create', { json: { title: 'Fractions quiz', subject: 'Math', grade_level: '5th grade', assignment_type: 'combo', rate_per_page_cents: 100, turnaround_hours: 48, instructions: 'Key on last page', pages_per_student: 2 } });
 check('create draft', r.status === 201 && r.data.assignment.status === 'draft', JSON.stringify(r.data));
 const aid = r.data.assignment.id;
 for (let i = 0; i < 3; i++) {
@@ -143,6 +143,8 @@ r = await teacher.call('assignments-publish', 'POST', '/api/assignments/publish'
 check('publish refuses missing page', r.status === 409);
 r = await teacher.call('assignments-publish', 'POST', '/api/assignments/publish', { json: { assignment_id: aid, expected_pages: 3 } });
 check('publish', r.status === 200 && r.data.assignment.page_count === 3, JSON.stringify(r.data));
+const autoGroups = (await q(`SELECT grading_groups FROM assignments WHERE id = $1`, [aid]))[0].grading_groups;
+check('publish groups each student\'s pages', autoGroups.length === 2 && JSON.stringify(autoGroups[0].pages) === '[0,1]' && JSON.stringify(autoGroups[1].pages) === '[2]' && autoGroups[1].label === 'Student 2', JSON.stringify(autoGroups));
 
 r = await angel.call('assignments-list', 'GET', '/api/assignments/list?scope=open');
 check('grade angel sees open work with earnings and teacher display name', r.data.assignments?.[0]?.earnings_cents === 240 && r.data.assignments[0].teacher_name === 'Ms. Haynes', JSON.stringify(r.data).slice(0, 400));

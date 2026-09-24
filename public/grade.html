@@ -29,72 +29,35 @@
   <div id="g-msg" class="msg grade-msg" style="display:none"></div>
 
   <div class="grade-layout">
-    <aside class="grade-side" id="grade-side">
-      <details class="side-block" id="info-block" open>
-        <summary>About this assignment</summary>
-        <div id="g-info"></div>
-      </details>
-      <div class="side-block">
-        <h3>Pages</h3>
-        <ol class="page-list" id="page-list"></ol>
-      </div>
-      <div class="side-block" id="groups-block">
-        <h3>Page groups</h3>
-        <p class="muted small-print" id="groups-help">Group a student's pages to total their score, or group copies of one worksheet to grade from an answer key.</p>
-        <div id="group-list"></div>
-        <div class="row-actions" id="group-actions">
-          <button class="btn small" type="button" id="add-group">Make a group</button>
-          <button class="btn small ghost" type="button" id="split-groups">Split into packets</button>
-        </div>
-      </div>
-      <div class="side-block">
-        <h3>Scores</h3>
-        <div id="score-list"></div>
-        <button class="btn small ghost" type="button" id="copy-scores" hidden>Copy for gradebook</button>
-      </div>
-    </aside>
+
+    <nav class="tool-rail" id="toolbar" role="toolbar" aria-label="Marking tools">
+      <button type="button" data-tool="select" title="Select, move, and resize marks (V)" aria-label="Select"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3l6.5 17 2.2-7.1L21 10.6z"/></svg><span>Select</span></button>
+      <button type="button" data-tool="pan" title="Scroll the page (H)" aria-label="Pan"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 12V5.5a1.5 1.5 0 013 0V11"/><path d="M11 10.5V4a1.5 1.5 0 013 0v6.5"/><path d="M14 10.5V5.5a1.5 1.5 0 013 0V12"/><path d="M17 11a1.5 1.5 0 013 0v3a7 7 0 01-7 7h-1.3a6 6 0 01-4.8-2.4L3.6 15a1.5 1.5 0 012.3-1.9L8 15"/></svg><span>Pan</span></button>
+      <button type="button" data-tool="hl" title="Highlighter" aria-label="Highlight"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4l5 5-8.5 8.5H7v-4.5z"/><path d="M4 21h8"/><path d="M13 6l5 5"/></svg><span>Highlight</span></button>
+      <button type="button" data-tool="pen" title="Freehand pen (P)" aria-label="Draw"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg><span>Draw</span></button>
+      <button type="button" data-tool="text" title="Text box (T)" aria-label="Text"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7V4h16v3"/><path d="M12 4v16"/><path d="M9 20h6"/></svg><span>Text</span></button>
+      <button type="button" data-tool="comment" title="Your comment bank" aria-label="Comments"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 01-2 2H8l-5 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><path d="M8 8h8M8 12h5"/></svg><span>Comments</span></button>
+      <button type="button" data-tool="stamp" title="Check, X, circle, star, question" aria-label="Stamps"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.1V12a9 9 0 11-5.3-8.2"/><path d="M21 4l-9 9-3-3"/></svg><span>Stamps</span></button>
+      <button type="button" data-tool="eraser" title="Eraser (E)" aria-label="Eraser"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 20H9l-5-5a2 2 0 010-2.8l9.2-9.2a2 2 0 012.8 0L21 8a2 2 0 010 2.8L12 20"/><path d="M6.5 11.5l6 6"/></svg><span>Eraser</span></button>
+      <span class="rail-sep" aria-hidden="true"></span>
+      <button type="button" id="undo-btn" title="Undo (Ctrl Z)" aria-label="Undo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 00-15-6.7L3 13"/></svg><span>Undo</span></button>
+      <button type="button" id="redo-btn" title="Redo" aria-label="Redo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0115-6.7L21 13"/></svg><span>Redo</span></button>
+    </nav>
+    <div class="tool-flyout" id="flyout" hidden></div>
 
     <main class="grade-main">
-      <div class="toolbar" id="toolbar" role="toolbar" aria-label="Marking tools">
-        <div class="tool-group" id="tools">
-          <button type="button" data-tool="move" title="Move and scroll">✋<span>Move</span></button>
-          <button type="button" data-tool="pen" title="Pen">✎<span>Pen</span></button>
-          <button type="button" data-tool="hl" title="Highlighter">▬<span>Highlight</span></button>
-          <button type="button" data-tool="check" title="Check mark" class="stamp-btn">✓</button>
-          <button type="button" data-tool="x" title="X mark" class="stamp-btn">✗</button>
-          <button type="button" data-tool="circle" title="Circle" class="stamp-btn">◯</button>
-          <button type="button" data-tool="star" title="Star" class="stamp-btn">☆</button>
-          <button type="button" data-tool="q" title="Question mark" class="stamp-btn">?</button>
-          <button type="button" data-tool="text" title="Type a note">T<span>Note</span></button>
-          <button type="button" data-tool="eraser" title="Eraser">⌫<span>Erase</span></button>
+      <div class="view-bar">
+        <div class="view-group">
+          <button type="button" class="vb" id="prev-page" aria-label="Previous page">‹</button>
+          <span id="page-label">Page 1</span>
+          <button type="button" class="vb" id="next-page" aria-label="Next page">›</button>
         </div>
-        <div class="tool-group" id="colors" aria-label="Color">
-          <button type="button" data-color="red" class="swatch" style="--sw:#D92D20" title="Red"></button>
-          <button type="button" data-color="green" class="swatch" style="--sw:#12A150" title="Green"></button>
-          <button type="button" data-color="blue" class="swatch" style="--sw:#1D5FD1" title="Blue"></button>
-          <button type="button" data-color="black" class="swatch" style="--sw:#111111" title="Black"></button>
-          <button type="button" data-color="yellow" class="swatch" style="--sw:#F5C400" title="Yellow"></button>
+        <div class="view-group">
+          <button type="button" class="vb" id="zoom-out" aria-label="Zoom out">−</button>
+          <span id="zoom-label">100%</span>
+          <button type="button" class="vb" id="zoom-in" aria-label="Zoom in">+</button>
+          <button type="button" class="vb" id="rotate-btn" title="Turn the page" aria-label="Turn the page">⟳</button>
         </div>
-        <div class="tool-group" aria-label="Size">
-          <button type="button" data-size="0.7" title="Small">S</button>
-          <button type="button" data-size="1" title="Medium">M</button>
-          <button type="button" data-size="1.6" title="Large">L</button>
-        </div>
-        <div class="tool-group">
-          <button type="button" id="bank-btn" title="Comment bank">💬<span>Comments</span></button>
-          <button type="button" id="undo-btn" title="Undo">↶</button>
-          <button type="button" id="redo-btn" title="Redo">↷</button>
-          <button type="button" id="zoom-out" title="Zoom out">−</button>
-          <button type="button" id="zoom-in" title="Zoom in">+</button>
-          <button type="button" id="rotate-btn" title="Turn the page">⟳</button>
-        </div>
-      </div>
-      <div class="bank-pop" id="bank-pop" hidden></div>
-
-      <div class="page-nav">
-        <button class="btn small ghost" type="button" id="prev-page">‹ Previous</button>
-        <span id="page-label">Page 1</span>
-        <button class="btn small ghost" type="button" id="next-page">Next ›</button>
       </div>
       <label class="check-row key-toggle" id="key-toggle" hidden><input type="checkbox" id="show-key" checked /> Show the answer key on this page</label>
 
@@ -103,6 +66,7 @@
           <canvas id="base-canvas"></canvas>
           <canvas id="ink-canvas"></canvas>
           <textarea id="text-input" class="text-input" hidden rows="2" placeholder="Type, then press Enter"></textarea>
+          <div class="sel-bar" id="sel-bar" hidden></div>
         </div>
       </div>
 
@@ -114,6 +78,31 @@
         <span class="muted small-print" id="score-note"></span>
       </div>
     </main>
+
+    <aside class="grade-side" id="grade-side">
+      <details class="side-block" id="info-block" open>
+        <summary>About this assignment</summary>
+        <div id="g-info"></div>
+      </details>
+      <div class="side-block">
+        <h3>Pages</h3>
+        <ol class="page-list" id="page-list"></ol>
+      </div>
+      <div class="side-block" id="groups-block">
+        <h3>Page groups</h3>
+        <p class="muted small-print" id="groups-help">Each student's pages are grouped for you when the teacher says how many pages each student turned in. Fix a group here if a student turned in more or fewer.</p>
+        <div id="group-list"></div>
+        <div class="row-actions" id="group-actions">
+          <button class="btn small" type="button" id="add-group">Make a group</button>
+        </div>
+      </div>
+      <div class="side-block">
+        <h3>Scores</h3>
+        <div id="score-list"></div>
+        <button class="btn small ghost" type="button" id="copy-scores" hidden title="Copies the score list so you can paste it into a gradebook or spreadsheet">Copy scores</button>
+        <p class="muted small-print">Copy scores, then paste them into your gradebook or a spreadsheet.</p>
+      </div>
+    </aside>
   </div>
 
   <dialog class="user-dialog" id="group-dialog">
@@ -129,19 +118,6 @@
       </div>
       <div class="row-actions">
         <button class="btn" type="submit" value="ok">Make group</button>
-        <button class="btn ghost" type="button" data-close>Cancel</button>
-      </div>
-    </form>
-  </dialog>
-
-  <dialog class="user-dialog" id="split-dialog">
-    <form method="dialog" class="pad" id="split-form">
-      <h2>Split into packets</h2>
-      <p class="muted">For a stack where every student turned in the same number of pages. This replaces the groups you have now.</p>
-      <label for="split-n">Pages per student</label>
-      <input id="split-n" type="number" min="1" value="2" required />
-      <div class="row-actions">
-        <button class="btn" type="submit" value="ok">Split</button>
         <button class="btn ghost" type="button" data-close>Cancel</button>
       </div>
     </form>
@@ -188,7 +164,7 @@
     let G = null;              // the grading data from the server
     let me = null;
     let pageNo = 0;            // position in G.pages
-    let tool = "pen", color = "red", sizeMul = 1, rotation = 0, zoom = 1;
+    let tool = "pen", rotation = 0, zoom = 1;
     let pendingText = null;    // a comment bank line waiting to be placed
     const mine = {};           // page_index -> my layer data
     const theirs = {};         // page_index -> the other layer's data
@@ -214,7 +190,6 @@
       document.getElementById("g-sub").textContent = `${a.subject}, ${a.grade_level} · ${G.pages.length} page${G.pages.length === 1 ? "" : "s"}`;
       document.getElementById("back-link").href = `/assignment.html?id=${a.id}`;
       for (const m of G.marks) (m.layer === G.layer ? mine : theirs)[m.page_index] = m.data;
-      if (G.layer === "teacher") { color = "blue"; }
       document.getElementById("send-btn").hidden = !(G.layer === "grade_angel" && a.status === "accepted");
       const angel = G.layer === "grade_angel";
       document.getElementById("group-actions").hidden = !(angel && G.can_edit);
@@ -226,9 +201,8 @@
       }
       renderInfo();
       renderSide();
-      selectTool(G.can_edit ? "pen" : "move");
-      selectColor(color);
-      selectSize(1);
+      if (G.layer === "teacher") opts.pen.color = opts.text.color = INK[2];
+      selectTool(G.can_edit ? "pen" : "pan");
       await showPage(0);
     }
 
@@ -324,15 +298,6 @@
       if (taken.length && !confirm(`Pages ${taken.map((p) => p + 1).join(", ")} are already in a group. Move them to this one?`)) { e.preventDefault(); return; }
       saveGroups([...rest, { id: "g" + Date.now().toString(36), kind, label: document.getElementById("g-label").value || (kind === "worksheet" ? "Worksheet" : `Student ${G.groups.length + 1}`), pages, key_page: pages[0] }]);
     });
-    document.getElementById("split-groups").addEventListener("click", () => document.getElementById("split-dialog").showModal());
-    document.getElementById("split-form").addEventListener("submit", () => {
-      const n = Math.max(1, Number(document.getElementById("split-n").value) || 1);
-      const groups = [];
-      for (let s = 0; s * n < G.pages.length; s++) {
-        groups.push({ id: `s${s + 1}`, kind: "student", label: `Student ${s + 1}`, pages: G.pages.slice(s * n, s * n + n).map((p) => p.page_index) });
-      }
-      saveGroups(groups);
-    });
     document.getElementById("group-list").addEventListener("click", (e) => {
       const b = e.target.closest("[data-remove-group]");
       if (b) saveGroups(G.groups.filter((g) => g.id !== b.dataset.removeGroup));
@@ -340,51 +305,88 @@
     document.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => b.closest("dialog").close()));
 
     // ---------- Tools ----------
-    function selectTool(t) {
-      tool = t;
-      if (t !== "text") pendingText = null;
-      document.querySelectorAll("[data-tool]").forEach((b) => b.classList.toggle("active", b.dataset.tool === t));
-      const ink = document.getElementById("ink-canvas");
-      ink.style.touchAction = t === "move" ? "auto" : "none";
-      ink.style.cursor = t === "move" ? "grab" : t === "text" ? "text" : t === "eraser" ? "cell" : "crosshair";
-    }
-    function selectColor(c) {
-      color = c;
-      document.querySelectorAll("[data-color]").forEach((b) => b.classList.toggle("active", b.dataset.color === c));
-    }
-    function selectSize(m) {
-      sizeMul = m;
-      document.querySelectorAll("[data-size]").forEach((b) => b.classList.toggle("active", Number(b.dataset.size) === m));
-    }
-    document.getElementById("tools").addEventListener("click", (e) => { const b = e.target.closest("[data-tool]"); if (b) selectTool(b.dataset.tool); });
-    document.getElementById("colors").addEventListener("click", (e) => { const b = e.target.closest("[data-color]"); if (b) selectColor(b.dataset.color); });
-    document.querySelectorAll("[data-size]").forEach((b) => b.addEventListener("click", () => selectSize(Number(b.dataset.size))));
+    // Kami style: a rail of tools on the left, and an options panel for the
+    // chosen tool (colors, size, stamp, comments). Each tool remembers its
+    // own color and size.
+    const INK = ["#D92D20", "#12A150", "#1D5FD1", "#111111", "#E8590C", "#7A3FD1"];
+    const HIGHLIGHTS = ["#F5C400", "#7BE08E", "#FF8FC7", "#69C3FF", "#FFA94D"];
+    const STAMP_KINDS = [["check", "✓", "Check"], ["x", "✗", "X"], ["circle", "◯", "Circle"], ["star", "☆", "Star"], ["q", "?", "Question"]];
+    const opts = {
+      pen: { color: INK[0], size: 3 },
+      hl: { color: HIGHLIGHTS[0], size: 20 },
+      text: { color: INK[0], size: 24 },
+      stamp: { color: INK[1], size: 45, kind: "check" },
+    };
+    let flyoutOpen = true;
 
-    // Comment bank
-    const bankPop = document.getElementById("bank-pop");
-    document.getElementById("bank-btn").addEventListener("click", () => {
-      if (!bankPop.hidden) { bankPop.hidden = true; return; }
-      bankPop.innerHTML = G.comment_bank.map((c, n) => `<button type="button" data-bank="${n}">${escapeHtml(c)}</button>`).join("") +
-        `<button type="button" class="bank-edit" data-bank-edit>Edit my comments</button>`;
-      bankPop.hidden = false;
+    function selectTool(t, { keepFlyout = false } = {}) {
+      if (t === "comment") { tool = "comment"; }
+      else { tool = t; }
+      if (t !== "comment") pendingText = null;
+      if (t !== "select" && t !== "text" && t !== "stamp") setSelected(-1);
+      document.querySelectorAll("[data-tool]").forEach((b) => b.classList.toggle("active", b.dataset.tool === t));
+      ink.style.touchAction = t === "pan" ? "auto" : "none";
+      ink.style.cursor = { pan: "grab", text: "text", eraser: "cell", select: "default", comment: "copy" }[t] || "crosshair";
+      if (!keepFlyout) flyoutOpen = true;
+      renderFlyout();
+    }
+
+    function swatches(list, current, attr) {
+      return `<div class="swatches">${list.map((c) => `<button type="button" class="sw ${c.toLowerCase() === String(current).toLowerCase() ? "active" : ""}" style="--sw:${c}" ${attr}="${c}" aria-label="Color ${c}"></button>`).join("")}</div>`;
+    }
+
+    function renderFlyout() {
+      const f = document.getElementById("flyout");
+      if (!G || !G.can_edit || !flyoutOpen) { f.hidden = true; return; }
+      const size = (label, key, min, max) => `<label class="fly-label">${label} <span>${opts[key].size}</span></label>
+        <input type="range" min="${min}" max="${max}" value="${opts[key].size}" data-size-for="${key}" />`;
+      let html = "";
+      if (tool === "select") html = `<h4>Select</h4><p>Click a mark to select it. Drag it to move it, drag the corner to resize, and double click a text box to edit it. Press Delete to remove it.</p>`;
+      if (tool === "pan") html = `<h4>Pan</h4><p>Drag to scroll around the page. Handy when zoomed in.</p>`;
+      if (tool === "pen") html = `<h4>Draw</h4>${swatches(INK, opts.pen.color, "data-color")}${size("Thickness", "pen", 1, 12)}`;
+      if (tool === "hl") html = `<h4>Highlight</h4>${swatches(HIGHLIGHTS, opts.hl.color, "data-color")}${size("Thickness", "hl", 8, 40)}`;
+      if (tool === "text") html = `<h4>Text box</h4>${swatches(INK, opts.text.color, "data-color")}${size("Font size", "text", 12, 60)}<p>Click the page to add a text box. Drag one to move it, double click to edit.</p>`;
+      if (tool === "stamp") html = `<h4>Stamps</h4><div class="stamp-choices">${STAMP_KINDS.map(([k, sym, name]) =>
+        `<button type="button" data-stamp="${k}" class="${opts.stamp.kind === k ? "active" : ""}" title="${name}">${sym}</button>`).join("")}</div>
+        ${swatches(INK, opts.stamp.color, "data-color")}${size("Size", "stamp", 20, 120)}`;
+      if (tool === "comment") html = `<h4>Comments</h4><p>Pick a comment, then click the page to place it.</p>
+        <div class="bank-list">${G.comment_bank.map((c, n) => `<button type="button" data-bank="${n}" class="${pendingText === c ? "active" : ""}">${escapeHtml(c)}</button>`).join("")}</div>
+        <button type="button" class="link" data-bank-edit>Edit my comments</button>`;
+      if (tool === "eraser") html = `<h4>Eraser</h4><p>Click or drag over a mark to remove it. Undo brings it back.</p>`;
+      f.innerHTML = `<button type="button" class="fly-close" data-fly-close aria-label="Hide options">×</button>${html}`;
+      f.hidden = !html;
+    }
+
+    document.getElementById("toolbar").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-tool]");
+      if (!b) return;
+      if (b.dataset.tool === tool) { flyoutOpen = !flyoutOpen; renderFlyout(); return; }
+      selectTool(b.dataset.tool);
     });
-    bankPop.addEventListener("click", (e) => {
+
+    document.getElementById("flyout").addEventListener("click", (e) => {
+      if (e.target.closest("[data-fly-close]")) { flyoutOpen = false; renderFlyout(); return; }
+      const c = e.target.closest("[data-color]");
+      if (c && opts[tool]) { opts[tool].color = c.dataset.color; renderFlyout(); return; }
+      const st = e.target.closest("[data-stamp]");
+      if (st) { opts.stamp.kind = st.dataset.stamp; renderFlyout(); return; }
       if (e.target.closest("[data-bank-edit]")) {
-        bankPop.hidden = true;
         document.getElementById("bank-text").value = G.comment_bank.join("\n");
         document.getElementById("bank-dialog").showModal();
         return;
       }
-      const b = e.target.closest("[data-bank]");
-      if (!b) return;
-      selectTool("text");
-      pendingText = G.comment_bank[Number(b.dataset.bank)];
-      bankPop.hidden = true;
-      flash(`Tap the page where "${pendingText}" should go.`, "success");
+      const bk = e.target.closest("[data-bank]");
+      if (bk) { pendingText = G.comment_bank[Number(bk.dataset.bank)]; renderFlyout(); }
+    });
+    document.getElementById("flyout").addEventListener("input", (e) => {
+      const key = e.target.dataset.sizeFor;
+      if (!key) return;
+      opts[key].size = Number(e.target.value);
+      e.target.previousElementSibling.querySelector("span").textContent = e.target.value;
     });
     document.getElementById("bank-form").addEventListener("submit", async () => {
       const items = document.getElementById("bank-text").value.split("\n").map((s) => s.trim()).filter(Boolean);
-      try { G.comment_bank = (await apiPostJson("/api/grading", { action: "save_bank", items })).comment_bank; }
+      try { G.comment_bank = (await apiPostJson("/api/grading", { action: "save_bank", items })).comment_bank; renderFlyout(); }
       catch (err) { flash(err.message, "error"); }
     });
 
@@ -460,14 +462,18 @@
       if (under) drawMarks(ictx, under, geo.W, geo.H);
       drawMarks(ictx, mine[i], geo.W, geo.H);
       if (over) drawMarks(ictx, over, geo.W, geo.H);
-      if (live) drawMarkItem(ictx, live, geo.W, geo.H);
+      if (live && !live.erasing) drawMarkItem(ictx, live, geo.W, geo.H);
+      drawSelection(ictx);
       const g = groupOf(i);
       document.getElementById("key-toggle").hidden = !(g && g.kind === "worksheet" && g.key_page !== i);
     }
 
     async function showPage(n) {
       if (n < 0 || n >= G.pages.length) return;
+      if (n !== pageNo) setSelected(-1);
+      closeTextInput(true);
       pageNo = n;
+      document.getElementById("zoom-label").textContent = Math.round(zoom * 100) + "%";
       const i = pageIndex();
       document.getElementById("page-label").textContent = `Page ${i + 1} of ${G.pages.length}`;
       document.getElementById("prev-page").disabled = n === 0;
@@ -539,9 +545,29 @@
     }
     window.addEventListener("beforeunload", (e) => { if (unsaved) { e.preventDefault(); e.returnValue = ""; } });
 
-    // Finds the topmost of my marks under a point, working in pixels.
+    // ---------- Marks: finding, selecting, moving ----------
+    let selected = -1;      // index into my marks on this page
+    let drag = null;        // { mode: "move" | "resize", start, orig, box, snap }
+    const measureCtx = document.createElement("canvas").getContext("2d");
+
+    // An item's box in page pixels.
+    function bbox(it) {
+      const W = geo.W, H = geo.H;
+      if (it.t === "stamp") { const r = (it.s * W) / 2; return { x: it.x * W - r, y: it.y * H - r, w: r * 2, h: r * 2 }; }
+      if (it.t === "text") {
+        const size = it.s * W;
+        measureCtx.font = `600 ${size}px "Work Sans", system-ui, sans-serif`;
+        const lines = String(it.text).split("\n");
+        return { x: it.x * W, y: it.y * H, w: Math.max(...lines.map((l) => measureCtx.measureText(l).width)), h: lines.length * size * 1.2 };
+      }
+      const xs = it.p.map((p) => p[0] * W), ys = it.p.map((p) => p[1] * H), pad = (it.w * W) / 2;
+      const x = Math.min(...xs) - pad, y = Math.min(...ys) - pad;
+      return { x, y, w: Math.max(...xs) + pad - x, h: Math.max(...ys) + pad - y };
+    }
+
+    // Finds the topmost of my marks under a point.
     function hitItem(items, [fx, fy]) {
-      const W = geo.W, H = geo.H, x = fx * W, y = fy * H, tol = 12;
+      const W = geo.W, H = geo.H, x = fx * W, y = fy * H, tol = 10;
       const segDist = (ax, ay, bx, by) => {
         const dx = bx - ax, dy = by - ay, len = dx * dx + dy * dy;
         const t = len ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / len)) : 0;
@@ -549,42 +575,162 @@
       };
       for (let n = items.length - 1; n >= 0; n--) {
         const it = items[n];
-        if (it.t === "stamp" && Math.hypot(it.x * W - x, it.y * H - y) < (it.s * W) / 2 + tol) return n;
-        if (it.t === "text") {
-          const lines = String(it.text).split("\n"), size = it.s * W;
-          const w = Math.max(...lines.map((l) => l.length)) * size * 0.6, h = lines.length * size * 1.2;
-          if (x >= it.x * W - tol && x <= it.x * W + w + tol && y >= it.y * H - tol && y <= it.y * H + h + tol) return n;
-        }
         if (it.t === "pen" || it.t === "hl") {
           const reach = (it.w * W) / 2 + tol;
           for (let k = 0; k < it.p.length; k++) {
             const [a1, a2] = it.p[k], [b1, b2] = it.p[Math.min(k + 1, it.p.length - 1)];
             if (segDist(a1 * W, a2 * H, b1 * W, b2 * H) < reach) return n;
           }
+        } else {
+          const b = bbox(it);
+          if (x >= b.x - tol && x <= b.x + b.w + tol && y >= b.y - tol && y <= b.y + b.h + tol) return n;
         }
       }
       return -1;
     }
 
+    const myItems = () => (mine[pageIndex()] || blank()).items;
+    const HANDLE = 9;
+
+    function setSelected(n) {
+      selected = n;
+      if (geo) drawAll();
+      renderSelBar();
+    }
+
+    function drawSelection(ctx) {
+      const it = myItems()[selected];
+      if (!it) return;
+      const b = bbox(it);
+      ctx.save();
+      ctx.strokeStyle = "#1D5FD1";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeRect(b.x - 4, b.y - 4, b.w + 8, b.h + 8);
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(b.x + b.w + 4 - HANDLE / 2, b.y + b.h + 4 - HANDLE / 2, HANDLE, HANDLE);
+      ctx.strokeRect(b.x + b.w + 4 - HANDLE / 2, b.y + b.h + 4 - HANDLE / 2, HANDLE, HANDLE);
+      ctx.restore();
+    }
+
+    function onHandle(pt) {
+      const it = myItems()[selected];
+      if (!it) return false;
+      const b = bbox(it);
+      return Math.abs(pt[0] * geo.W - (b.x + b.w + 4)) < HANDLE + 6 && Math.abs(pt[1] * geo.H - (b.y + b.h + 4)) < HANDLE + 6;
+    }
+
+    // Page pixels to a spot on the screen inside the page, for the small
+    // toolbar that floats above a selected mark.
+    function toScreen(x, y) {
+      if (rotation === 0) return [x, y];
+      if (rotation === 90) return [geo.dispW - y, x];
+      if (rotation === 180) return [geo.dispW - x, geo.dispH - y];
+      return [y, geo.dispH - x];
+    }
+
+    function renderSelBar() {
+      const bar = document.getElementById("sel-bar");
+      const it = G && G.can_edit ? myItems()[selected] : null;
+      if (!it || drag) { bar.hidden = true; return; }
+      const b = bbox(it);
+      const corners = [[b.x, b.y], [b.x + b.w, b.y], [b.x, b.y + b.h], [b.x + b.w, b.y + b.h]].map(([x, y]) => toScreen(x, y));
+      const left = Math.min(...corners.map((c) => c[0])), top = Math.min(...corners.map((c) => c[1]));
+      const palette = it.t === "hl" ? HIGHLIGHTS : INK;
+      bar.innerHTML = `${palette.map((c) => `<button type="button" class="sw ${c.toLowerCase() === (it.c || "").toLowerCase() ? "active" : ""}" style="--sw:${c}" data-recolor="${c}" aria-label="Color"></button>`).join("")}
+        ${it.t === "text" ? '<button type="button" data-sel="edit">Edit</button>' : ""}
+        <button type="button" data-sel="delete" class="danger-text">Delete</button>`;
+      bar.hidden = false;
+      bar.style.left = Math.max(0, left) + "px";
+      bar.style.top = Math.max(0, top - 46) + "px";
+    }
+
+    document.getElementById("sel-bar").addEventListener("click", (e) => {
+      const it = myItems()[selected];
+      if (!it) return;
+      const rc = e.target.closest("[data-recolor]");
+      if (rc) { const n = selected; commit((d) => { d.items[n].c = rc.dataset.recolor; }); renderSelBar(); return; }
+      const act = e.target.closest("[data-sel]");
+      if (act?.dataset.sel === "delete") deleteSelected();
+      if (act?.dataset.sel === "edit") editText(selected);
+    });
+
+    function deleteSelected() {
+      const n = selected;
+      if (n < 0) return;
+      setSelected(-1);
+      commit((d) => d.items.splice(n, 1));
+    }
+
+    // Moves or resizes an item from its original copy.
+    function applyDrag(pt) {
+      const i = pageIndex(), items = mine[i].items, o = drag.orig;
+      const dx = pt[0] - drag.start[0], dy = pt[1] - drag.start[1];
+      let it;
+      if (drag.mode === "move") {
+        it = o.t === "pen" || o.t === "hl" ? { ...o, p: o.p.map(([x, y]) => [x + dx, y + dy]) } : { ...o, x: o.x + dx, y: o.y + dy };
+      } else {
+        const b = drag.box;
+        const f = Math.max(0.2, Math.min(8, (pt[0] * geo.W - b.x) / Math.max(8, b.w)));
+        if (o.t === "pen" || o.t === "hl") {
+          const ox = b.x / geo.W, oy = b.y / geo.H;
+          it = { ...o, w: o.w * f, p: o.p.map(([x, y]) => [ox + (x - ox) * f, oy + (y - oy) * f]) };
+        } else if (o.t === "stamp") it = { ...o, s: Math.min(0.2, Math.max(0.01, o.s * f)) };
+        else it = { ...o, s: Math.min(0.08, Math.max(0.008, o.s * f)) };
+      }
+      items[selected] = it;
+      drawAll();
+    }
+
+    function startDrag(mode, pt) {
+      const i = pageIndex();
+      mine[i] ||= blank();
+      const orig = JSON.parse(JSON.stringify(mine[i].items[selected]));
+      drag = { mode, start: pt, orig, box: bbox(orig), snap: JSON.stringify(mine[i]), moved: false };
+      renderSelBar();
+    }
+
+    function endDrag() {
+      if (!drag) return;
+      const i = pageIndex(), d = drag;
+      drag = null;
+      if (d.moved) {
+        hist(i).undo.push(d.snap);
+        hist(i).redo = [];
+        queueSave(i);
+      }
+      renderSelBar();
+    }
+
     ink.addEventListener("pointerdown", (e) => {
-      if (!G.can_edit || tool === "move") return;
+      if (!G.can_edit || tool === "pan") return;
       e.preventDefault();
+      closeTextInput(true);
       const pt = toPage(e);
-      const c = MARK_COLORS[color];
+      const items = myItems();
+      // With the select, text, or stamp tool, pressing on one of my marks
+      // picks it up so it can be moved; the corner handle resizes it.
+      if (["select", "text", "stamp", "comment"].includes(tool)) {
+        if (selected >= 0 && onHandle(pt)) { ink.setPointerCapture(e.pointerId); startDrag("resize", pt); return; }
+        const n = hitItem(items, pt);
+        const movable = n >= 0 && (tool === "select" || (tool === "text" && items[n].t === "text") || (tool === "stamp" && items[n].t === "stamp") || (tool === "comment" && items[n].t === "text"));
+        if (movable) { ink.setPointerCapture(e.pointerId); setSelected(n); startDrag("move", pt); return; }
+        if (tool === "select") { setSelected(-1); return; }
+      }
+      setSelected(-1);
       if (tool === "pen" || tool === "hl") {
         ink.setPointerCapture(e.pointerId);
-        live = { t: tool, c: tool === "hl" && color === "red" ? MARK_COLORS.yellow : c, w: (tool === "hl" ? 0.022 : 0.0035) * sizeMul, p: [pt] };
+        live = { t: tool, c: opts[tool].color, w: opts[tool].size / 1000, p: [pt] };
         drawAll();
-      } else if (["check", "x", "circle", "star", "q"].includes(tool)) {
-        commit((d) => d.items.push({ t: "stamp", k: tool, c: tool === "check" && color === "red" ? MARK_COLORS.green : c, x: pt[0], y: pt[1], s: 0.045 * sizeMul }));
+      } else if (tool === "stamp") {
+        commit((d) => d.items.push({ t: "stamp", k: opts.stamp.kind, c: opts.stamp.color, x: pt[0], y: pt[1], s: opts.stamp.size / 1000 }));
+      } else if (tool === "comment") {
+        if (!pendingText) { flash("Pick a comment in the panel first.", "error"); return; }
+        const text = pendingText;
+        commit((d) => d.items.push({ t: "text", c: opts.text.color, x: pt[0], y: pt[1], s: opts.text.size / 1000, text }));
+        setSelected(myItems().length - 1);
       } else if (tool === "text") {
-        if (pendingText) {
-          const text = pendingText;
-          commit((d) => d.items.push({ t: "text", c, x: pt[0], y: pt[1], s: 0.024 * sizeMul, text }));
-          pendingText = null;
-          flash("", "");
-          return;
-        }
         openTextInput(e, pt);
       } else if (tool === "eraser") {
         ink.setPointerCapture(e.pointerId);
@@ -593,7 +739,22 @@
       }
     });
     ink.addEventListener("pointermove", (e) => {
-      if (!live) return;
+      if (drag) {
+        const pt = toPage(e);
+        if (!drag.moved && Math.hypot(pt[0] - drag.start[0], pt[1] - drag.start[1]) < 0.002) return;
+        drag.moved = true;
+        applyDrag(pt);
+        return;
+      }
+      if (!live) {
+        // Show that marks can be picked up.
+        if (G && G.can_edit && ["select", "text", "stamp"].includes(tool) && geo) {
+          const pt = toPage(e);
+          const over = (selected >= 0 && onHandle(pt)) ? "nwse-resize" : hitItem(myItems(), pt) >= 0 && (tool === "select" || myItems()[hitItem(myItems(), pt)].t === (tool === "text" ? "text" : "stamp")) ? "move" : null;
+          ink.style.cursor = over || { select: "default", text: "text", stamp: "crosshair" }[tool];
+        }
+        return;
+      }
       const pt = toPage(e);
       if (live.erasing) return eraseAt(pt);
       const last = live.p[live.p.length - 1];
@@ -603,6 +764,7 @@
       }
     });
     const endStroke = () => {
+      if (drag) return endDrag();
       if (!live) return;
       const done = live;
       live = null;
@@ -611,36 +773,61 @@
     };
     ink.addEventListener("pointerup", endStroke);
     ink.addEventListener("pointercancel", endStroke);
+    ink.addEventListener("dblclick", (e) => {
+      if (!G.can_edit) return;
+      const n = hitItem(myItems(), toPage(e));
+      if (n >= 0 && myItems()[n].t === "text") editText(n);
+    });
 
     function eraseAt(pt) {
-      const i = pageIndex();
-      const items = (mine[i] || blank()).items;
-      const n = hitItem(items, pt);
+      const n = hitItem(myItems(), pt);
       if (n >= 0) commit((d) => d.items.splice(n, 1));
     }
 
+    // ---------- Text boxes ----------
     const textInput = document.getElementById("text-input");
-    let textAt = null;
-    function openTextInput(e, pt) {
-      const r = ink.getBoundingClientRect(), w = document.getElementById("page-wrap").getBoundingClientRect();
-      textAt = pt;
+    let textAt = null;      // where a new text box goes
+    let editing = -1;       // index of a text box being edited
+    function placeTextInput(left, top, colorHex, size, value) {
       textInput.hidden = false;
-      textInput.value = "";
-      textInput.style.left = e.clientX - w.left + "px";
-      textInput.style.top = e.clientY - w.top + "px";
-      textInput.style.color = MARK_COLORS[color];
+      textInput.value = value;
+      textInput.style.left = left + "px";
+      textInput.style.top = top + "px";
+      textInput.style.color = colorHex;
+      textInput.style.fontSize = Math.max(14, size) + "px";
       textInput.focus();
       setTimeout(() => textInput.focus(), 0);
+    }
+    function openTextInput(e, pt) {
+      const w = document.getElementById("page-wrap").getBoundingClientRect();
+      textAt = pt;
+      editing = -1;
+      placeTextInput(e.clientX - w.left, e.clientY - w.top, opts.text.color, opts.text.size * geo.W / 1000, "");
+    }
+    function editText(n) {
+      const it = myItems()[n];
+      const [left, top] = toScreen(it.x * geo.W, it.y * geo.H);
+      editing = n;
+      textAt = null;
+      setSelected(-1);
+      placeTextInput(left, top, it.c, it.s * geo.W, it.text);
     }
     function closeTextInput(save) {
       if (textInput.hidden) return;
       const text = textInput.value.trim();
       textInput.hidden = true;
-      if (save && text && textAt) {
+      if (save && editing >= 0) {
+        const n = editing;
+        if (text) commit((d) => { d.items[n].text = text; });
+        else commit((d) => d.items.splice(n, 1));
+        if (text) setSelected(n);
+      } else if (save && text && textAt) {
         const at = textAt;
-        commit((d) => d.items.push({ t: "text", c: MARK_COLORS[color], x: at[0], y: at[1], s: 0.024 * sizeMul, text }));
+        commit((d) => d.items.push({ t: "text", c: opts.text.color, x: at[0], y: at[1], s: opts.text.size / 1000, text }));
+        setSelected(myItems().length - 1);
       }
       textAt = null;
+      editing = -1;
     }
     textInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); closeTextInput(true); }
@@ -653,6 +840,7 @@
       if (!h.undo.length) return;
       h.redo.push(JSON.stringify(mine[i] || blank()));
       mine[i] = JSON.parse(h.undo.pop());
+      selected = -1; renderSelBar();
       drawAll(); queueSave(i);
     }
     function redo() {
@@ -660,12 +848,13 @@
       if (!h.redo.length) return;
       h.undo.push(JSON.stringify(mine[i] || blank()));
       mine[i] = JSON.parse(h.redo.pop());
+      selected = -1; renderSelBar();
       drawAll(); queueSave(i);
     }
     document.getElementById("undo-btn").addEventListener("click", undo);
     document.getElementById("redo-btn").addEventListener("click", redo);
-    document.getElementById("zoom-in").addEventListener("click", () => { zoom = Math.min(3, zoom * 1.25); showPage(pageNo); });
-    document.getElementById("zoom-out").addEventListener("click", () => { zoom = Math.max(0.5, zoom / 1.25); showPage(pageNo); });
+    document.getElementById("zoom-in").addEventListener("click", () => { zoom = Math.min(3, zoom * 1.25); showPage(pageNo).then(renderSelBar); });
+    document.getElementById("zoom-out").addEventListener("click", () => { zoom = Math.max(0.5, zoom / 1.25); showPage(pageNo).then(renderSelBar); });
     document.getElementById("rotate-btn").addEventListener("click", () => { rotation = (rotation + 90) % 360; showPage(pageNo); });
     document.getElementById("prev-page").addEventListener("click", () => showPage(pageNo - 1));
     document.getElementById("next-page").addEventListener("click", () => showPage(pageNo + 1));
@@ -673,9 +862,29 @@
     window.addEventListener("resize", () => { if (G) showPage(pageNo); });
     document.addEventListener("keydown", (e) => {
       if (["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+      if (selected >= 0 && G.can_edit) {
+        if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); deleteSelected(); return; }
+        if (e.key === "Escape") { setSelected(-1); return; }
+        const step = e.shiftKey ? 0.01 : 0.002;
+        const move = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+        if (move) {
+          e.preventDefault();
+          const n = selected;
+          commit((d) => {
+            const it = d.items[n];
+            if (it.p) it.p = it.p.map(([x, y]) => [x + move[0], y + move[1]]);
+            else { it.x += move[0]; it.y += move[1]; }
+          });
+          renderSelBar();
+          return;
+        }
+      }
       if (e.key === "ArrowRight") showPage(pageNo + 1);
       if (e.key === "ArrowLeft") showPage(pageNo - 1);
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+      if (!G.can_edit || e.ctrlKey || e.metaKey || e.altKey) return;
+      const key = { v: "select", h: "pan", p: "pen", t: "text", e: "eraser" }[e.key.toLowerCase()];
+      if (key) selectTool(key);
     });
 
     // Page score

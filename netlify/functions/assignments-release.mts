@@ -27,7 +27,7 @@ export default async (req: Request) => {
   const rows = await db.sql`
     UPDATE assignments
     SET status = 'open', grade_angel_id = NULL, accepted_at = NULL, due_at = NULL,
-        grading_groups = '[]'::jsonb, grade_angel_note = NULL, revision_count = 0, revision_note = NULL
+        grade_angel_note = NULL, revision_count = 0, revision_note = NULL
     WHERE id = ${assignmentId} AND status = 'accepted' AND grade_angel_id = ${session.id}
     RETURNING id
   `;

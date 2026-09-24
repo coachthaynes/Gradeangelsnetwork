@@ -49,6 +49,10 @@ export default async (req: Request) => {
   if (ratePerPageCents < minRateCents) {
     return json({ error: `The lowest price is $${(minRateCents / 100).toFixed(2)} a page, so Grade Angels are paid fairly` }, 400);
   }
+  const pagesPerStudent = body.pages_per_student ? Number(body.pages_per_student) : null;
+  if (pagesPerStudent !== null && (!Number.isInteger(pagesPerStudent) || pagesPerStudent < 1 || pagesPerStudent > 50)) {
+    return json({ error: "Pages per student must be a number from 1 to 50" }, 400);
+  }
   if (!TURNAROUND_HOURS.includes(turnaroundHours)) {
     return json({ error: "Choose a turnaround time from the list" }, 400);
   }
@@ -64,10 +68,10 @@ export default async (req: Request) => {
   const [assignment] = await db.sql`
     INSERT INTO assignments
       (teacher_id, title, subject, grade_level, assignment_type, page_count, rate_per_page_cents,
-       instructions, status, turnaround_hours, invited_grade_angel_id)
+       instructions, status, turnaround_hours, invited_grade_angel_id, pages_per_student)
     VALUES
       (${session.id}, ${title}, ${subject}, ${gradeLevel}, ${assignmentType}, 1, ${ratePerPageCents},
-       ${instructions}, 'draft', ${turnaroundHours}, ${invitedId})
+       ${instructions}, 'draft', ${turnaroundHours}, ${invitedId}, ${pagesPerStudent})
     RETURNING id, status
   `;
 
