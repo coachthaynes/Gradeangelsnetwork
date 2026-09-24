@@ -34,6 +34,10 @@ export default async (req: Request) => {
              ga.photo_updated_at AS grade_angel_photo_updated_at,
              inv.full_name AS invited_grade_angel_name,
              (SELECT rating FROM reviews WHERE assignment_id = a.id AND author_id = ${session.id}) AS my_rating,
+             (SELECT COUNT(*)::int FROM assignment_messages m
+                WHERE m.assignment_id = a.id AND m.grade_angel_id = a.grade_angel_id AND m.sender_id <> ${session.id}
+                  AND m.id > COALESCE((SELECT last_read_message_id FROM assignment_chat_reads r
+                                       WHERE r.assignment_id = a.id AND r.user_id = ${session.id}), 0)) AS unread_messages,
              p.status AS payment_status,
              p.payout_status AS payout_status,
              ev.kind AS last_event_kind,
@@ -62,6 +66,10 @@ export default async (req: Request) => {
                p.payout_status AS payout_status,
                a.teacher_id, t.full_name AS teacher_full_name, t.display_name AS teacher_display_name,
                t.photo_updated_at AS teacher_photo_updated_at,
+               (SELECT COUNT(*)::int FROM assignment_messages m
+                WHERE m.assignment_id = a.id AND m.grade_angel_id = a.grade_angel_id AND m.sender_id <> ${session.id}
+                  AND m.id > COALESCE((SELECT last_read_message_id FROM assignment_chat_reads r
+                                       WHERE r.assignment_id = a.id AND r.user_id = ${session.id}), 0)) AS unread_messages,
                (SELECT rating FROM reviews WHERE assignment_id = a.id AND author_id = ${session.id}) AS my_rating
         FROM assignments a
         JOIN users t ON t.id = a.teacher_id

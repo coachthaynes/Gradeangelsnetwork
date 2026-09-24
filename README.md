@@ -114,3 +114,15 @@ future admin moderation.
 Photos are cropped to a square and shrunk to 400 pixels in the browser,
 stored in Netlify Blobs under `avatars/`, and only served to signed in
 members.
+
+## Assignment chat
+
+The teacher and the Grade Angel on an assignment can message each other
+from the assignment page (`/api/messages`). The chat opens when a Grade
+Angel accepts and becomes read only once they are paid out, or if the
+assignment is cancelled (`netlify/lib/chat.mts`). Each thread belongs to one
+Grade Angel, so a new Grade Angel after a hand back starts fresh. Email
+addresses and phone numbers are replaced with "[contact info removed]".
+The page checks for new messages every 4 seconds while visible and every 30
+seconds in the background, and stops once the chat closes. Dashboards show
+unread counts.

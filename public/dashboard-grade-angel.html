@@ -231,7 +231,13 @@
           ${a.instructions && a.status === "accepted" ? `<p class="instructions">${escapeHtml(a.instructions)}</p>` : ""}
           <div class="card-foot">
             ${teacherLink(a)}
-            <div class="row-actions"><a href="/assignment.html?id=${a.id}">Open the pages</a>${review}</div>
+            <div class="row-actions">
+              <a href="/assignment.html?id=${a.id}">Open the pages</a>
+              ${["accepted", "submitted", "completed"].includes(a.status)
+                ? `<a class="btn small ghost chat-link" href="/assignment.html?id=${a.id}#chat">Message${a.unread_messages ? ` <span class="badge">${a.unread_messages}</span>` : ""}</a>`
+                : ""}
+              ${review}
+            </div>
           </div>
           ${submitForm}
         </div>`;

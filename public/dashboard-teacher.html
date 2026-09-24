@@ -250,6 +250,9 @@
       const total = formatCents(a.rate_per_page_cents * a.page_count);
       const needsPayment = (a.status === "accepted" || a.status === "submitted") && a.payment_status !== "paid";
       const actions = [`<a class="btn small secondary" href="/assignment.html?id=${a.id}">Open</a>`];
+      if (a.grade_angel_id && ["accepted", "submitted", "completed"].includes(a.status)) {
+        actions.push(`<a class="btn small ghost chat-link" href="/assignment.html?id=${a.id}#chat">Message${a.unread_messages ? ` <span class="badge">${a.unread_messages}</span>` : ""}</a>`);
+      }
       if (needsPayment) actions.push(`<button class="btn small" data-pay-id="${a.id}">Pay ${total}</button>`);
       if (a.status === "submitted") actions.push(`<button class="btn small" data-complete-id="${a.id}">Mark complete</button>`);
       if (a.status === "completed" && !a.my_rating && a.grade_angel_id) actions.push(`<button class="btn small" data-review-id="${a.id}">★ Review</button>`);

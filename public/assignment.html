@@ -49,6 +49,7 @@
 
   <script src="/js/api.js"></script>
   <script src="/js/profile-ui.js"></script>
+  <script src="/js/chat.js"></script>
   <script src="/js/page-uploader.js"></script>
   <script src="/vendor/pdf-lib/pdf-lib.min.js"></script>
   <script>
@@ -77,9 +78,12 @@
         ["Pages", a.page_count],
         ["Rate", formatCents(a.rate_per_page_cents) + " per page"],
       ];
-      if (user.role === "grade_angel") rows.push(["You earn", `<strong>${formatCents(a.earnings_cents)}</strong>`]);
-      if (user.role === "grade_angel" && a.status === "completed") rows.push(["Payout", payoutPillHtml(a)]);
-      else rows.push(["Total", `<strong>${formatCents(a.total_cents)}</strong>`]);
+      if (user.role === "grade_angel") {
+        rows.push(["You earn", `<strong>${formatCents(a.earnings_cents)}</strong>`]);
+        if (a.status === "completed") rows.push(["Payout", payoutPillHtml(a)]);
+      } else {
+        rows.push(["Total", `<strong>${formatCents(a.total_cents)}</strong>`]);
+      }
       rows.push(["Turnaround", a.turnaround_hours + " hours after it is accepted"]);
       if (a.due_at) rows.push(["Due", `${formatDateTime(a.due_at)} <span class="due ${new Date(a.due_at) < new Date() ? "late" : ""}">${formatDue(a.due_at)}</span>`]);
       if (user.role !== "grade_angel") {
@@ -205,6 +209,7 @@
           <div class="actions">${actionsSection()}</div>
         </div>
         ${peopleSection()}
+        <div id="chat-slot"></div>
         <div class="card">
           <h2>Pages</h2>
           ${pagesSection()}
@@ -219,9 +224,28 @@
         const data = await apiGet(`/api/assignments/get?id=${assignmentId}`);
         a = data.assignment;
         render(data.events || []);
+        placeChat();
       } catch (err) {
         document.getElementById("content").innerHTML = "";
         showMessage(pageMsg, err.message, "error");
+      }
+    }
+
+    // The chat lives outside the part of the page that is redrawn after each
+    // action, so an open conversation is never interrupted. It is mounted
+    // once someone is working on the assignment, then moved into its slot.
+    let chat = null;
+    const chatCard = document.createElement("section");
+    chatCard.className = "card chat-card";
+    chatCard.id = "chat";
+    function placeChat() {
+      const hasAngel = user.role === "grade_angel" ? a.access === "full" : Boolean(a.grade_angel_id);
+      if (!hasAngel) return;
+      if (!chat) chat = mountChat(chatCard, a.id, user.role);
+      document.getElementById("chat-slot").appendChild(chatCard);
+      if (location.hash === "#chat" && !placeChat.scrolled) {
+        placeChat.scrolled = true;
+        chatCard.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     }
 
