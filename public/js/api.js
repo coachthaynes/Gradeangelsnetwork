@@ -72,6 +72,7 @@ function renderNav(user) {
   if (user) {
     const dashboardHref = dashboardFor(user.role);
     links.push(`<a href="${dashboardHref}">Dashboard</a>`);
+    if (user.role === "teacher") links.push(`<a href="/gradebook.html">Gradebook</a>`);
     links.push(`<span class="user-name">${escapeHtml(user.full_name)}</span>`);
     links.push(`<button class="link" id="logout-btn">Sign out</button>`);
   } else {

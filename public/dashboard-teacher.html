@@ -85,6 +85,10 @@
             <label for="instructions">Instructions (optional)</label>
             <textarea id="instructions" placeholder="Answer key is on the last page. Flag anything left blank."></textarea>
 
+            <label for="class_id">Class (optional)</label>
+            <select id="class_id"><option value="">No class</option></select>
+            <p class="muted small-print" id="class-help">Pick a class and the scores land in your <a href="/gradebook.html">gradebook</a>, matched to your students in order.</p>
+
             <label for="pages_per_student">How many pages did each student turn in?</label>
             <select id="pages_per_student">
               <option value="">It varies, or I am not sure</option>
@@ -143,6 +147,16 @@
         <h3 class="mt">Gifts you have received</h3>
         <div id="gift-list"></div>
       </section>
+
+      <div class="row-actions dash-links">
+        <a class="btn secondary" href="/gradebook.html">Open my gradebook</a>
+      </div>
+
+      <details class="card" id="payments">
+        <summary>Payments</summary>
+        <p class="muted" id="pay-summary"></p>
+        <div id="pay-list"></div>
+      </details>
 
       <section class="grid about-grid">
         <div class="card">
@@ -488,6 +502,7 @@
             rate_per_page_cents: Math.round(dollars * 100),
             turnaround_hours: Number(document.getElementById("turnaround_hours").value),
             pages_per_student: document.getElementById("pages_per_student").value || null,
+            class_id: document.getElementById("class_id").value || null,
             invited_grade_angel_id: invite ? Number(invite) : null,
             instructions: document.getElementById("instructions").value,
           });
@@ -624,12 +639,41 @@
       }
     });
 
+    async function loadClassesForPost() {
+      try {
+        const { classes } = await apiGet("/api/classes");
+        document.getElementById("class_id").innerHTML = '<option value="">No class</option>' +
+          classes.map((c) => `<option value="${c.id}">${escapeHtml(c.name)} (${c.students.length} students)</option>`).join("");
+        if (!classes.length) document.getElementById("class-help").innerHTML = 'Add a class in your <a href="/gradebook.html">gradebook</a> and scores land there, matched to your students.';
+      } catch {}
+    }
+
+    async function loadPayments() {
+      try {
+        const d = await apiGet("/api/payments/mine");
+        document.getElementById("pay-summary").textContent = d.payments.length
+          ? `In ${d.year}: ${formatCents(d.paid_this_year_cents)} paid by card${d.gifts_this_year_cents ? `, ${formatCents(d.gifts_this_year_cents)} covered by Gift Angels` : ""}.`
+          : "";
+        document.getElementById("pay-list").innerHTML = d.payments.length
+          ? `<ul class="money-list-rows">${d.payments.map((p) => `
+              <li><span><a href="/assignment.html?id=${p.assignment_id}">${escapeHtml(p.title)}</a>
+                <span class="muted"> · ${p.paid_at ? new Date(p.paid_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""}${p.gift_cents ? ` · ${formatCents(p.gift_cents)} from gifts` : ""}${p.status === "refunded" ? " · refunded" : ""}${p.test_mode ? " · test" : ""}</span></span>
+                <span><span class="amt">${formatCents(p.amount_cents)}</span>
+                ${p.has_receipt ? ` <a href="/api/payments/mine?receipt=${p.id}" target="_blank" rel="noopener">Receipt</a>` : ""}</span></li>`).join("")}</ul>`
+          : '<p class="muted">No payments yet.</p>';
+      } catch (err) {
+        document.getElementById("pay-list").innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+      }
+    }
+
     requireRole("teacher").then((user) => {
       if (!user) return;
       loadProfile().catch((err) => (document.getElementById("hero").innerHTML = `<div class="inner"><p>${escapeHtml(err.message)}</p></div>`));
       loadGradeAngels();
       loadAssignments();
       loadGifts();
+      loadClassesForPost();
+      loadPayments();
       loadPriceHelp();
       if (location.hash === "#gifts") setTimeout(() => document.getElementById("gifts").scrollIntoView({ behavior: "smooth" }), 400);
     });

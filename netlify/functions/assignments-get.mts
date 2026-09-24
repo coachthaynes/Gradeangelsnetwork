@@ -1,5 +1,6 @@
 import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
+import { classStudents, matchedScores } from "../lib/gradebook.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 import { PREVIEW_PAGE_LIMIT, assignmentAccess, type AccessRow } from "../lib/assignments.mts";
@@ -26,7 +27,7 @@ export default async (req: Request) => {
            a.status, a.turnaround_hours, a.due_at, a.created_at, a.published_at, a.accepted_at,
            a.submitted_at, a.completed_at, a.cancelled_at, a.grade_angel_note, a.graded_on_site,
            a.revision_count, a.revision_note, (a.disputed_at IS NOT NULL) AS disputed, a.auto_approved_at,
-           a.grading_groups,
+           a.grading_groups, a.class_id,
            (a.source_blob_key IS NOT NULL) AS has_source_file,
            (a.graded_blob_key IS NOT NULL) AS has_graded_file,
            ga.full_name AS grade_angel_name,
@@ -75,6 +76,14 @@ export default async (req: Request) => {
   delete assignment.grading_groups;
   const showScores = access === "full" && (session.role !== "teacher" || (["submitted", "completed"].includes(a.status) && a.payment_status === "paid"));
   assignment.scores = showScores ? await scoreList(a.id, groups || [], a.stored_pages) : [];
+  delete assignment.class_id;
+  if (session.role === "teacher" && showScores) {
+    // Teachers see which of their students each score belongs to.
+    assignment.scores = await matchedScores({ id: a.id, class_id: a.class_id, grading_groups: groups || [], page_count: a.stored_pages });
+    assignment.class_id = a.class_id;
+    assignment.classes = await db.sql`SELECT id, name FROM classes WHERE teacher_id = ${session.id} ORDER BY name`;
+    assignment.students = a.class_id ? await classStudents(a.class_id) : [];
+  }
 
   let events: unknown[] = [];
   if (session.role === "grade_angel") {

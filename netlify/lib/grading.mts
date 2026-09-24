@@ -141,11 +141,12 @@ export async function scoreList(assignmentId: number, groups: any[], pageCount: 
       if (s.e !== null && s.e !== undefined) byPage.set(r.page_index, { e: s.e, p: s.p ?? null });
     }
   }
-  const lines: { label: string; pages: number[]; earned: number | null; possible: number | null }[] = [];
+  const lines: { group_id: string; label: string; pages: number[]; earned: number | null; possible: number | null }[] = [];
   const grouped = new Set<number>();
-  const add = (label: string, pages: number[]) => {
+  const add = (group_id: string, label: string, pages: number[]) => {
     const scored = pages.map((p) => byPage.get(p)).filter(Boolean) as { e: number; p: number | null }[];
     lines.push({
+      group_id,
       label,
       pages,
       earned: scored.length ? scored.reduce((t, s) => t + s.e, 0) : null,
@@ -154,10 +155,10 @@ export async function scoreList(assignmentId: number, groups: any[], pageCount: 
   };
   for (const g of groups) {
     g.pages.forEach((p: number) => grouped.add(p));
-    if (g.kind === "student") add(g.label, g.pages);
-    else g.pages.filter((p: number) => p !== g.key_page).forEach((p: number, i: number) => add(`${g.label}, paper ${i + 1} (page ${p + 1})`, [p]));
+    if (g.kind === "student") add(g.id, g.label, g.pages);
+    else g.pages.filter((p: number) => p !== g.key_page).forEach((p: number, i: number) => add(`${g.id}:${p}`, `${g.label}, paper ${i + 1} (page ${p + 1})`, [p]));
   }
-  for (let p = 0; p < pageCount; p++) if (!grouped.has(p) && byPage.has(p)) add(`Page ${p + 1}`, [p]);
+  for (let p = 0; p < pageCount; p++) if (!grouped.has(p) && byPage.has(p)) add(`p${p}`, `Page ${p + 1}`, [p]);
   return lines;
 }
 

@@ -53,6 +53,11 @@ export default async (req: Request) => {
   if (pagesPerStudent !== null && (!Number.isInteger(pagesPerStudent) || pagesPerStudent < 1 || pagesPerStudent > 50)) {
     return json({ error: "Pages per student must be a number from 1 to 50" }, 400);
   }
+  const classId = body.class_id ? Number(body.class_id) : null;
+  if (classId !== null) {
+    const [c] = await db.sql`SELECT id FROM classes WHERE id = ${classId} AND teacher_id = ${session.id}`;
+    if (!c) return json({ error: "Class not found" }, 400);
+  }
   if (!TURNAROUND_HOURS.includes(turnaroundHours)) {
     return json({ error: "Choose a turnaround time from the list" }, 400);
   }
@@ -68,10 +73,10 @@ export default async (req: Request) => {
   const [assignment] = await db.sql`
     INSERT INTO assignments
       (teacher_id, title, subject, grade_level, assignment_type, page_count, rate_per_page_cents,
-       instructions, status, turnaround_hours, invited_grade_angel_id, pages_per_student)
+       instructions, status, turnaround_hours, invited_grade_angel_id, pages_per_student, class_id)
     VALUES
       (${session.id}, ${title}, ${subject}, ${gradeLevel}, ${assignmentType}, 1, ${ratePerPageCents},
-       ${instructions}, 'draft', ${turnaroundHours}, ${invitedId}, ${pagesPerStudent})
+       ${instructions}, 'draft', ${turnaroundHours}, ${invitedId}, ${pagesPerStudent}, ${classId})
     RETURNING id, status
   `;
 

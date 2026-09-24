@@ -48,6 +48,16 @@
         <div id="mine-list"></div>
       </section>
 
+      <section class="card" id="payouts">
+        <div class="section-head">
+          <h2>Payouts</h2>
+          <button class="btn small secondary" type="button" id="stripe-btn">Open my Stripe account</button>
+        </div>
+        <p class="muted" id="payout-summary"></p>
+        <div id="payout-list"></div>
+        <p class="muted small-print">Your Stripe account shows each deposit to your bank, lets you change your bank, and has your 1099 tax form.</p>
+      </section>
+
       <section class="card">
         <h2>What teachers say about you</h2>
         <div id="my-reviews"></div>
@@ -285,6 +295,34 @@
 
     document.getElementById("match-only").addEventListener("change", renderOpen);
 
+    async function loadPayouts() {
+      try {
+        const d = await apiGet("/api/payouts/mine");
+        document.getElementById("payout-summary").textContent = `Paid to you in ${d.year}: ${formatCents(d.paid_this_year_cents)}`;
+        const label = { transferred: "Paid out", held: "On hold", failed: "Retrying", processing: "Sending", not_started: "Waiting for approval" };
+        document.getElementById("payout-list").innerHTML = d.payouts.length
+          ? `<ul class="money-list-rows">${d.payouts.map((p) => `
+              <li><span><a href="/assignment.html?id=${p.assignment_id}">${escapeHtml(p.title)}</a>
+                <span class="muted"> · ${p.payout_status === "transferred" && p.transferred_at ? new Date(p.transferred_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : label[p.payout_status] || p.payout_status}${p.test_mode ? " · test" : ""}</span></span>
+                <span class="amt">${formatCents(p.earned_cents)}</span></li>`).join("")}</ul>`
+          : '<p class="muted">No payouts yet. You are paid when a teacher approves your grading.</p>';
+        document.getElementById("stripe-btn").hidden = !d.has_stripe;
+      } catch (err) {
+        document.getElementById("payout-list").innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
+      }
+    }
+    document.getElementById("stripe-btn").addEventListener("click", async (e) => {
+      e.target.disabled = true;
+      try {
+        const { url } = await apiPostJson("/api/payments/connect/dashboard", {});
+        window.open(url, "_blank", "noopener");
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        e.target.disabled = false;
+      }
+    });
+
     requireRole("grade_angel").then(async (user) => {
       if (!user) return;
       loadProfile().catch((err) => (document.getElementById("hero").innerHTML = `<div class="inner"><p>${escapeHtml(err.message)}</p></div>`));
@@ -300,6 +338,7 @@
       loadInvites();
       loadOpen();
       loadMine();
+      loadPayouts();
     });
   </script>
 </body>

@@ -1324,3 +1324,28 @@ button.link { background: none; border: none; padding: 0; cursor: pointer; font:
 .upload-tips { margin: 0.25rem 0 0.75rem; padding-left: 1.2rem; font-size: 0.9rem; color: var(--ink-soft); }
 .upload-tips li { margin-bottom: 0.25rem; }
 @media (min-width: 980px) { .view-only .grade-layout { grid-template-columns: minmax(0, 1fr) 280px; } .view-only .grade-layout .grade-main { grid-column: 1; } .view-only .grade-layout .grade-side { grid-column: 2; } }
+
+/* Gradebook */
+.gradebook .section-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+.gb-tools { margin: 0.75rem 0; }
+.gb-wrap { background: #fff; border: 1px solid var(--border); border-radius: 12px; }
+.gb-table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+.gb-table th, .gb-table td { padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--border); text-align: center; white-space: nowrap; }
+.gb-table thead th { background: var(--bg-alt); vertical-align: bottom; font-weight: 600; }
+.gb-table thead th a { color: var(--ink); text-decoration: none; display: block; max-width: 160px; overflow: hidden; text-overflow: ellipsis; margin: 0 auto; }
+.gb-table thead th span { display: block; font-weight: 400; font-size: 0.75rem; color: var(--ink-soft); }
+.gb-table td a { font-weight: 700; color: var(--ink); }
+.gb-table td .muted { display: block; font-size: 0.75rem; }
+.gb-table .gb-name { text-align: left; position: sticky; left: 0; background: #fff; }
+.gb-table thead .gb-name { background: var(--bg-alt); }
+.gb-overall { font-weight: 700; color: var(--seafoam-deep); }
+.student-work li { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.student-work .btn { margin-left: 0.5rem; }
+.score-table select { width: auto; max-width: 11rem; padding: 0.25rem 0.4rem; font-size: 0.85rem; }
+.class-pick { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.75rem; }
+.class-pick select { width: auto; }
+.money-list-rows { list-style: none; padding: 0; margin: 0; }
+.money-list-rows li { display: flex; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; padding: 0.55rem 0; border-bottom: 1px solid var(--border); font-size: 0.92rem; }
+.money-list-rows li:last-child { border-bottom: none; }
+.money-list-rows .amt { font-weight: 700; white-space: nowrap; }
+details.card > summary { cursor: pointer; font-family: "Fraunces", Georgia, serif; font-weight: 700; font-size: 1.2rem; }

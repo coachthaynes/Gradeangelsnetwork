@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gradebook, Grade Angels Network</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
+  <meta name="theme-color" content="#0B0B0B" />
+  <meta name="robots" content="noindex" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+  <nav class="nav" id="site-nav"></nav>
+
+  <main class="wrap gradebook">
+    <p><a href="/dashboard-teacher.html">&#8592; Back to dashboard</a></p>
+    <div class="section-head">
+      <div>
+        <h1>Gradebook</h1>
+        <p class="muted">Scores from your graded assignments, by student. Student names stay private to you; Grade Angels only see "Student 1," "Student 2."</p>
+      </div>
+      <button class="btn small" type="button" id="new-class">Add a class</button>
+    </div>
+    <div id="gb-msg" class="msg" style="display:none"></div>
+
+    <div class="chips" id="class-chips" role="tablist" aria-label="Classes"></div>
+    <div id="gb-body"><p class="muted">Loading…</p></div>
+  </main>
+
+  <dialog class="user-dialog" id="class-dialog">
+    <form method="dialog" class="pad" id="class-form">
+      <h2 id="class-dialog-title">Add a class</h2>
+      <label for="class-name">Class name</label>
+      <input id="class-name" maxlength="60" required placeholder="Period 2 Math" />
+      <label for="class-students">Students, one per line</label>
+      <textarea id="class-students" rows="10" placeholder="Ava Brooks, 1042&#10;Liam Chen, 1043&#10;Maya Diaz"></textarea>
+      <p class="muted small-print">Add an ID number after a comma if you like. List students in the order you stack their papers, and scores match up on their own.</p>
+      <div class="row-actions">
+        <button class="btn" type="submit" value="ok">Save class</button>
+        <button class="btn ghost" type="button" data-close>Cancel</button>
+        <button class="btn ghost danger-text" type="button" id="delete-class" hidden>Delete class</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="user-dialog" id="student-dialog">
+    <div class="pad" id="student-body"></div>
+  </dialog>
+
+  <footer>
+    <span class="brand-line">Grade Angels Network</span><br />Helping teachers get their evenings back.
+    <nav class="footer-links" aria-label="Footer"><a href="/give.html">Become a Gift Angel</a><a href="/terms.html">Terms of Use</a><a href="/login.html?staff=1">Staff sign in</a></nav>
+  </footer>
+
+  <script src="/js/api.js"></script>
+  <script>
+    const msg = document.getElementById("gb-msg");
+    let classes = [];
+    let current = null;   // class id, or "none"
+    let data = null;
+    let editing = null;
+
+    const score = (c) => (c && c.earned !== null && c.earned !== undefined ? `${c.earned}${c.possible ? "/" + c.possible : ""}` : "");
+    const pct = (c) => (c && c.possible ? Math.round((c.earned / c.possible) * 100) + "%" : "");
+    const shortDate = (d) => (d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "");
+
+    async function loadClasses() {
+      classes = (await apiGet("/api/classes")).classes;
+      if (current === null) current = classes[0] ? classes[0].id : "none";
+      renderChips();
+      await loadBook();
+    }
+
+    function renderChips() {
+      document.getElementById("class-chips").innerHTML =
+        classes.map((c) => `<button type="button" class="chip ${current === c.id ? "active" : ""}" data-class="${c.id}">${escapeHtml(c.name)} <span>${c.students.length}</span></button>`).join("") +
+        `<button type="button" class="chip ${current === "none" ? "active" : ""}" data-class="none">Not in a class</button>`;
+    }
+
+    async function loadBook() {
+      const body = document.getElementById("gb-body");
+      body.innerHTML = '<p class="muted">Loading…</p>';
+      try {
+        data = await apiGet(`/api/gradebook?class_id=${current}`);
+        render();
+      } catch (err) {
+        body.innerHTML = "";
+        showMessage(msg, err.message, "error");
+      }
+    }
+
+    function render() {
+      const body = document.getElementById("gb-body");
+      const cls = classes.find((c) => c.id === current);
+      if (current !== "none" && !cls) { body.innerHTML = ""; return; }
+      if (current === "none") {
+        body.innerHTML = data.unmatched.length
+          ? `<div class="card"><p class="muted">These graded assignments are not tied to a class. Open one and choose a class under Scores to move it into your gradebook.</p>
+             <div class="table-wrap"><table class="admin-table"><thead><tr><th>Assignment</th><th>Student</th><th>Score</th></tr></thead><tbody>
+             ${data.unmatched.map((l) => `<tr><td><a href="/assignment.html?id=${l.assignment_id}">${escapeHtml(l.assignment)}</a></td><td>${escapeHtml(l.label)}</td><td>${score(l)}</td></tr>`).join("")}
+             </tbody></table></div>
+             <a class="btn small secondary" href="/api/gradebook?class_id=none&format=csv">Download spreadsheet</a></div>`
+          : emptyState("No graded work outside a class", "When you post an assignment, choose a class so its scores land in that class's gradebook.");
+        return;
+      }
+      const tools = `<div class="row-actions gb-tools">
+          <a class="btn small secondary" href="/api/gradebook?class_id=${current}&format=csv">Download spreadsheet</a>
+          <button class="btn small ghost" type="button" data-edit-class="${current}">Edit class list</button>
+        </div>`;
+      if (!cls.students.length) {
+        body.innerHTML = tools + emptyState("Add your students", "Edit the class list to add your students, one per line.");
+        return;
+      }
+      if (!data.columns.length) {
+        body.innerHTML = tools + emptyState("No scores yet", "Scores show up here once graded work for this class comes back and is paid for.");
+        return;
+      }
+      body.innerHTML = `${tools}
+        <div class="table-wrap gb-wrap"><table class="gb-table">
+          <thead><tr><th class="gb-name">Student</th>${data.columns.map((c) =>
+            `<th><a href="/assignment.html?id=${c.id}">${escapeHtml(c.title)}</a><span>${shortDate(c.date)}${c.possible ? ` · out of ${c.possible}` : ""}</span></th>`).join("")}<th>Overall</th></tr></thead>
+          <tbody>${data.rows.map((r) => `
+            <tr>
+              <td class="gb-name"><button type="button" class="link" data-student="${r.id}">${escapeHtml(r.name)}</button>${r.student_code ? `<span class="muted"> ${escapeHtml(r.student_code)}</span>` : ""}</td>
+              ${data.columns.map((c) => {
+                const cell = r.scores[c.id];
+                return `<td>${cell ? `<a href="/grade.html?id=${c.id}&page=${cell.pages[0]}" title="See the graded pages">${score(cell)}</a><span class="muted">${pct(cell)}</span>` : '<span class="muted">·</span>'}</td>`;
+              }).join("")}
+              <td class="gb-overall">${r.percent !== null ? r.percent + "%" : ""}</td>
+            </tr>`).join("")}</tbody>
+        </table></div>
+        ${data.unmatched.length ? `<p class="muted small-print">${data.unmatched.length} score${data.unmatched.length === 1 ? " is" : "s are"} not matched to a student. Open the assignment and match them under Scores.</p>` : ""}`;
+    }
+
+    function emptyState(title, text) {
+      return `<div class="card"><h2>${title}</h2><p class="muted">${text}</p></div>`;
+    }
+
+    function openStudent(id) {
+      const r = data.rows.find((x) => x.id === id);
+      const done = data.columns.filter((c) => r.scores[c.id]);
+      document.getElementById("student-body").innerHTML = `
+        <div class="user-head"><div><h2>${escapeHtml(r.name)}</h2><span class="muted">${r.student_code ? "ID " + escapeHtml(r.student_code) + " · " : ""}${r.percent !== null ? "Overall " + r.percent + "%" : "No scores yet"}</span></div>
+        <button type="button" class="btn small ghost close-x" data-close>Close</button></div>
+        ${done.length ? `<ul class="mini-list student-work">${done.map((c) => `
+          <li><span><strong>${escapeHtml(c.title)}</strong><span class="muted"> ${shortDate(c.date)}</span></span>
+          <span>${score(r.scores[c.id])} <span class="muted">${pct(r.scores[c.id])}</span>
+          <a class="btn small secondary" href="/grade.html?id=${c.id}&page=${r.scores[c.id].pages[0]}">See graded pages</a></span></li>`).join("")}</ul>`
+          : '<p class="muted">No graded work for this student yet.</p>'}`;
+      document.getElementById("student-dialog").showModal();
+    }
+
+    function openClassDialog(c) {
+      editing = c || null;
+      document.getElementById("class-dialog-title").textContent = c ? "Edit class" : "Add a class";
+      document.getElementById("class-name").value = c ? c.name : "";
+      document.getElementById("class-students").value = c ? c.students.map((s) => s.name + (s.student_code ? ", " + s.student_code : "")).join("\n") : "";
+      document.getElementById("delete-class").hidden = !c;
+      document.getElementById("class-dialog").showModal();
+    }
+
+    document.getElementById("new-class").addEventListener("click", () => openClassDialog(null));
+    document.getElementById("class-form").addEventListener("submit", async () => {
+      try {
+        const payload = { name: document.getElementById("class-name").value, students: document.getElementById("class-students").value };
+        const res = editing
+          ? await apiPostJson("/api/classes", { action: "update", class_id: editing.id, ...payload })
+          : await apiPostJson("/api/classes", { action: "create", ...payload });
+        classes = res.classes;
+        if (!editing) current = classes.reduce((m, c) => (c.id > m ? c.id : m), 0);
+        renderChips();
+        loadBook();
+        showMessage(msg, "Class saved.", "success");
+      } catch (err) {
+        showMessage(msg, err.message, "error");
+      }
+    });
+    document.getElementById("delete-class").addEventListener("click", async () => {
+      if (!confirm("Delete this class? Its assignments stay, but they move to Not in a class.")) return;
+      document.getElementById("class-dialog").close();
+      classes = (await apiPostJson("/api/classes", { action: "delete", class_id: editing.id })).classes;
+      current = classes[0] ? classes[0].id : "none";
+      renderChips();
+      loadBook();
+    });
+    document.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => b.closest("dialog").close()));
+    document.getElementById("student-dialog").addEventListener("click", (e) => { if (e.target.closest("[data-close]")) e.target.closest("dialog").close(); });
+    document.getElementById("class-chips").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-class]");
+      if (!b) return;
+      current = b.dataset.class === "none" ? "none" : Number(b.dataset.class);
+      renderChips();
+      loadBook();
+    });
+    document.getElementById("gb-body").addEventListener("click", (e) => {
+      const s = e.target.closest("[data-student]");
+      if (s) openStudent(Number(s.dataset.student));
+      const ed = e.target.closest("[data-edit-class]");
+      if (ed) openClassDialog(classes.find((c) => c.id === Number(ed.dataset.editClass)));
+    });
+
+    requireRole("teacher").then((user) => {
+      if (!user) return;
+      loadClasses().catch((err) => showMessage(msg, err.message, "error"));
+    });
+  </script>
+</body>
+</html>

@@ -576,6 +576,46 @@ r = await angel.call('assignments-submit', 'POST', '/api/assignments/submit', { 
 await angel.call('assignments-release', 'POST', '/api/assignments/release', { json: { assignment_id: hb.id, reason: 'Out sick' } });
 check('grading: handing back clears the marks', (await q(`SELECT 1 FROM assignment_annotations WHERE assignment_id = $1`, [hb.id])).length === 0);
 
+// ---------- Gradebook ----------
+r = await teacher.call('classes', 'POST', '/api/classes', { json: { action: 'create', name: 'Period 2', students: 'Ava Brooks, 101\nBen Cruz\nCal Diaz' } });
+const p2 = r.data.classes.find((c) => c.name === 'Period 2');
+check('gradebook: class created with students', r.status === 200 && p2.students.length === 3 && p2.students[0].student_code === '101', JSON.stringify(r.data));
+r = await teacher.call('gradebook', 'GET', '/api/gradebook?class_id=none');
+check('gradebook: graded work outside a class listed', r.data.unmatched.some((l) => l.assignment === 'Grading test' && l.earned === 13), JSON.stringify(r.data.unmatched));
+r = await teacher.call('assignments-students', 'POST', '/api/assignments/students', { json: { assignment_id: ga.id, class_id: p2.id } });
+r = await teacher.call('gradebook', 'GET', `/api/gradebook?class_id=${p2.id}`);
+const ava = r.data.rows.find((x) => x.name === 'Ava Brooks');
+check('gradebook: scores match students in order', r.data.columns.some((c) => c.id === ga.id) && ava.scores[ga.id]?.earned === 13 && ava.percent === 86.7, JSON.stringify(r.data.rows));
+const benId = p2.students.find((x) => x.name === 'Ben Cruz').id;
+r = await teacher.call('assignments-students', 'POST', '/api/assignments/students', { json: { assignment_id: ga.id, group_id: 'g1', student_id: benId } });
+r = await teacher.call('gradebook', 'GET', `/api/gradebook?class_id=${p2.id}`);
+check('gradebook: teacher fixes a match', r.data.rows.find((x) => x.name === 'Ben Cruz').scores[ga.id]?.earned === 13 && !r.data.rows.find((x) => x.name === 'Ava Brooks').scores[ga.id], JSON.stringify(r.data.rows));
+r = await teacher.call('assignments-get', 'GET', `/api/assignments/get?id=${ga.id}`);
+check('gradebook: assignment shows the matched student', r.data.assignment.scores[0].student_id === benId && r.data.assignment.students.length === 3);
+r = await angel.call('assignments-get', 'GET', `/api/assignments/get?id=${ga.id}`);
+check('gradebook: grade angels never see student names', !JSON.stringify(r.data).includes('Ben Cruz') && r.data.assignment.students === undefined);
+r = await teacher.call('classes', 'POST', '/api/classes', { json: { action: 'update', class_id: p2.id, students: 'Ben Cruz\nAva Brooks, 101\nDee Evans' } });
+const p2b = r.data.classes.find((c) => c.id === p2.id);
+check('gradebook: editing the list keeps each student', p2b.students[0].id === benId && p2b.students.length === 3 && !p2b.students.some((x) => x.name === 'Cal Diaz'));
+r = await teacher.call('gradebook', 'GET', `/api/gradebook?class_id=${p2.id}&format=csv`);
+const csv = new TextDecoder().decode(r.data);
+check('gradebook: spreadsheet download', csv.includes('Ben Cruz,,13') && csv.startsWith('Student,ID,Grading test'), csv.slice(0, 200));
+r = await angel.call('classes', 'GET', '/api/classes');
+check('gradebook: only teachers have classes', r.status === 403);
+r = await teacher.call('assignments-students', 'POST', '/api/assignments/students', { json: { assignment_id: ga.id, group_id: 'g1', student_id: 999999 } });
+check('gradebook: cannot match a student from another class', r.status === 400);
+
+// ---------- Payments and payouts lists ----------
+r = await teacher.call('payments-mine', 'GET', '/api/payments/mine');
+check('payments: teacher sees their payments', r.status === 200 && r.data.payments.some((p) => p.title === 'Grading test'), JSON.stringify(r.data).slice(0, 200));
+const somePay = r.data.payments[0];
+r = await teacher.call('payments-mine', 'GET', `/api/payments/mine?receipt=${somePay.id}`);
+check('payments: no receipt when there was no card charge', r.status === 404);
+r = await angel.call('payouts-mine', 'GET', '/api/payouts/mine');
+check('payouts: grade angel sees their payouts', r.status === 200 && r.data.payouts.length >= 1 && r.data.year > 2000, JSON.stringify(r.data).slice(0, 200));
+r = await angel.call('payments-connect-dashboard', 'POST', '/api/payments/connect/dashboard', { json: {} });
+check('payouts: Stripe page waits for Stripe', r.status === 501 || r.status === 409, JSON.stringify(r.data));
+
 // ---------- Test accounts ----------
 process.env.TEST_ACCOUNT_EMAILS = 'grader.test@example.com, TEACHER.test@example.com';
 const tTeacher = client('test teacher');

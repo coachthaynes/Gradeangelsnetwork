@@ -100,7 +100,7 @@
         <h3>Scores</h3>
         <div id="score-list"></div>
         <button class="btn small ghost" type="button" id="copy-scores" hidden title="Copies the score list so you can paste it into a gradebook or spreadsheet">Copy scores</button>
-        <p class="muted small-print">Copy scores, then paste them into your gradebook or a spreadsheet.</p>
+        <p class="muted small-print" id="copy-help">Copy scores, then paste them into your gradebook or a spreadsheet.</p>
       </div>
     </aside>
   </div>
@@ -201,12 +201,19 @@
         if (G.locked) flash("Pay for this assignment to see the graded pages.", "error");
         else if (G.layer !== "teacher") flash(a.status === "completed" ? "This assignment is complete. The marks are shown for reference." : "You can look at these pages, but marking is closed.", "success");
       }
-      document.getElementById("pdf-btn").hidden = Boolean(G.locked);
+      // Only teachers (and staff) take a copy of the graded work; student
+      // work stays on the site for Grade Angels.
+      const angelView = G.layer === "grade_angel";
+      document.getElementById("pdf-btn").hidden = Boolean(G.locked) || angelView;
+      document.getElementById("copy-help").hidden = angelView;
       renderInfo();
       renderSide();
       if (G.layer === "teacher") opts.pen.color = opts.text.color = INK[2];
       selectTool(G.can_edit ? "pen" : "pan");
-      await showPage(0);
+      // A link can open straight to a page, like a student's first page.
+      const startPage = Number(new URLSearchParams(location.search).get("page"));
+      const startAt = G.pages.findIndex((p) => p.page_index === startPage);
+      await showPage(startAt > 0 ? startAt : 0);
     }
 
     function renderInfo() {
@@ -250,7 +257,7 @@
       document.getElementById("score-list").innerHTML = list.length
         ? `<table class="score-table">${list.map((s) => `<tr><td>${escapeHtml(s.label)}</td><td>${s.earned}${s.possible !== null ? " / " + s.possible : ""}</td></tr>`).join("")}</table>`
         : '<p class="muted small-print">Scores you enter on each page add up here.</p>';
-      document.getElementById("copy-scores").hidden = !list.length;
+      document.getElementById("copy-scores").hidden = !list.length || G.layer === "grade_angel";
     }
 
     async function refreshScores() {

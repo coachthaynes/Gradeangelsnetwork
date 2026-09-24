@@ -137,7 +137,9 @@
         </button>`).join("");
       const more = a.viewable_pages < a.stored_pages
         ? `<p class="muted">Showing a preview of ${a.viewable_pages} of ${a.stored_pages} pages. Accept the assignment to see the rest.</p>`
-        : `<div class="row-actions"><button type="button" class="btn small secondary" id="download-pdf">Download all pages as a PDF</button><span class="muted" id="download-status"></span></div>`;
+        : user.role === "grade_angel"
+          ? '<p class="muted small-print">Grade on the site. Student work is not downloaded, to keep it private.</p>'
+          : `<div class="row-actions"><button type="button" class="btn small secondary" id="download-pdf">Download all pages as a PDF</button><span class="muted" id="download-status"></span></div>`;
       return `<div class="page-grid">${thumbs}</div>${more}`;
     }
 
@@ -251,11 +253,26 @@
     function scoresSection() {
       const list = (a.scores || []).filter((x) => x.earned !== null);
       if (!list.length) return "";
+      const teacher = user.role === "teacher";
+      const classPick = teacher ? `<div class="class-pick">
+          <label for="class-pick" class="inline-label">Class</label>
+          <select id="class-pick"><option value="">Not in a class</option>${(a.classes || []).map((c) => `<option value="${c.id}" ${c.id === a.class_id ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("")}</select>
+          <a href="/gradebook.html">${(a.classes || []).length ? "Open gradebook" : "Add a class in your gradebook"}</a>
+        </div>` : "";
+      const who = (x) => {
+        if (!teacher || !a.class_id) return escapeHtml(x.label);
+        return `<select data-match="${escapeHtml(x.group_id)}" aria-label="Student for ${escapeHtml(x.label)}">
+          <option value="">${escapeHtml(x.label)} (not matched)</option>
+          ${(a.students || []).map((st) => `<option value="${st.id}" ${st.id === x.student_id ? "selected" : ""}>${escapeHtml(st.name)}</option>`).join("")}
+        </select>`;
+      };
       return `<div class="card">
         <h2>Scores</h2>
-        <table class="score-table">${list.map((x) => `<tr><td>${escapeHtml(x.label)}</td><td>${x.earned}${x.possible !== null ? " / " + x.possible : ""}</td></tr>`).join("")}</table>
-        <button class="btn small ghost" data-act="copy-scores">Copy scores</button>
-        <p class="muted small-print">Copies this list so you can paste it into your gradebook or a spreadsheet.</p>
+        ${classPick}
+        <table class="score-table">${list.map((x) => `<tr><td>${who(x)}</td><td>${x.earned}${x.possible !== null ? " / " + x.possible : ""}</td></tr>`).join("")}</table>
+        ${teacher && a.class_id ? '<p class="muted small-print">Students are matched in the order of your class list. Change any match above; it saves right away.</p>' : ""}
+        ${teacher ? `<button class="btn small ghost" data-act="copy-scores">Copy scores</button>
+        <p class="muted small-print">Copies this list so you can paste it into your gradebook or a spreadsheet.</p>` : ""}
       </div>`;
     }
 
@@ -483,7 +500,8 @@
           btn.textContent = "Download marked PDF";
           return;
         } else if (kind === "copy-scores") {
-          const text = a.scores.filter((x) => x.earned !== null).map((x) => `${x.label}\t${x.earned}${x.possible !== null ? "\t" + x.possible : ""}`).join("\n");
+          const nameOf = (x) => ((a.students || []).find((st) => st.id === x.student_id) || {}).name || x.label;
+          const text = a.scores.filter((x) => x.earned !== null).map((x) => `${nameOf(x)}\t${x.earned}${x.possible !== null ? "\t" + x.possible : ""}`).join("\n");
           try { await navigator.clipboard.writeText(text); showMessage(pageMsg, "Scores copied. Paste them into your gradebook or a spreadsheet.", "success"); }
           catch { prompt("Copy these scores:", text); }
           return;
@@ -525,6 +543,20 @@
     document.getElementById("viewer-close").onclick = () => document.getElementById("viewer").close();
 
     function wire() {
+      const classPick = document.getElementById("class-pick");
+      if (classPick) classPick.addEventListener("change", async () => {
+        try {
+          await apiPostJson("/api/assignments/students", { assignment_id: a.id, class_id: classPick.value || null });
+          showMessage(pageMsg, classPick.value ? "Added to the class. Check the student matches below." : "Removed from the class.", "success");
+          load();
+        } catch (err) { showMessage(pageMsg, err.message, "error"); }
+      });
+      document.querySelectorAll("[data-match]").forEach((sel) => sel.addEventListener("change", async () => {
+        try {
+          await apiPostJson("/api/assignments/students", { assignment_id: a.id, group_id: sel.dataset.match, student_id: sel.value || null });
+          showMessage(pageMsg, "Match saved.", "success");
+        } catch (err) { showMessage(pageMsg, err.message, "error"); }
+      }));
       document.querySelectorAll("[data-act]").forEach((btn) => btn.addEventListener("click", () => act(btn.dataset.act, btn)));
       document.querySelectorAll("button.view").forEach((btn) => btn.addEventListener("click", () => openViewer(Number(btn.dataset.page))));
 
