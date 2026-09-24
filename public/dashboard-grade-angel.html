@@ -377,6 +377,7 @@
       try {
         pro = await apiPostJson("/api/pro", { action: b.dataset.pro, agree: true });
         renderPro();
+        loadProfile();
         loadOpen();
         loadMine();
       } catch (err) {

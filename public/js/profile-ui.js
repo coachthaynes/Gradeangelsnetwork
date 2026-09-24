@@ -237,7 +237,7 @@ function renderProfileHero(el, profile, { onEdit } = {}) {
         <span class="hero-avatar-edit" aria-hidden="true">✎</span>
       </button>
       <div class="hero-main">
-        <span class="role-badge">${ROLE_LABELS[profile.role] || ""}</span>
+        <span class="role-badge">${ROLE_LABELS[profile.role] || ""}</span>${profile.pro ? ' <span class="pill pro-pill">Pro</span>' : ""}
         <h1>${escapeHtml(profile.public_name)}</h1>
         ${starsHtml(profile.rating, { size: "large" })}
         ${bio}

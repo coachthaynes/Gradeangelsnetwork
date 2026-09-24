@@ -36,7 +36,9 @@ export default async (req: Request) => {
   }
 
   const [user] = await db.sql`
-    SELECT id, role, full_name, display_name, bio, photo_updated_at, created_at FROM users WHERE id = ${session.id}
+    SELECT id, role, full_name, display_name, bio, photo_updated_at, created_at,
+           (pro_started_at IS NOT NULL AND pro_ended_at IS NULL) AS pro
+    FROM users WHERE id = ${session.id}
   `;
   if (!user) return json({ error: "Account not found" }, 404);
 
@@ -51,6 +53,7 @@ export default async (req: Request) => {
         bio: user.bio,
         photo_url: photoUrl(user.id, user.photo_updated_at),
         member_since: user.created_at,
+        pro: user.role === "grade_angel" && Boolean(user.pro),
         rating: await ratingSummary(user.id),
         reviews: await publicReviews(user.id, 10),
       },
