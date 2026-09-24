@@ -32,21 +32,20 @@
     </div>
 
     <div class="card" id="staff-request-card" hidden>
-      <h2>Need staff access?</h2>
-      <p class="muted">Request an account with your own email (not one you use as a teacher or Grade Angel). The master admin approves every request before you can sign in.</p>
-      <button type="button" class="btn small secondary" id="show-request">Request staff access</button>
-      <form id="staff-request" hidden>
+      <h2>Create a staff account</h2>
+      <p class="muted">First time here? Create your staff account with your own email (not one you use as a teacher or Grade Angel). The master admin's account is ready as soon as it is created; everyone else can sign in once the master admin approves them.</p>
+      <form id="staff-request">
         <div id="request-msg" class="msg" style="display:none"></div>
         <label for="rq-name">Full name</label>
         <input id="rq-name" required autocomplete="name" />
         <label for="rq-email">Email</label>
         <input id="rq-email" type="email" required autocomplete="email" />
         <label for="rq-pass">Choose a password</label>
-        <input id="rq-pass" type="password" required minlength="10" autocomplete="new-password" />
-        <p class="muted">At least 10 characters.</p>
+        <input id="rq-pass" type="password" required minlength="8" autocomplete="new-password" />
+        <p class="muted">At least 8 characters.</p>
         <label for="rq-pass2">Confirm password</label>
-        <input id="rq-pass2" type="password" required minlength="10" autocomplete="new-password" />
-        <button class="btn" type="submit">Send request</button>
+        <input id="rq-pass2" type="password" required minlength="8" autocomplete="new-password" />
+        <button class="btn" type="submit">Create staff account</button>
       </form>
     </div>
   </main>
@@ -69,11 +68,6 @@
       document.getElementById("staff-request-card").hidden = false;
     }
 
-    document.getElementById("show-request").addEventListener("click", (e) => {
-      e.target.hidden = true;
-      document.getElementById("staff-request").hidden = false;
-      document.getElementById("rq-name").focus();
-    });
 
     document.getElementById("staff-request").addEventListener("submit", async (e) => {
       e.preventDefault();

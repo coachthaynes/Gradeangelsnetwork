@@ -19,7 +19,7 @@ export default async (req: Request) => {
   const password = String(body.password || "");
   if (!email.includes("@")) return json({ error: "A valid email is required" }, 400);
   if (!fullName) return json({ error: "Full name is required" }, 400);
-  if (password.length < 10) return json({ error: "Staff passwords need at least 10 characters" }, 400);
+  if (password.length < 8) return json({ error: "Passwords need at least 8 characters" }, 400);
 
   const [existing] = await db.sql`SELECT id FROM users WHERE email = ${email}`;
   if (existing) {
