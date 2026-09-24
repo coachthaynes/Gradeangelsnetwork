@@ -160,17 +160,19 @@
     }
 
     function payButton() {
+      const due = a.total_cents + (a.service_fee_cents || 0);
       const setAside = a.payment_gift_cents || 0;
-      const gift = Math.min(a.total_cents, setAside + (a.gift_balance_cents || 0));
-      const rest = a.total_cents - gift;
-      if (gift > 0 && rest === 0) return `<button class="btn" data-act="pay">Pay with gift money (${formatCents(gift)})</button>`;
-      if (gift > 0) return `<button class="btn" data-act="pay">Pay ${formatCents(rest)}</button><p class="muted">Gift Angels cover ${formatCents(gift)} of the ${formatCents(a.total_cents)} total.</p>`;
-      return `<button class="btn" data-act="pay">Pay ${formatCents(a.total_cents)}</button>`;
+      const gift = Math.min(due, setAside + (a.gift_balance_cents || 0));
+      const rest = due - gift;
+      const feeNote = `<p class="muted small-print">${formatCents(a.total_cents)} for grading plus a ${formatCents(a.service_fee_cents || 0)} service fee.</p>`;
+      if (gift > 0 && rest === 0) return `<button class="btn" data-act="pay">Pay with gift money (${formatCents(gift)})</button>${feeNote}`;
+      if (gift > 0) return `<button class="btn" data-act="pay">Pay ${formatCents(rest)}</button><p class="muted">Gift Angels cover ${formatCents(gift)} of the ${formatCents(due)} total.</p>${feeNote}`;
+      return `<button class="btn" data-act="pay">Pay ${formatCents(due)}</button>${feeNote}`;
     }
 
     function gradedDownloads() {
       const out = [];
-      if (a.graded_on_site) out.push(`<button class="btn small secondary" data-act="marked-pdf">Download marked PDF</button>`);
+      if (a.graded_on_site) out.push(`<button class="btn small secondary" data-act="marked-pdf" title="Every page of the stack, with the Grade Angel's marks and scores">Download marked PDF</button>`);
       if (a.has_graded_file && !a.graded_on_site) out.push(`<a class="btn small secondary" href="/api/assignments/file?assignment_id=${a.id}&kind=graded">Download graded work</a>`);
       return out.join(" ");
     }

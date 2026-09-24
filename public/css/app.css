@@ -1349,3 +1349,7 @@ button.link { background: none; border: none; padding: 0; cursor: pointer; font:
 .money-list-rows li:last-child { border-bottom: none; }
 .money-list-rows .amt { font-weight: 700; white-space: nowrap; }
 details.card > summary { cursor: pointer; font-family: "Fraunces", Georgia, serif; font-weight: 700; font-size: 1.2rem; }
+.pro-pill { background: var(--black); color: var(--seafoam); }
+.pro-card { border-top: 4px solid var(--black); }
+.pro-perks { padding-left: 1.2rem; margin: 0.5rem 0 0.75rem; }
+.pro-perks li { margin-bottom: 0.3rem; }

@@ -3,5 +3,5 @@
 // The pages themselves are public/terms.html and
 // public/contractor-agreement.html, adapted from the company's 2019
 // Teacher Services Agreement and Independent Contractor Agreement.
-export const TERMS_VERSION = "2026-09-24";
-export const CONTRACTOR_AGREEMENT_VERSION = "2026-09-24";
+export const TERMS_VERSION = "2026-09-24.2";
+export const CONTRACTOR_AGREEMENT_VERSION = "2026-09-24.2";

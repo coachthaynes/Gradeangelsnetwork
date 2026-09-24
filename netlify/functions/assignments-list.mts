@@ -1,8 +1,9 @@
 import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
+import { PRO_FIRST_LOOK_MINUTES, isProActive, waitsForFirstLook } from "../lib/pro.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
-import { gradeAngelEarningsCents } from "../lib/grade-angel.mts";
+import { gradeAngelEarningsCents, serviceFeeCents } from "../lib/grade-angel.mts";
 import { photoUrl, publicName } from "../lib/profiles.mts";
 import { isActiveStaff } from "../lib/staff.mts";
 
@@ -91,13 +92,17 @@ export default async (req: Request) => {
         ORDER BY a.published_at ASC NULLS LAST, a.created_at ASC
       `;
     } else {
+      // Grade Angel Pro members see new open work first.
+      const waits = await waitsForFirstLook(session.id);
       rows = await db.sql`
         SELECT a.id, a.title, a.subject, a.grade_level, a.assignment_type, a.page_count, a.rate_per_page_cents,
                a.instructions, a.status, a.created_at, a.published_at, a.turnaround_hours,
                a.teacher_id, t.full_name AS teacher_full_name, t.display_name AS teacher_display_name,
-               t.photo_updated_at AS teacher_photo_updated_at
+               t.photo_updated_at AS teacher_photo_updated_at,
+               (a.published_at > NOW() - make_interval(mins => ${PRO_FIRST_LOOK_MINUTES})) AS pro_first_look
         FROM assignments a JOIN users t ON t.id = a.teacher_id
         WHERE a.status = 'open' AND a.invited_grade_angel_id IS NULL
+          AND (NOT ${waits} OR a.published_at IS NULL OR a.published_at <= NOW() - make_interval(mins => ${PRO_FIRST_LOOK_MINUTES}))
         ORDER BY a.published_at ASC NULLS LAST, a.created_at ASC
       `;
     }
@@ -115,16 +120,18 @@ export default async (req: Request) => {
   // platform's share, next to the teacher's posted rate.
   // Teachers appear to Grade Angels only by their public name.
   if (session.role === "grade_angel") {
+    const pro = await isProActive(session.id);
     rows = rows.map(({ teacher_full_name, teacher_display_name, teacher_photo_updated_at, ...a }: any) => ({
       ...a,
       teacher_name: publicName({ role: "teacher", full_name: teacher_full_name, display_name: teacher_display_name }),
       teacher_photo_url: photoUrl(a.teacher_id, teacher_photo_updated_at),
-      earnings_cents: gradeAngelEarningsCents(a.page_count * a.rate_per_page_cents),
+      earnings_cents: gradeAngelEarningsCents(a.page_count * a.rate_per_page_cents, pro),
     }));
   } else if (session.role === "teacher") {
     rows = rows.map(({ grade_angel_photo_updated_at, ...a }: any) => ({
       ...a,
       grade_angel_photo_url: a.grade_angel_id ? photoUrl(a.grade_angel_id, grade_angel_photo_updated_at) : null,
+      service_fee_cents: serviceFeeCents(a.page_count * a.rate_per_page_cents),
     }));
   }
 

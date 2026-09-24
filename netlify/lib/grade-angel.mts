@@ -6,8 +6,19 @@ import { isTestEmail } from "./test-accounts.mts";
 // Angel what they will earn, so both read it from here.
 export const PLATFORM_FEE_RATE = 0.2;
 
-export function gradeAngelEarningsCents(totalCents: number): number {
-  return totalCents - Math.round(totalCents * PLATFORM_FEE_RATE);
+// Grade Angel Pro members keep 90% (see lib/pro.mts).
+export const PRO_FEE_RATE = 0.1;
+
+export function gradeAngelEarningsCents(totalCents: number, pro = false): number {
+  return totalCents - Math.round(totalCents * (pro ? PRO_FEE_RATE : PLATFORM_FEE_RATE));
+}
+
+// The teacher service fee, on top of the assignment price. Subject to
+// change; the Terms of Use say so.
+export const TEACHER_SERVICE_FEE_RATE = 0.03;
+
+export function serviceFeeCents(totalCents: number): number {
+  return Math.round(totalCents * TEACHER_SERVICE_FEE_RATE);
 }
 
 export const GRADE_LEVELS = ["elementary", "middle", "high"] as const;

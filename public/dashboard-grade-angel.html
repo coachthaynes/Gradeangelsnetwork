@@ -48,6 +48,8 @@
         <div id="mine-list"></div>
       </section>
 
+      <section class="card pro-card" id="pro"></section>
+
       <section class="card" id="payouts">
         <div class="section-head">
           <h2>Payouts</h2>
@@ -166,7 +168,7 @@
         <div class="card assignment-card ${invite ? "invite" : "status-open"}">
           <div class="card-top">
             <div>
-              <h3 class="assignment-title"><a class="plain" href="/assignment.html?id=${a.id}">${escapeHtml(a.title)}</a></h3>
+              <h3 class="assignment-title"><a class="plain" href="/assignment.html?id=${a.id}">${escapeHtml(a.title)}</a>${a.pro_first_look ? ' <span class="pill pro-pill">Pro first look</span>' : ""}</h3>
               <p class="assignment-meta">${metaLine(a)}</p>
             </div>
             <span class="earn">You earn ${formatCents(a.earnings_cents)}</span>
@@ -295,6 +297,54 @@
 
     document.getElementById("match-only").addEventListener("change", renderOpen);
 
+    // ---------- Grade Angel Pro ----------
+    let pro = null;
+    function renderPro() {
+      const el = document.getElementById("pro");
+      const price = formatCents(pro.price_cents).replace(/\.00$/, "");
+      const perks = `<ul class="pro-perks">
+          <li><strong>Keep 90%</strong> of every assignment instead of 80%</li>
+          <li><strong>First look:</strong> new work shows to Pro members first, for ${pro.first_look_minutes} minutes</li>
+          <li><strong>Pro badge,</strong> and listed first when teachers choose a Grade Angel</li>
+        </ul>`;
+      if (pro.active) {
+        const trial = pro.in_trial ? `Free trial until ${new Date(pro.trial_ends_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}. ` : "";
+        el.innerHTML = `
+          <div class="section-head"><h2>Grade Angel Pro <span class="pill pro-pill">Pro</span></h2>
+          <button class="btn small ghost" type="button" data-pro="cancel">Cancel Pro</button></div>
+          ${perks}
+          <p class="muted">${trial}${price} a month comes out of your payouts, only in months you are paid. ${pro.charged_this_month_cents ? `Paid this month: ${formatCents(pro.charged_this_month_cents)}.` : ""}</p>`;
+      } else {
+        el.innerHTML = `
+          <h2>Grade Angel Pro</h2>
+          <p>${price} a month${pro.trial_available ? `, with a ${pro.trial_days} day free trial` : ""}. It pays for itself once you earn $100 in a month.</p>
+          ${perks}
+          <p class="muted small-print">No card needed: the ${price} comes out of your payouts, only in months you are paid. Cancel anytime; Pro ends right away.</p>
+          <label class="check-row"><input type="checkbox" id="pro-agree" /> I agree to the <a href="/contractor-agreement.html#pro" target="_blank" rel="noopener">Grade Angel Pro terms</a></label>
+          <button class="btn" type="button" data-pro="start">${pro.trial_available ? "Start my free trial" : "Join Pro"}</button>`;
+      }
+    }
+    async function loadPro() {
+      try { pro = await apiGet("/api/pro"); renderPro(); }
+      catch { document.getElementById("pro").hidden = true; }
+    }
+    document.getElementById("pro").addEventListener("click", async (e) => {
+      const b = e.target.closest("[data-pro]");
+      if (!b) return;
+      if (b.dataset.pro === "cancel" && !confirm("Cancel Grade Angel Pro? You go back to keeping 80%, starting now.")) return;
+      if (b.dataset.pro === "start" && !document.getElementById("pro-agree").checked) { alert("Please agree to the Grade Angel Pro terms first."); return; }
+      b.disabled = true;
+      try {
+        pro = await apiPostJson("/api/pro", { action: b.dataset.pro, agree: true });
+        renderPro();
+        loadOpen();
+        loadMine();
+      } catch (err) {
+        alert(err.message);
+        b.disabled = false;
+      }
+    });
+
     async function loadPayouts() {
       try {
         const d = await apiGet("/api/payouts/mine");
@@ -339,6 +389,7 @@
       loadOpen();
       loadMine();
       loadPayouts();
+      loadPro();
     });
   </script>
 </body>

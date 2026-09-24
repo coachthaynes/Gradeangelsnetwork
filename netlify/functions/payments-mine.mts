@@ -35,7 +35,7 @@ export default async (req: Request) => {
   }
 
   const payments = await db.sql`
-    SELECT p.id, a.id AS assignment_id, a.title, p.amount_cents, p.gift_cents, p.status, p.paid_at, p.test_mode,
+    SELECT p.id, a.id AS assignment_id, a.title, p.amount_cents, p.service_fee_cents, p.gift_cents, p.status, p.paid_at, p.test_mode,
            (p.stripe_charge_id IS NOT NULL OR p.stripe_payment_intent_id IS NOT NULL) AS has_receipt
     FROM payments p JOIN assignments a ON a.id = p.assignment_id
     WHERE a.teacher_id = ${session.id} AND p.status IN ('paid', 'refunded')
@@ -47,7 +47,7 @@ export default async (req: Request) => {
   return json({
     payments,
     year,
-    paid_this_year_cents: thisYear.reduce((t: number, p: any) => t + p.amount_cents - p.gift_cents, 0),
+    paid_this_year_cents: thisYear.reduce((t: number, p: any) => t + p.amount_cents + p.service_fee_cents - p.gift_cents, 0),
     gifts_this_year_cents: thisYear.reduce((t: number, p: any) => t + p.gift_cents, 0),
   }, 200);
 };

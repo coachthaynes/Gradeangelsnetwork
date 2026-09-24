@@ -1,10 +1,11 @@
 import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
+import { isProActive } from "../lib/pro.mts";
 import { classStudents, matchedScores } from "../lib/gradebook.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 import { PREVIEW_PAGE_LIMIT, assignmentAccess, type AccessRow } from "../lib/assignments.mts";
-import { gradeAngelEarningsCents } from "../lib/grade-angel.mts";
+import { gradeAngelEarningsCents, serviceFeeCents } from "../lib/grade-angel.mts";
 import { photoUrl, publicName } from "../lib/profiles.mts";
 import { scoreList } from "../lib/grading.mts";
 
@@ -67,6 +68,7 @@ export default async (req: Request) => {
     // Whether the other person already reviewed; never what they wrote.
     their_review_submitted: their_reviews > 0,
     total_cents: a.page_count * a.rate_per_page_cents,
+    service_fee_cents: serviceFeeCents(a.page_count * a.rate_per_page_cents),
     viewable_pages: viewablePages,
     access,
   };
@@ -96,7 +98,8 @@ export default async (req: Request) => {
     }
     assignment.invited_you = a.invited_grade_angel_id === session.id;
     delete assignment.invited_grade_angel_id;
-    assignment.earnings_cents = gradeAngelEarningsCents(a.page_count * a.rate_per_page_cents);
+    assignment.earnings_cents = gradeAngelEarningsCents(a.page_count * a.rate_per_page_cents, await isProActive(session.id));
+    delete assignment.service_fee_cents;
     delete assignment.payment_gift_cents;
   } else {
     if (session.id === a.teacher_id) {

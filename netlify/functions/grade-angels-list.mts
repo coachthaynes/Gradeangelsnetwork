@@ -19,6 +19,7 @@ export default async (req: Request) => {
 
   const gradeAngels = await db.sql`
     SELECT u.id, u.full_name, u.subjects, u.grade_levels, u.assignment_types, u.qualifications, u.bio,
+           (u.pro_started_at IS NOT NULL AND u.pro_ended_at IS NULL) AS pro,
            u.photo_updated_at, rv.average AS rating_average, rv.count AS rating_count,
            (SELECT COUNT(*)::int FROM assignments a WHERE a.grade_angel_id = u.id AND a.status = 'completed')
              AS completed_count,
@@ -39,7 +40,7 @@ export default async (req: Request) => {
       AND u.contractor_agreement_signed_at IS NOT NULL
       AND u.background_check_status = 'clear'
       AND u.stripe_payouts_ready
-    ORDER BY rv.average DESC NULLS LAST, completed_count DESC, u.full_name
+    ORDER BY (u.pro_started_at IS NOT NULL AND u.pro_ended_at IS NULL) DESC, rv.average DESC NULLS LAST, completed_count DESC, u.full_name
   `;
 
   return json(

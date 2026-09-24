@@ -425,17 +425,17 @@ check('gifts: grade angel does not see teacher gift balance', r.data.assignment.
 r = await teacher.call('assignments-pay', 'POST', '/api/assignments/pay', { json: { assignment_id: small, success_url: 'https://ga.test/x' } });
 bal = (await q(`SELECT gift_balance_cents FROM users WHERE id = $1`, [tiaId]))[0].gift_balance_cents;
 let gp = (await q(`SELECT status, gift_cents, amount_cents FROM payments WHERE assignment_id = $1`, [small]))[0];
-check('gifts: fully covered without a card', r.status === 200 && r.data.paid && gp.status === 'paid' && gp.gift_cents === 500 && bal === 2500, JSON.stringify([r.data, gp, bal]));
+check('gifts: fully covered without a card, service fee included', r.status === 200 && r.data.paid && gp.status === 'paid' && gp.gift_cents === 515 && bal === 2485, JSON.stringify([r.data, gp, bal]));
 r = await teacher.call('assignments-pay', 'POST', '/api/assignments/pay', { json: { assignment_id: small, success_url: 'https://ga.test/x' } });
 check('gifts: cannot pay twice', r.status === 409);
 const big = await mk(10, 500);
 r = await teacher.call('assignments-pay', 'POST', '/api/assignments/pay', { json: { assignment_id: big, success_url: 'https://ga.test/x' } });
 bal = (await q(`SELECT gift_balance_cents FROM users WHERE id = $1`, [tiaId]))[0].gift_balance_cents;
-check('gifts: partial needs a card, nothing set aside while Stripe is off', r.status === 501 && bal === 2500 && (await q(`SELECT 1 FROM payments WHERE assignment_id = $1`, [big])).length === 0, JSON.stringify([r.data, bal]));
+check('gifts: partial needs a card, nothing set aside while Stripe is off', r.status === 501 && bal === 2485 && (await q(`SELECT 1 FROM payments WHERE assignment_id = $1`, [big])).length === 0, JSON.stringify([r.data, bal]));
 r = await master.call('admin-assignments', 'POST', '/api/admin/assignments', { json: { assignment_id: small, reason: 'Teacher asked to cancel' } });
 bal = (await q(`SELECT gift_balance_cents FROM users WHERE id = $1`, [tiaId]))[0].gift_balance_cents;
 gp = (await q(`SELECT status, gift_cents FROM payments WHERE assignment_id = $1`, [small]))[0];
-check('gifts: cancelling a gift paid assignment returns the gift', r.status === 200 && r.data.gift_returned_cents === 500 && bal === 3000 && gp.status === 'refunded', JSON.stringify([r.data, bal, gp]));
+check('gifts: cancelling a gift paid assignment returns the gift', r.status === 200 && r.data.gift_returned_cents === 515 && bal === 3000 && gp.status === 'refunded', JSON.stringify([r.data, bal, gp]));
 // Gift set aside for a pending card payment (Stripe was on) comes back when the teacher cancels.
 const pend = await mk(10, 500);
 const [pp] = await q(`INSERT INTO payments (assignment_id, amount_cents, platform_fee_cents, status, gift_cents) VALUES ($1, 5000, 1000, 'pending', 0) RETURNING id`, [pend]);
@@ -464,9 +464,9 @@ check('gifts: ledger adds up to balances plus fund', ledgerSum === 3000 + 4000, 
 r = await client('noterms').call('auth-signup', 'POST', '/api/auth/signup', { json: { role: 'teacher', full_name: 'No Terms', email: 'noterms@example.com', password: 'password1' } });
 check('terms: signup refused without agreeing', r.status === 400 && /Terms of Use/.test(r.data.error));
 const tia = (await q(`SELECT terms_accepted_at, terms_version FROM users WHERE email = 'tia@example.com'`))[0];
-check('terms: acceptance and version recorded', tia.terms_accepted_at && tia.terms_version === '2026-09-24', JSON.stringify(tia));
+check('terms: acceptance and version recorded', tia.terms_accepted_at && tia.terms_version === '2026-09-24.2', JSON.stringify(tia));
 const jordan = (await q(`SELECT contractor_agreement_version FROM users WHERE email = 'jordan@example.com'`))[0];
-check('terms: contractor agreement version recorded', jordan.contractor_agreement_version === '2026-09-24', JSON.stringify(jordan));
+check('terms: contractor agreement version recorded', jordan.contractor_agreement_version === '2026-09-24.2', JSON.stringify(jordan));
 
 r = await teacher.call('pricing', 'GET', '/api/pricing?assignment_type=combo&grade_level=5th%20grade&subject=Math');
 check('pricing: default lowest price and no hint yet', r.data.min_rate_cents === 10 && r.data.hint === null, JSON.stringify(r.data));
@@ -616,6 +616,54 @@ check('payouts: grade angel sees their payouts', r.status === 200 && r.data.payo
 r = await angel.call('payments-connect-dashboard', 'POST', '/api/payments/connect/dashboard', { json: {} });
 check('payouts: Stripe page waits for Stripe', r.status === 501 || r.status === 409, JSON.stringify(r.data));
 
+// ---------- Grade Angel Pro ----------
+r = await angel.call('pro', 'GET', '/api/pro');
+check('pro: starts off, trial available', r.status === 200 && !r.data.active && r.data.trial_available && r.data.price_cents === 1000, JSON.stringify(r.data));
+r = await angel.call('pro', 'POST', '/api/pro', { json: { action: 'start' } });
+check('pro: must agree to the terms', r.status === 400);
+r = await angel.call('pro', 'POST', '/api/pro', { json: { action: 'start', agree: true } });
+check('pro: joined with a 7 day free trial', r.data.active && r.data.in_trial && !r.data.trial_available, JSON.stringify(r.data));
+r = await teacher.call('pro', 'GET', '/api/pro');
+check('pro: only for grade angels', r.status === 403);
+const [pa] = await q(`INSERT INTO assignments (teacher_id, title, subject, grade_level, assignment_type, page_count, rate_per_page_cents, status, published_at)
+  VALUES ($1, 'Fresh work', 'Math', '4th', 'combo', 10, 100, 'open', NOW()) RETURNING id`, [tiaId]);
+r = await angel.call('assignments-list', 'GET', '/api/assignments/list?scope=open');
+const fresh = r.data.assignments.find((x) => x.id === pa.id);
+check('pro: first look at new work and 90% earnings', fresh && fresh.pro_first_look && fresh.earnings_cents === 900, JSON.stringify(fresh));
+r = await teacher.call('grade-angels-list', 'GET', '/api/grade-angels');
+check('pro: badge in the Grade Angel list', r.data.grade_angels.find((x) => x.full_name === 'Jordan Lee')?.pro === true);
+await angel.call('pro', 'POST', '/api/pro', { json: { action: 'cancel' } });
+r = await angel.call('assignments-list', 'GET', '/api/assignments/list?scope=open');
+check('pro: with no Pro members, nobody waits', r.data.assignments.some((x) => x.id === pa.id));
+await q(`INSERT INTO users (email, password_hash, role, full_name, pro_started_at) VALUES ('pro.other@example.com', 'x', 'grade_angel', 'Other Pro', NOW())`);
+r = await angel.call('assignments-list', 'GET', '/api/assignments/list?scope=open');
+check('pro: without Pro, brand new work is hidden for an hour', !r.data.assignments.some((x) => x.id === pa.id));
+r = await angel.call('assignments-accept', 'POST', '/api/assignments/accept', { json: { assignment_id: pa.id } });
+check('pro: without Pro, cannot accept during the first hour', r.status === 409 && /first hour/.test(r.data.error), JSON.stringify(r.data));
+await q(`UPDATE users SET pro_trial_ends_at = NOW() - INTERVAL '1 day' WHERE id = $1`, [angelId]);
+r = await angel.call('pro', 'POST', '/api/pro', { json: { action: 'start', agree: true } });
+check('pro: rejoining has no second free trial', r.data.active && !r.data.in_trial, JSON.stringify(r.data));
+// A payout after the trial: 90% share, and this month's $10 comes out of it once.
+const mkPaid = async (title) => {
+  const [x] = await q(`INSERT INTO assignments (teacher_id, grade_angel_id, title, subject, grade_level, assignment_type, page_count, rate_per_page_cents, status, accepted_at, submitted_at)
+    VALUES ($1, $2, $3, 'Math', '4th', 'combo', 10, 500, 'submitted', NOW(), NOW()) RETURNING id`, [tiaId, angelId, title]);
+  await q(`INSERT INTO payments (assignment_id, amount_cents, platform_fee_cents, service_fee_cents, status, paid_at, test_mode) VALUES ($1, 5000, 1000, 150, 'paid', NOW(), true)`, [x.id]);
+  return x.id;
+};
+const pro1 = await mkPaid('Pro payout 1');
+await teacher.call('assignments-complete', 'POST', '/api/assignments/complete', { json: { assignment_id: pro1 } });
+let proPay = (await q(`SELECT platform_fee_cents, pro_rate_applied, pro_charge_cents, payout_status FROM payments WHERE assignment_id = $1`, [pro1]))[0];
+check('pro: payout at 90% with the monthly price taken once', proPay.platform_fee_cents === 500 && proPay.pro_rate_applied && proPay.pro_charge_cents === 1000 && proPay.payout_status === 'transferred', JSON.stringify(proPay));
+const pro2 = await mkPaid('Pro payout 2');
+await teacher.call('assignments-complete', 'POST', '/api/assignments/complete', { json: { assignment_id: pro2 } });
+proPay = (await q(`SELECT pro_charge_cents FROM payments WHERE assignment_id = $1`, [pro2]))[0];
+check('pro: not charged twice in a month', proPay.pro_charge_cents === 0, JSON.stringify(proPay));
+r = await angel.call('pro', 'GET', '/api/pro');
+check('pro: this month shows as paid', r.data.charged_this_month_cents === 1000);
+await angel.call('pro', 'POST', '/api/pro', { json: { action: 'cancel' } });
+await q(`DELETE FROM users WHERE email = 'pro.other@example.com'`);
+await q(`UPDATE assignments SET published_at = NOW() - INTERVAL '2 hours' WHERE id = $1`, [pa.id]);
+
 // ---------- Test accounts ----------
 process.env.TEST_ACCOUNT_EMAILS = 'grader.test@example.com, TEACHER.test@example.com';
 const tTeacher = client('test teacher');
@@ -633,6 +681,8 @@ const [ta] = await q(`INSERT INTO assignments (teacher_id, grade_angel_id, title
 r = await tTeacher.call('assignments-pay', 'POST', '/api/assignments/pay', { json: { assignment_id: ta.id, success_url: 'https://ga.test/x' } });
 let tp = (await q(`SELECT status, test_mode FROM payments WHERE assignment_id = $1`, [ta.id]))[0];
 check('test mode: teacher pays without a card', r.status === 200 && r.data.paid && r.data.test && tp.status === 'paid' && tp.test_mode, JSON.stringify([r.data, tp]));
+const feeRow = (await q(`SELECT service_fee_cents, amount_cents FROM payments WHERE assignment_id = $1`, [ta.id]))[0];
+check('service fee: 3% added to what the teacher pays', feeRow.amount_cents === 600 && feeRow.service_fee_cents === 18, JSON.stringify(feeRow));
 await q(`UPDATE assignments SET status = 'submitted', submitted_at = NOW() WHERE id = $1`, [ta.id]);
 r = await tTeacher.call('assignments-complete', 'POST', '/api/assignments/complete', { json: { assignment_id: ta.id } });
 tp = (await q(`SELECT payout_status, stripe_transfer_id FROM payments WHERE assignment_id = $1`, [ta.id]))[0];

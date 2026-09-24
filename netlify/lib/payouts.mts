@@ -1,4 +1,5 @@
 import { db } from "./db.mts";
+import { PRO_PLATFORM_FEE_RATE, isProActive, proDeductionFor, recordProCharge } from "./pro.mts";
 import { getStripe, StripeNotConfiguredError } from "./stripe.mts";
 import { recordEvent } from "./assignments.mts";
 
@@ -25,7 +26,7 @@ export async function attemptPayout(assignmentId: number): Promise<PayoutResult>
   const [row] = await db.sql`
     SELECT a.status AS assignment_status, a.grade_angel_id,
            p.id AS payment_id, p.status AS payment_status, p.payout_status,
-           p.amount_cents, p.platform_fee_cents, p.gift_cents, p.test_mode, p.stripe_charge_id, p.stripe_payment_intent_id,
+           p.amount_cents, p.platform_fee_cents, p.gift_cents, p.test_mode, p.service_fee_cents, p.stripe_charge_id, p.stripe_payment_intent_id,
            u.stripe_account_id, u.stripe_payouts_ready
     FROM assignments a
     JOIN LATERAL (
@@ -40,18 +41,31 @@ export async function attemptPayout(assignmentId: number): Promise<PayoutResult>
   if (row.payout_status === "transferred") return { status: "transferred", note: "Payout already sent." };
   if (!row.grade_angel_id) return { status: "skipped", note: "No Grade Angel on this assignment." };
 
+  // Grade Angel Pro members keep 90%, and this month's Pro price comes out
+  // of their payout (nothing during the free trial or once it is paid).
+  const pro = await isProActive(row.grade_angel_id);
+  if (pro && row.platform_fee_cents !== Math.round(row.amount_cents * PRO_PLATFORM_FEE_RATE)) {
+    row.platform_fee_cents = Math.round(row.amount_cents * PRO_PLATFORM_FEE_RATE);
+    await db.sql`UPDATE payments SET platform_fee_cents = ${row.platform_fee_cents}, pro_rate_applied = true WHERE id = ${row.payment_id}`;
+  }
+  const share = row.amount_cents - row.platform_fee_cents;
+  const proCharge = await proDeductionFor(row.grade_angel_id, share);
+
   // A test account's payment was never charged, so no money moves here
   // either. The payout is recorded as sent so the rest of the flow runs.
-  if (row.test_mode) {
+  if (row.test_mode || share - proCharge <= 0) {
     const done = await db.sql`
       UPDATE payments
-      SET payout_status = 'transferred', stripe_transfer_id = ${"test_transfer_" + row.payment_id},
-          transferred_at = NOW(), payout_error = NULL
+      SET payout_status = 'transferred', stripe_transfer_id = ${(row.test_mode ? "test_transfer_" : "pro_price_only_") + row.payment_id},
+          transferred_at = NOW(), payout_error = NULL, pro_charge_cents = ${proCharge}
       WHERE id = ${row.payment_id} AND payout_status <> 'transferred'
       RETURNING id
     `;
-    if (done.length) await recordEvent(assignmentId, null, "payout_sent", "Test mode, no money moved");
-    return { status: "transferred", note: "Test mode: the payout is recorded as sent. No money moved." };
+    if (done.length) {
+      await recordProCharge(row.grade_angel_id, proCharge, row.payment_id, Boolean(row.test_mode));
+      await recordEvent(assignmentId, null, "payout_sent", row.test_mode ? "Test mode, no money moved" : "Covered this month's Pro price");
+    }
+    return { status: "transferred", note: row.test_mode ? "Test mode: the payout is recorded as sent. No money moved." : "Payout applied to this month's Grade Angel Pro price." };
   }
 
   if (!row.stripe_account_id || !row.stripe_payouts_ready) {
@@ -104,7 +118,7 @@ export async function attemptPayout(assignmentId: number): Promise<PayoutResult>
 
     const transfer = await stripe.transfers.create(
       {
-        amount: row.amount_cents - row.platform_fee_cents,
+        amount: share - proCharge,
         currency: "usd",
         destination: row.stripe_account_id,
         transfer_group: `assignment_${assignmentId}`,
@@ -113,7 +127,7 @@ export async function attemptPayout(assignmentId: number): Promise<PayoutResult>
         // possible when that charge covers the whole transfer; when gift
         // money paid for most of it, the transfer comes from the platform
         // balance, where the gifts were paid in.
-        ...(chargeId && row.gift_cents <= row.platform_fee_cents ? { source_transaction: chargeId } : {}),
+        ...(chargeId && row.gift_cents <= row.platform_fee_cents + (row.service_fee_cents || 0) + proCharge ? { source_transaction: chargeId } : {}),
         metadata: { assignment_id: String(assignmentId), payment_id: String(row.payment_id) },
       },
       // One key per attempt: Stripe replays a key's first result for 24
@@ -124,9 +138,11 @@ export async function attemptPayout(assignmentId: number): Promise<PayoutResult>
 
     await db.sql`
       UPDATE payments
-      SET payout_status = 'transferred', stripe_transfer_id = ${transfer.id}, transferred_at = NOW(), payout_error = NULL
+      SET payout_status = 'transferred', stripe_transfer_id = ${transfer.id}, transferred_at = NOW(), payout_error = NULL,
+          pro_charge_cents = ${proCharge}
       WHERE id = ${row.payment_id}
     `;
+    await recordProCharge(row.grade_angel_id, proCharge, row.payment_id, false);
     await recordEvent(assignmentId, null, "payout_sent");
     return { status: "transferred", note: "Payout sent to the Grade Angel." };
   } catch (err) {

@@ -110,11 +110,17 @@ class PageUploader {
     this.renderStatus(`Preparing ${files.length} file${files.length === 1 ? "" : "s"}…`);
     try {
       for (const file of files) {
+        const key = `${file.name}|${file.size}|${file.lastModified}`;
+        // The same scan added twice would put every page in the stack twice.
+        if (this.pages.some((p) => p.sourceKey === key)) {
+          errors.push(`${file.name} was already added, so it was skipped.`);
+          continue;
+        }
         try {
           if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
-            await pdfFileToPages(file, (page) => this.push(page));
+            await pdfFileToPages(file, (page) => this.push({ ...page, sourceKey: key }));
           } else {
-            this.push(await imageFileToPage(file));
+            this.push({ ...(await imageFileToPage(file)), sourceKey: key });
           }
         } catch (err) {
           errors.push(err.message || `${file.name} could not be read.`);

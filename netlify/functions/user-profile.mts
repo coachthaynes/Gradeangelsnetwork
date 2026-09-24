@@ -18,7 +18,7 @@ export default async (req: Request) => {
   if (!Number.isInteger(userId)) return json({ error: "id is required" }, 400);
 
   const [user] = await db.sql`
-    SELECT id, role, full_name, display_name, handle, bio, photo_updated_at, created_at,
+    SELECT id, role, full_name, display_name, handle, bio, (pro_started_at IS NOT NULL AND pro_ended_at IS NULL) AS pro, photo_updated_at, created_at,
            subjects, grade_levels, assignment_types, qualifications, years_experience,
            highest_degree, teaching_certificate, city, state
     FROM users WHERE id = ${userId}
@@ -47,6 +47,7 @@ export default async (req: Request) => {
       FROM assignments WHERE grade_angel_id = ${user.id} AND status = 'completed'
     `;
     Object.assign(profile, {
+      pro: user.pro,
       subjects: user.subjects,
       grade_levels: user.grade_levels,
       assignment_types: user.assignment_types,

@@ -5,7 +5,7 @@ import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 import { isSuspended } from "../lib/staff.mts";
 import { getStripe, StripeNotConfiguredError } from "../lib/stripe.mts";
-import { PLATFORM_FEE_RATE } from "../lib/grade-angel.mts";
+import { PLATFORM_FEE_RATE, serviceFeeCents } from "../lib/grade-angel.mts";
 import { applyGiftToPayment } from "../lib/gifts.mts";
 import { recordEvent } from "../lib/assignments.mts";
 
@@ -60,6 +60,9 @@ export default async (req: Request) => {
 
   const amountCents = assignment.page_count * assignment.rate_per_page_cents;
   const platformFeeCents = Math.round(amountCents * PLATFORM_FEE_RATE);
+  // The teacher pays the assignment price plus a small service fee.
+  const serviceCents = serviceFeeCents(amountCents);
+  const chargeCents = amountCents + serviceCents;
 
   // If gift money cannot cover it all, a card payment is needed. Check
   // Stripe is connected before setting anything aside.
@@ -69,7 +72,7 @@ export default async (req: Request) => {
   const [{ gift_cents: alreadySetAside = 0 } = {}] = existingPayment
     ? await db.sql`SELECT gift_cents FROM payments WHERE id = ${existingPayment.id}`
     : [];
-  if (!testAccount && alreadySetAside + (useGift ? balanceCents : 0) < amountCents) {
+  if (!testAccount && alreadySetAside + (useGift ? balanceCents : 0) < chargeCents) {
     try {
       getStripe();
     } catch (err) {
@@ -84,10 +87,11 @@ export default async (req: Request) => {
   if (existingPayment && existingPayment.status !== "refunded") {
     paymentId = existingPayment.id;
     await db.sql`UPDATE payments SET status = 'pending' WHERE id = ${paymentId} AND status = 'failed'`;
+    await db.sql`UPDATE payments SET service_fee_cents = ${serviceCents} WHERE id = ${paymentId} AND status = 'pending'`;
   } else {
     const [created] = await db.sql`
-      INSERT INTO payments (assignment_id, amount_cents, platform_fee_cents, status)
-      VALUES (${assignmentId}, ${amountCents}, ${platformFeeCents}, 'pending')
+      INSERT INTO payments (assignment_id, amount_cents, platform_fee_cents, service_fee_cents, status)
+      VALUES (${assignmentId}, ${amountCents}, ${platformFeeCents}, ${serviceCents}, 'pending')
       RETURNING id
     `;
     paymentId = created.id;
@@ -97,7 +101,7 @@ export default async (req: Request) => {
   const giftCents =
     !useGift
       ? ((await db.sql`SELECT gift_cents FROM payments WHERE id = ${paymentId}`)[0]?.gift_cents ?? 0)
-      : await applyGiftToPayment(paymentId, session.id, amountCents);
+      : await applyGiftToPayment(paymentId, session.id, chargeCents);
 
   // Test accounts: whatever gifts did not cover is recorded as paid without
   // charging a card, and the payment is marked test so its payout never
@@ -108,7 +112,7 @@ export default async (req: Request) => {
     return json({ paid: true, test: true, gift_cents: giftCents }, 200);
   }
 
-  if (giftCents >= amountCents) {
+  if (giftCents >= chargeCents) {
     await db.sql`UPDATE payments SET status = 'paid', paid_at = NOW() WHERE id = ${paymentId} AND status = 'pending'`;
     await recordEvent(assignmentId, session.id, "paid_with_gift");
     return json({ paid: true, gift_cents: giftCents }, 200);
@@ -130,12 +134,12 @@ export default async (req: Request) => {
           quantity: 1,
           price_data: {
             currency: "usd",
-            unit_amount: amountCents - giftCents,
+            unit_amount: chargeCents - giftCents,
             product_data: {
               name: `Grading: ${assignment.title}`,
-              ...(giftCents > 0
-                ? { description: `Total ${(amountCents / 100).toFixed(2)} dollars, with ${(giftCents / 100).toFixed(2)} covered by Gift Angels` }
-                : {}),
+              description:
+                `Grading ${(amountCents / 100).toFixed(2)} dollars plus a ${(serviceCents / 100).toFixed(2)} dollar service fee` +
+                (giftCents > 0 ? `, with ${(giftCents / 100).toFixed(2)} covered by Gift Angels` : ""),
             },
           },
         },

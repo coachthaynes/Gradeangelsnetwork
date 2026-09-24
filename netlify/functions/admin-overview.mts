@@ -19,7 +19,8 @@ export default async (req: Request) => {
                          AND contractor_agreement_signed_at IS NOT NULL AND background_check_status = 'clear'
                          AND stripe_payouts_ready)::int AS live_grade_angels,
       COUNT(*) FILTER (WHERE role <> 'admin' AND created_at > NOW() - INTERVAL '7 days')::int AS new_this_week,
-      COUNT(*) FILTER (WHERE suspended_at IS NOT NULL)::int AS suspended
+      COUNT(*) FILTER (WHERE suspended_at IS NOT NULL)::int AS suspended,
+      COUNT(*) FILTER (WHERE role = 'grade_angel' AND pro_started_at IS NOT NULL AND pro_ended_at IS NULL)::int AS pro_members
     FROM users
   `;
 
@@ -36,7 +37,8 @@ export default async (req: Request) => {
 
   const [money] = await db.sql`
     SELECT
-      COALESCE(SUM(amount_cents - gift_cents) FILTER (WHERE status = 'paid'), 0)::bigint AS collected_cents,
+      COALESCE(SUM(amount_cents + service_fee_cents - gift_cents) FILTER (WHERE status = 'paid'), 0)::bigint AS collected_cents,
+      COALESCE(SUM(service_fee_cents) FILTER (WHERE status = 'paid'), 0)::bigint AS service_fees_cents,
       COALESCE(SUM(gift_cents) FILTER (WHERE status = 'paid'), 0)::bigint AS gift_paid_cents,
       COALESCE(SUM(platform_fee_cents) FILTER (WHERE status = 'paid'), 0)::bigint AS fees_cents,
       COALESCE(SUM(amount_cents - platform_fee_cents) FILTER (WHERE payout_status = 'transferred'), 0)::bigint AS paid_out_cents,
@@ -44,6 +46,14 @@ export default async (req: Request) => {
       COALESCE(SUM(amount_cents - gift_cents) FILTER (WHERE status = 'paid' AND paid_at > NOW() - INTERVAL '30 days'), 0)::bigint AS collected_30d_cents
     FROM payments WHERE NOT test_mode
   `;
+
+  const [pro] = await db.sql`
+    SELECT COALESCE(SUM(amount_cents), 0)::bigint AS cents,
+           COALESCE(SUM(amount_cents) FILTER (WHERE created_at > NOW() - INTERVAL '30 days'), 0)::bigint AS cents_30d
+    FROM pro_charges WHERE NOT test_mode
+  `;
+  money.pro_cents = pro.cents;
+  money.pro_30d_cents = pro.cents_30d;
 
   // Things that need a person, most urgent first.
   const attention: { kind: string; label: string; detail: string; link: string; created_at: string }[] = [];

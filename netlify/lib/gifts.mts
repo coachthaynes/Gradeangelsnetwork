@@ -178,7 +178,7 @@ export async function returnGiftForAssignment(assignmentId: number): Promise<num
       FROM payments p JOIN assignments a ON a.id = p.assignment_id
       WHERE p.assignment_id = ${assignmentId} AND p.gift_cents > 0
         AND (p.status = 'pending'
-             OR (p.status = 'paid' AND p.gift_cents >= p.amount_cents AND p.payout_status NOT IN ('transferred', 'processing')))
+             OR (p.status = 'paid' AND p.gift_cents >= p.amount_cents + p.service_fee_cents AND p.payout_status NOT IN ('transferred', 'processing')))
       FOR UPDATE OF p
     ),
     z AS (

@@ -57,7 +57,7 @@
           <div class="hero-avatar static">${avatarHtml(p.name, p.photo_url, 120)}</div>
           <div class="hero-main">
             <span class="role-badge">${ROLE_LABELS[p.role]}</span>
-            <h1>${escapeHtml(p.name)}</h1>
+            <h1>${escapeHtml(p.name)}${p.pro ? ' <span class="pill pro-pill">Pro</span>' : ""}</h1>
             ${p.handle ? `<p class="hero-handle">@${escapeHtml(p.handle)}</p>` : ""}
             ${starsHtml(p.rating, { size: "large" })}
             <p class="hero-meta">Member since ${since}${p.location ? ` · ${escapeHtml(p.location)}` : ""}</p>

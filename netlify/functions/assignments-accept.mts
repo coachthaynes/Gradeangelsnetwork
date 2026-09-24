@@ -1,5 +1,6 @@
 import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
+import { PRO_FIRST_LOOK_MINUTES, waitsForFirstLook } from "../lib/pro.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 import { isSuspended } from "../lib/staff.mts";
@@ -33,6 +34,16 @@ export default async (req: Request) => {
   const setup = await getSetupStatus(session.id);
   if (!setup?.ready) {
     return json({ error: "Finish your Grade Angel setup before accepting assignments", setup }, 403);
+  }
+
+  // During the first hour after posting, open work is for Pro members.
+  const waits = await waitsForFirstLook(session.id);
+  const [early] = await db.sql`
+    SELECT 1 FROM assignments WHERE id = ${assignmentId} AND invited_grade_angel_id IS NULL
+      AND published_at > NOW() - make_interval(mins => ${PRO_FIRST_LOOK_MINUTES})
+  `;
+  if (early && waits) {
+    return json({ error: "Grade Angel Pro members get the first hour on new work. It opens to everyone soon." }, 409);
   }
 
   const rows = await db.sql`

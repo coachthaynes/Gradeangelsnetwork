@@ -215,7 +215,7 @@
       const cents = Math.round(dollars * 100) * uploader.count;
       const earns = cents - Math.round(cents * 0.2);
       el.innerHTML = `<strong>${uploader.count} page${uploader.count === 1 ? "" : "s"}</strong>` +
-        (cents ? ` at ${formatCents(Math.round(dollars * 100))}/page = <strong>${formatCents(cents)}</strong>, paid once a Grade Angel accepts. Your Grade Angel earns ${formatCents(earns)} for this stack.` : "");
+        (cents ? ` at ${formatCents(Math.round(dollars * 100))}/page = <strong>${formatCents(cents)}</strong>, plus a ${formatCents(Math.round(cents * 0.03))} service fee, paid once a Grade Angel accepts. Your Grade Angel earns ${formatCents(earns)} for this stack.` : "");
     }
     document.getElementById("rate_per_page").addEventListener("input", updateTotal);
 
@@ -273,7 +273,7 @@
               <a class="angel-row" href="/profile.html?id=${g.id}">
                 ${avatarHtml(g.full_name, g.photo_url, 44)}
                 <span>
-                  <strong>${escapeHtml(g.full_name)}</strong>
+                  <strong>${escapeHtml(g.full_name)}${g.pro ? ' <span class="pill pro-pill">Pro</span>' : ""}</strong>
                   ${starsHtml(g.rating, { size: "small" })}
                   <span class="muted">${escapeHtml(g.subjects || "")}</span>
                 </span>
@@ -346,7 +346,7 @@
       if (a.grade_angel_id && ["accepted", "submitted", "completed"].includes(a.status)) {
         actions.push(`<a class="btn small ghost chat-link" href="/assignment.html?id=${a.id}#chat">Message${a.unread_messages ? ` <span class="badge">${a.unread_messages}</span>` : ""}</a>`);
       }
-      if (needsPayment) actions.push(`<button class="btn small" data-pay-id="${a.id}">Pay ${total}</button>`);
+      if (needsPayment) actions.push(`<button class="btn small" data-pay-id="${a.id}" title="Includes a ${formatCents(a.service_fee_cents || 0)} service fee">Pay ${formatCents(a.rate_per_page_cents * a.page_count + (a.service_fee_cents || 0))}</button>`);
       if (a.status === "submitted") actions.push(`<a class="btn small" href="/assignment.html?id=${a.id}">Review and approve</a>`);
       if (a.status === "completed" && !a.my_rating && a.grade_angel_id) actions.push(`<button class="btn small" data-review-id="${a.id}">★ Review</button>`);
       if (a.status === "draft" || a.status === "open") actions.push(`<button class="btn small ghost" data-cancel-id="${a.id}">Cancel</button>`);
@@ -658,7 +658,7 @@
           ? `<ul class="money-list-rows">${d.payments.map((p) => `
               <li><span><a href="/assignment.html?id=${p.assignment_id}">${escapeHtml(p.title)}</a>
                 <span class="muted"> · ${p.paid_at ? new Date(p.paid_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""}${p.gift_cents ? ` · ${formatCents(p.gift_cents)} from gifts` : ""}${p.status === "refunded" ? " · refunded" : ""}${p.test_mode ? " · test" : ""}</span></span>
-                <span><span class="amt">${formatCents(p.amount_cents)}</span>
+                <span><span class="amt">${formatCents(p.amount_cents + (p.service_fee_cents || 0))}</span>
                 ${p.has_receipt ? ` <a href="/api/payments/mine?receipt=${p.id}" target="_blank" rel="noopener">Receipt</a>` : ""}</span></li>`).join("")}</ul>`
           : '<p class="muted">No payments yet.</p>';
       } catch (err) {

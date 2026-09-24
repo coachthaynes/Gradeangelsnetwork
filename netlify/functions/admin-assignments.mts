@@ -24,7 +24,7 @@ export default async (req: Request) => {
       WHERE assignment_id = ${assignmentId} AND status = 'paid'
         -- Paid entirely with gift money and not yet paid out: nothing to
         -- refund in Stripe, the gift goes back to the teacher instead.
-        AND NOT (gift_cents >= amount_cents AND payout_status NOT IN ('transferred', 'processing'))
+        AND NOT (gift_cents >= amount_cents + service_fee_cents AND payout_status NOT IN ('transferred', 'processing'))
       LIMIT 1
     `;
     if (paid) return json({ error: "This assignment was paid for. Refund it in Stripe before cancelling." }, 409);

@@ -373,7 +373,7 @@
         statTileHtml("pages", "Open assignments", a.open),
         statTileHtml("clock", "Being graded", a.accepted),
         statTileHtml("inbox", "Overdue", a.overdue, a.overdue ? "hot" : ""),
-        statTileHtml("money", "Your 20% so far", formatCents(m.fees_cents)),
+        statTileHtml("money", "Earned so far", formatCents(Number(m.fees_cents) + Number(m.service_fees_cents) + Number(m.pro_cents))),
       ].join("");
 
       document.getElementById("ov-attention").innerHTML = d.attention.length
@@ -388,7 +388,9 @@
         <div><dt>Collected from teachers</dt><dd>${formatCents(m.collected_cents)}</dd></div>
         <div><dt>Paid by Gift Angels</dt><dd>${formatCents(m.gift_paid_cents)}</dd></div>
         <div><dt>Last 30 days</dt><dd>${formatCents(m.collected_30d_cents)}</dd></div>
-        <div><dt>Platform share (20%)</dt><dd>${formatCents(m.fees_cents)}</dd></div>
+        <div><dt>Platform share of assignments</dt><dd>${formatCents(m.fees_cents)}</dd></div>
+        <div><dt>Teacher service fees</dt><dd>${formatCents(m.service_fees_cents)}</dd></div>
+        <div><dt>Grade Angel Pro (${u.pro_members} members)</dt><dd>${formatCents(m.pro_cents)}</dd></div>
         <div><dt>Paid to Grade Angels</dt><dd>${formatCents(m.paid_out_cents)}</dd></div>
         <div><dt>Owed to Grade Angels</dt><dd>${formatCents(m.owed_cents)}</dd></div>
         <div><dt>Pages graded</dt><dd>${a.pages_graded}</dd></div>`;
