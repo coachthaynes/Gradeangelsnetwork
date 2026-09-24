@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Profile, Grade Angels Network</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
+  <meta name="theme-color" content="#0B0B0B" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+  <nav class="nav" id="site-nav"></nav>
+
+  <main>
+    <section class="dash-hero profile-hero" id="hero"><div class="inner"><p>Loading…</p></div></section>
+    <div class="wrap dash">
+      <div id="page-msg" class="msg" style="display:none"></div>
+      <div class="tiles" id="tiles"></div>
+      <div class="grid about-grid">
+        <section class="card" id="about"></section>
+        <section class="card">
+          <h2>Reviews</h2>
+          <div id="reviews"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer><span class="brand-line">Grade Angels Network</span><br />Helping teachers get their evenings back.</footer>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/profile-ui.js"></script>
+  <script>
+    const LEVELS = { elementary: "Elementary", middle: "Middle school", high: "High school" };
+    const QUALS = {
+      certified_teacher: "Certified teacher", retired_teacher: "Retired teacher", substitute_teacher: "Substitute teacher",
+      tutor: "Tutor", education_student: "College student in education", other: "Education professional",
+    };
+    const DEGREES = { high_school: "High school diploma", associate: "Associate degree", bachelor: "Bachelor's degree", master: "Master's degree", doctorate: "Doctorate" };
+
+    function tagList(csv, labels) {
+      const items = String(csv || "").split(",").map((s) => s.trim()).filter(Boolean);
+      return items.map((s) => `<span class="tag">${escapeHtml(labels ? labels[s] || s : s)}</span>`).join("");
+    }
+
+    function render(p, isSelf) {
+      document.title = `${p.name}, Grade Angels Network`;
+      const since = new Date(p.member_since).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+      document.getElementById("hero").innerHTML = `
+        <div class="inner">
+          <div class="hero-avatar static">${avatarHtml(p.name, p.photo_url, 120)}</div>
+          <div class="hero-main">
+            <span class="role-badge">${ROLE_LABELS[p.role]}</span>
+            <h1>${escapeHtml(p.name)}</h1>
+            ${starsHtml(p.rating, { size: "large" })}
+            <p class="hero-meta">Member since ${since}${p.location ? ` · ${escapeHtml(p.location)}` : ""}</p>
+            ${isSelf ? `<div class="row-actions"><button class="btn small" id="edit">Edit profile</button></div>` : ""}
+          </div>
+        </div>`;
+
+      const isAngel = p.role === "grade_angel";
+      document.getElementById("tiles").innerHTML = isAngel
+        ? [
+            statTileHtml("star", "Rating", p.rating.average ? p.rating.average.toFixed(1) : "New"),
+            statTileHtml("check", "Assignments completed", p.assignments_completed),
+            statTileHtml("pages", "Pages graded", p.pages_graded),
+            statTileHtml("clock", "Years in education", p.years_experience ?? "Not shared"),
+          ].join("")
+        : [
+            statTileHtml("star", "Rating", p.rating.average ? p.rating.average.toFixed(1) : "New"),
+            statTileHtml("pages", "Assignments posted", p.assignments_posted),
+            statTileHtml("check", "Assignments completed", p.assignments_completed),
+          ].join("");
+
+      const facts = isAngel
+        ? `
+          <dl class="details">
+            ${p.qualifications ? `<div><dt>Background</dt><dd>${QUALS[p.qualifications] || ""}</dd></div>` : ""}
+            ${p.highest_degree ? `<div><dt>Education</dt><dd>${DEGREES[p.highest_degree] || ""}</dd></div>` : ""}
+            ${p.teaching_certificate ? `<div><dt>Teaching certificate</dt><dd>${p.teaching_certificate === "current" ? "Current" : p.teaching_certificate === "expired" ? "Expired" : "None"}</dd></div>` : ""}
+          </dl>
+          ${p.subjects ? `<h3>Subjects</h3><div class="tags">${tagList(p.subjects)}</div>` : ""}
+          ${p.grade_levels ? `<h3>Grade levels</h3><div class="tags">${tagList(p.grade_levels, LEVELS)}</div>` : ""}
+          ${p.assignment_types ? `<h3>Assignment types</h3><div class="tags">${tagList(p.assignment_types, TYPE_LABELS)}</div>` : ""}`
+        : "";
+
+      document.getElementById("about").innerHTML = `
+        <h2>About me</h2>
+        ${p.bio ? `<p class="bio">${escapeHtml(p.bio)}</p>` : `<p class="muted">${isSelf ? "You have not written a bio yet." : "No bio yet."}</p>`}
+        ${facts}`;
+      document.getElementById("reviews").innerHTML = reviewsListHtml(p.reviews, "No reviews yet.");
+
+      const edit = document.getElementById("edit");
+      if (edit) {
+        edit.addEventListener("click", async () => {
+          const { profile: mine } = await apiGet("/api/profile");
+          if (await openEditProfile(mine)) load();
+        });
+      }
+    }
+
+    async function load() {
+      const id = Number(new URLSearchParams(location.search).get("id"));
+      try {
+        const { profile, is_self } = await apiGet(`/api/users/profile?id=${id}`);
+        render(profile, is_self);
+      } catch (err) {
+        document.getElementById("hero").innerHTML = "";
+        showMessage(document.getElementById("page-msg"), err.message, "error");
+      }
+    }
+
+    (async () => {
+      let user = null;
+      try {
+        ({ user } = await apiGet("/api/auth/me"));
+      } catch {}
+      if (!user) {
+        window.location.href = "/login.html";
+        return;
+      }
+      renderNav(user);
+      load();
+    })();
+  </script>
+</body>
+</html>

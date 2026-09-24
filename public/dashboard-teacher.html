@@ -14,87 +14,141 @@
 <body>
   <nav class="nav" id="site-nav"></nav>
 
-  <main class="wrap">
-    <h1>Post an assignment</h1>
-    <div class="card">
-      <div id="create-msg" class="msg" style="display:none"></div>
-      <form id="create-form">
-        <label for="title">Title</label>
-        <input id="title" required placeholder="Chapter 4 vocabulary quiz" />
+  <main>
+    <section class="dash-hero" id="hero"></section>
 
-        <div class="grid cols-2">
-          <div>
-            <label for="subject">Subject</label>
-            <input id="subject" required placeholder="Reading" />
-          </div>
-          <div>
-            <label for="grade_level">Grade level</label>
-            <input id="grade_level" required placeholder="4th grade" />
-          </div>
+    <div class="wrap dash">
+      <div class="tiles" id="tiles"></div>
+
+      <div id="review-nudge"></div>
+
+      <section class="card post-card" id="post-card">
+        <button type="button" class="post-toggle" id="post-toggle" aria-expanded="false" aria-controls="post-body">
+          <span class="post-plus" aria-hidden="true">+</span>
+          <span>
+            <strong>Post an assignment</strong>
+            <span class="muted">Snap photos of the stack, set your rate, and a Grade Angel picks it up.</span>
+          </span>
+        </button>
+        <div id="post-body" hidden>
+          <div id="create-msg" class="msg" style="display:none"></div>
+          <form id="create-form">
+            <label for="title">Title</label>
+            <input id="title" required placeholder="Chapter 4 vocabulary quiz" />
+
+            <div class="grid cols-2">
+              <div>
+                <label for="subject">Subject</label>
+                <input id="subject" required placeholder="Reading" />
+              </div>
+              <div>
+                <label for="grade_level">Grade level</label>
+                <input id="grade_level" required placeholder="4th grade" />
+              </div>
+            </div>
+
+            <div class="grid cols-2">
+              <div>
+                <label for="assignment_type">Type</label>
+                <select id="assignment_type" required>
+                  <option value="multiple_choice">Multiple choice</option>
+                  <option value="combo">Combination</option>
+                  <option value="essay">Essay</option>
+                </select>
+              </div>
+              <div>
+                <label for="turnaround_hours">Needed back within</label>
+                <select id="turnaround_hours">
+                  <option value="24">24 hours</option>
+                  <option value="48" selected>48 hours</option>
+                  <option value="72">3 days</option>
+                  <option value="96">4 days</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid cols-2">
+              <div>
+                <label for="rate_per_page">Rate per page, in dollars</label>
+                <input id="rate_per_page" type="number" min="0.01" step="0.01" required placeholder="1.00" />
+              </div>
+              <div>
+                <label for="invite">Send to</label>
+                <select id="invite">
+                  <option value="">Any available Grade Angel</option>
+                </select>
+              </div>
+            </div>
+            <p class="muted" id="invite-note" style="display:none"></p>
+
+            <label for="instructions">Instructions (optional)</label>
+            <textarea id="instructions" placeholder="Answer key is on the last page. Flag anything left blank."></textarea>
+
+            <label>Pages</label>
+            <div id="uploader"></div>
+            <p class="privacy-tip">Privacy tip: cover or fold over student names, or have students write an ID number instead. Grade Angels only need the work.</p>
+
+            <div class="total-row">
+              <span id="total-line" class="muted">Add pages to see the total.</span>
+            </div>
+            <div id="upload-progress" class="progress" style="display:none"><div class="progress-bar" id="upload-bar"></div></div>
+
+            <button class="btn" type="submit">Post assignment</button>
+          </form>
         </div>
+      </section>
 
-        <div class="grid cols-2">
-          <div>
-            <label for="assignment_type">Type</label>
-            <select id="assignment_type" required>
-              <option value="multiple_choice">Multiple choice</option>
-              <option value="combo">Combination</option>
-              <option value="essay">Essay</option>
-            </select>
-          </div>
-          <div>
-            <label for="turnaround_hours">Needed back within</label>
-            <select id="turnaround_hours">
-              <option value="24">24 hours</option>
-              <option value="48" selected>48 hours</option>
-              <option value="72">3 days</option>
-              <option value="96">4 days</option>
-            </select>
-          </div>
+      <section>
+        <div class="section-head">
+          <h2 class="section-title">Your assignments</h2>
         </div>
+        <div class="chips" id="chips" role="tablist" aria-label="Filter assignments"></div>
+        <div id="list"></div>
+      </section>
 
-        <div class="grid cols-2">
-          <div>
-            <label for="rate_per_page">Rate per page, in dollars</label>
-            <input id="rate_per_page" type="number" min="0.01" step="0.01" required placeholder="1.00" />
-          </div>
-          <div>
-            <label for="invite">Send to</label>
-            <select id="invite">
-              <option value="">Any available Grade Angel</option>
-            </select>
-          </div>
+      <section class="grid about-grid">
+        <div class="card">
+          <h2>Grade Angels on the network</h2>
+          <p class="muted">Tap one to see their profile, reviews, and experience. You can send an assignment to any of them.</p>
+          <div id="angels" class="angel-list"></div>
         </div>
-        <p class="muted" id="invite-note" style="display:none"></p>
-
-        <label for="instructions">Instructions (optional)</label>
-        <textarea id="instructions" placeholder="Answer key is on the last page. Flag anything left blank."></textarea>
-
-        <label>Pages</label>
-        <div id="uploader"></div>
-        <p class="privacy-tip">Privacy tip: cover or fold over student names, or have students write an ID number instead. Grade Angels only need the work.</p>
-
-        <div class="total-row">
-          <span id="total-line" class="muted">Add pages to see the total.</span>
+        <div class="card">
+          <h2>What Grade Angels say about you</h2>
+          <div id="my-reviews"></div>
         </div>
-        <div id="upload-progress" class="progress" style="display:none"><div class="progress-bar" id="upload-bar"></div></div>
-
-        <button class="btn" type="submit">Post assignment</button>
-      </form>
+      </section>
     </div>
-
-    <h2 class="section-title">Your assignments</h2>
-    <div id="list"></div>
   </main>
 
   <footer><span class="brand-line">Grade Angels Network</span><br />Helping teachers get their evenings back.</footer>
 
   <script src="/js/api.js"></script>
+  <script src="/js/profile-ui.js"></script>
   <script src="/js/page-uploader.js"></script>
   <script>
     const EVENT_NOTES = { declined: "declined", handed_back: "handed it back" };
+    const FILTERS = [
+      ["all", "All", () => true],
+      ["waiting", "Waiting", (a) => a.status === "open" || a.status === "draft"],
+      ["grading", "Being graded", (a) => a.status === "accepted"],
+      ["review", "Ready for you", (a) => a.status === "submitted"],
+      ["done", "Completed", (a) => a.status === "completed"],
+    ];
+
+    let me = null;
+    let assignments = [];
+    let filter = "all";
 
     const uploader = new PageUploader(document.getElementById("uploader"), { onChange: updateTotal });
+
+    function setPostOpen(open) {
+      document.getElementById("post-body").hidden = !open;
+      document.getElementById("post-toggle").setAttribute("aria-expanded", String(open));
+      document.getElementById("post-card").classList.toggle("open", open);
+    }
+    document.getElementById("post-toggle").addEventListener("click", () =>
+      setPostOpen(document.getElementById("post-body").hidden)
+    );
 
     function updateTotal() {
       const dollars = parseFloat(document.getElementById("rate_per_page").value || "0");
@@ -109,15 +163,37 @@
     }
     document.getElementById("rate_per_page").addEventListener("input", updateTotal);
 
+    async function loadProfile() {
+      ({ profile: me } = await apiGet("/api/profile"));
+      renderProfileHero(document.getElementById("hero"), me, {
+        onEdit: () => loadProfile(),
+      });
+      document.getElementById("my-reviews").innerHTML = reviewsListHtml(
+        me.reviews,
+        "No reviews yet. Grade Angels can review you after an assignment is complete."
+      );
+    }
+
     async function loadGradeAngels() {
       try {
-        const { grade_angels } = await apiGet("/api/grade-angels");
+        const grade_angels = (await apiGet("/api/grade-angels")).grade_angels || [];
         const select = document.getElementById("invite");
-        select.innerHTML += grade_angels
+        select.innerHTML = '<option value="">Any available Grade Angel</option>' + grade_angels
           .map((g) => `<option value="${g.id}">${escapeHtml(g.full_name)}${g.subjects ? " (" + escapeHtml(g.subjects) + ")" : ""}</option>`)
           .join("");
+        document.getElementById("angels").innerHTML = grade_angels.length
+          ? grade_angels.slice(0, 8).map((g) => `
+              <a class="angel-row" href="/profile.html?id=${g.id}">
+                ${avatarHtml(g.full_name, g.photo_url, 44)}
+                <span>
+                  <strong>${escapeHtml(g.full_name)}</strong>
+                  ${starsHtml(g.rating, { size: "small" })}
+                  <span class="muted">${escapeHtml(g.subjects || "")}</span>
+                </span>
+              </a>`).join("")
+          : emptyStateHtml("star", "Grade Angels are on the way", "Verified Grade Angels show up here once they finish their setup.");
       } catch {
-        // Inviting is optional; the default of any Grade Angel still works.
+        document.getElementById("angels").innerHTML = "";
       }
     }
 
@@ -127,6 +203,35 @@
       note.textContent = "Only this Grade Angel will see it. If they decline, it opens up to everyone.";
     });
 
+    function renderTiles() {
+      const count = (fn) => assignments.filter(fn).length;
+      const pages = assignments.filter((a) => a.status === "completed").reduce((s, a) => s + a.page_count, 0);
+      const spent = assignments.filter((a) => a.payment_status === "paid").reduce((s, a) => s + a.page_count * a.rate_per_page_cents, 0);
+      document.getElementById("tiles").innerHTML = [
+        statTileHtml("clock", "Being graded", count((a) => a.status === "accepted")),
+        statTileHtml("inbox", "Ready for you", count((a) => a.status === "submitted"), count((a) => a.status === "submitted") ? "hot" : ""),
+        statTileHtml("pages", "Pages graded for you", pages),
+        statTileHtml("money", "Invested in your time", formatCents(spent)),
+      ].join("");
+
+      const toReview = assignments.filter((a) => a.status === "completed" && !a.my_rating && a.grade_angel_id);
+      document.getElementById("review-nudge").innerHTML = toReview.length
+        ? `<div class="nudge">
+             <span class="nudge-star" aria-hidden="true">★</span>
+             <span><strong>${toReview.length === 1 ? `How did ${escapeHtml(toReview[0].grade_angel_name || "your Grade Angel")} do?` : `You have ${toReview.length} Grade Angels to review.`}</strong>
+             Reviews help great Grade Angels stand out.</span>
+             <button class="btn small" data-review-id="${toReview[0].id}">Leave a review</button>
+           </div>`
+        : "";
+    }
+
+    function renderChips() {
+      document.getElementById("chips").innerHTML = FILTERS.map(([key, label, fn]) => {
+        const n = assignments.filter(fn).length;
+        return `<button type="button" role="tab" class="chip ${filter === key ? "active" : ""}" aria-selected="${filter === key}" data-filter="${key}">${label}<span>${n}</span></button>`;
+      }).join("");
+    }
+
     function stateLine(a) {
       if (a.status === "draft") return "Upload did not finish. Cancel it and post again.";
       if (a.status === "open" && a.invited_grade_angel_name) return `Waiting on ${escapeHtml(a.invited_grade_angel_name)} to accept`;
@@ -135,9 +240,9 @@
         const reason = note && a.last_event_note ? ` A Grade Angel ${note}: "${escapeHtml(a.last_event_note)}"` : "";
         return "Waiting for a Grade Angel." + reason;
       }
-      if (a.status === "accepted") return `${escapeHtml(a.grade_angel_name || "A Grade Angel")} is grading. ${formatDue(a.due_at)}.`;
-      if (a.status === "submitted") return `${escapeHtml(a.grade_angel_name || "Your Grade Angel")} sent the graded work back. Review it and mark it complete.`;
-      if (a.status === "completed") return `Graded by ${escapeHtml(a.grade_angel_name || "a Grade Angel")}.`;
+      if (a.status === "accepted") return `Being graded. ${formatDue(a.due_at)}.`;
+      if (a.status === "submitted") return "Graded work is back. Review it and mark it complete.";
+      if (a.status === "completed") return a.my_rating ? `You rated this ${a.my_rating} of 5.` : "Complete. Leave a review for your Grade Angel.";
       return "";
     }
 
@@ -147,53 +252,92 @@
       const actions = [`<a class="btn small secondary" href="/assignment.html?id=${a.id}">Open</a>`];
       if (needsPayment) actions.push(`<button class="btn small" data-pay-id="${a.id}">Pay ${total}</button>`);
       if (a.status === "submitted") actions.push(`<button class="btn small" data-complete-id="${a.id}">Mark complete</button>`);
+      if (a.status === "completed" && !a.my_rating && a.grade_angel_id) actions.push(`<button class="btn small" data-review-id="${a.id}">★ Review</button>`);
       if (a.status === "draft" || a.status === "open") actions.push(`<button class="btn small ghost" data-cancel-id="${a.id}">Cancel</button>`);
-      const paymentNote =
-        a.payment_status === "paid"
-          ? a.payout_status === "transferred"
-            ? '<span class="pill status-completed">Paid, Grade Angel paid out</span>'
-            : '<span class="pill status-accepted">Paid</span>'
-          : "";
+      const person = a.grade_angel_id
+        ? `<a class="person" href="/profile.html?id=${a.grade_angel_id}">${avatarHtml(a.grade_angel_name, a.grade_angel_photo_url, 32)}<span>${escapeHtml(a.grade_angel_name)}</span></a>`
+        : "";
       return `
-        <div class="card">
-          <h3 class="assignment-title"><a class="plain" href="/assignment.html?id=${a.id}">${escapeHtml(a.title)}</a> ${statusPillHtml(a.status)} ${paymentNote}</h3>
-          <p class="assignment-meta">${escapeHtml(a.subject)} · ${escapeHtml(a.grade_level)} · ${a.page_count} pages · ${total} total</p>
+        <div class="card assignment-card status-${a.status}">
+          <div class="card-top">
+            <div>
+              <h3 class="assignment-title"><a class="plain" href="/assignment.html?id=${a.id}">${escapeHtml(a.title)}</a> ${statusPillHtml(a.status)}</h3>
+              <p class="assignment-meta">${escapeHtml(a.subject)} · ${escapeHtml(a.grade_level)} · ${a.page_count} pages · ${total} total</p>
+            </div>
+            ${person}
+          </div>
           <p class="state-line">${stateLine(a)}</p>
           <div class="row-actions">${actions.join("")}</div>
         </div>
       `;
     }
 
+    function renderList() {
+      const list = document.getElementById("list");
+      const fn = FILTERS.find(([key]) => key === filter)[2];
+      const shown = assignments.filter(fn);
+      if (!assignments.length) {
+        list.innerHTML = emptyStateHtml("pages", "Nothing posted yet",
+          "Post your first stack and get your evening back.",
+          '<button class="btn" type="button" id="empty-post">Post an assignment</button>');
+        document.getElementById("empty-post").addEventListener("click", () => {
+          setPostOpen(true);
+          document.getElementById("post-card").scrollIntoView({ behavior: "smooth" });
+        });
+        return;
+      }
+      list.innerHTML = shown.length
+        ? shown.map(renderAssignmentCard).join("")
+        : emptyStateHtml("check", "Nothing here right now", "Try another filter above.");
+    }
+
     async function loadAssignments() {
       const list = document.getElementById("list");
       list.innerHTML = '<p class="muted">Loading…</p>';
       try {
-        const { assignments } = await apiGet("/api/assignments/list");
-        const shown = assignments.filter((a) => a.status !== "cancelled");
-        if (shown.length === 0) {
-          list.innerHTML = '<p class="muted">Nothing posted yet.</p>';
-          return;
-        }
-        list.innerHTML = shown.map(renderAssignmentCard).join("");
+        const data = await apiGet("/api/assignments/list");
+        assignments = (data.assignments || []).filter((a) => a.status !== "cancelled");
+        renderTiles();
+        renderChips();
+        renderList();
+        if (!assignments.length) setPostOpen(true);
       } catch (err) {
         list.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
       }
     }
 
-    document.getElementById("list").addEventListener("click", async (e) => {
+    document.getElementById("chips").addEventListener("click", (e) => {
+      const chip = e.target.closest("[data-filter]");
+      if (!chip) return;
+      filter = chip.dataset.filter;
+      renderChips();
+      renderList();
+    });
+
+    document.body.addEventListener("click", async (e) => {
       const btn = e.target.closest("button");
       if (!btn) return;
       if (btn.dataset.completeId) completeAssignment(btn.dataset.completeId, btn);
       if (btn.dataset.payId) payForAssignment(btn.dataset.payId, btn);
       if (btn.dataset.cancelId) cancelAssignment(btn.dataset.cancelId, btn);
+      if (btn.dataset.reviewId) {
+        const a = assignments.find((x) => x.id === Number(btn.dataset.reviewId));
+        const ok = await openReviewDialog({ assignmentId: a.id, subjectName: a.grade_angel_name || "your Grade Angel", subjectRole: "grade_angel" });
+        if (ok) loadAssignments();
+      }
     });
 
     async function completeAssignment(id, btn) {
       btn.disabled = true;
       try {
         const { payout_note } = await apiPostJson("/api/assignments/complete", { assignment_id: Number(id) });
+        await loadAssignments();
+        const a = assignments.find((x) => x.id === Number(id));
         if (payout_note) alert(payout_note);
-        loadAssignments();
+        if (a && a.grade_angel_id) {
+          const ok = await openReviewDialog({ assignmentId: a.id, subjectName: a.grade_angel_name || "your Grade Angel", subjectRole: "grade_angel" });
+          if (ok) loadAssignments();
+        }
       } catch (err) {
         alert(err.message);
         btn.disabled = false;
@@ -291,6 +435,7 @@
 
     requireRole("teacher").then((user) => {
       if (!user) return;
+      loadProfile().catch((err) => (document.getElementById("hero").innerHTML = `<div class="inner"><p>${escapeHtml(err.message)}</p></div>`));
       loadGradeAngels();
       loadAssignments();
     });

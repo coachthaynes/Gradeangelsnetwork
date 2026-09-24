@@ -96,3 +96,21 @@ connected Stripe account. Stripe's card fees come out of the platform's share.
 * `payouts-retry` runs hourly. It releases held payouts once the Grade Angel's
   account is ready and retries failed ones up to 24 times. After that, an
   admin can retry with `POST /api/admin/payouts/retry` and an `assignment_id`.
+
+## Profiles and reviews
+
+Everyone has an About me with a photo, bio, star rating, and reviews, shown
+on their dashboard banner and on `/profile.html?id=`. Teachers choose a
+display name; Grade Angels only ever see that, never the teacher's real
+name, school, or contact details.
+
+After an assignment is completed, the teacher and the Grade Angel can each
+leave one review (1 to 5 stars and a comment) with `POST /api/reviews`. A
+review stays private until the other person reviews too, or 14 days pass
+(`REVIEW_REVEAL_DAYS` in `netlify/lib/profiles.mts`), so neither side
+writes theirs in reaction to the other's. Reviews have a `hidden` flag for
+future admin moderation.
+
+Photos are cropped to a square and shrunk to 400 pixels in the browser,
+stored in Netlify Blobs under `avatars/`, and only served to signed in
+members.

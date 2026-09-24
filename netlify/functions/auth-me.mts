@@ -11,7 +11,7 @@ export default async (req: Request) => {
 
   const rows = await db.sql`
     SELECT id, email, role, full_name, school_or_org, subjects, background_check_status,
-           stripe_payouts_ready, profile_completed_at, created_at
+           stripe_payouts_ready, profile_completed_at, display_name, photo_updated_at, created_at
     FROM users WHERE id = ${session.id}
   `;
   const user = rows[0] || null;

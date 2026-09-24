@@ -48,6 +48,7 @@
   <footer><span class="brand-line">Grade Angels Network</span><br />Helping teachers get their evenings back.</footer>
 
   <script src="/js/api.js"></script>
+  <script src="/js/profile-ui.js"></script>
   <script src="/js/page-uploader.js"></script>
   <script src="/vendor/pdf-lib/pdf-lib.min.js"></script>
   <script>
@@ -63,6 +64,7 @@
       declined: "Declined",
       handed_back: "Handed back",
       cancelled: "Cancelled",
+      reviewed: "Left a review",
       completed: "Marked complete",
       payout_sent: "Grade Angel paid",
     };
@@ -141,6 +143,41 @@
       return out.join("");
     }
 
+    // Who you are working with, with a link to their profile, and the
+    // review prompt once the assignment is complete.
+    function peopleSection() {
+      const isAngel = user.role === "grade_angel";
+      const other = isAngel
+        ? { id: a.teacher_id, name: a.teacher_name, photo: a.teacher_photo_url, role: "teacher", label: "Teacher" }
+        : a.grade_angel_id
+          ? { id: a.grade_angel_id, name: a.grade_angel_name, photo: a.grade_angel_photo_url, role: "grade_angel", label: "Grade Angel" }
+          : null;
+      if (!other || !other.id) return "";
+
+      let review = "";
+      if (a.status === "completed") {
+        if (a.my_rating) {
+          review = `<p class="review-done">You rated ${escapeHtml(other.name)} ${starRowHtml(a.my_rating)}</p>`;
+        } else {
+          review = `
+            <div class="nudge inline">
+              <span class="nudge-star" aria-hidden="true">★</span>
+              <span><strong>How was working with ${escapeHtml(other.name)}?</strong>
+              ${a.their_review_submitted ? "They already reviewed you. Leave yours and both become visible." : "Your review stays private until they review you too, or 14 days pass."}</span>
+              <button class="btn small" data-act="review">Leave a review</button>
+            </div>`;
+        }
+      }
+      return `
+        <div class="card person-card">
+          <a class="person large" href="/profile.html?id=${other.id}">
+            ${avatarHtml(other.name, other.photo, 56)}
+            <span><span class="muted">${other.label}</span><strong>${escapeHtml(other.name)}</strong><span class="link-text">View profile and reviews</span></span>
+          </a>
+          ${review}
+        </div>`;
+    }
+
     function historySection(events) {
       if (!events.length) return "";
       return `
@@ -167,6 +204,7 @@
           ${a.instructions ? `<h3>Instructions</h3><p class="instructions">${escapeHtml(a.instructions)}</p>` : ""}
           <div class="actions">${actionsSection()}</div>
         </div>
+        ${peopleSection()}
         <div class="card">
           <h2>Pages</h2>
           ${pagesSection()}
@@ -225,6 +263,14 @@
         } else if (kind === "complete") {
           const { payout_note } = await apiPostJson("/api/assignments/complete", { assignment_id: id });
           showMessage(pageMsg, "Marked complete. " + (payout_note || ""), "success");
+        } else if (kind === "review") {
+          const isAngel = user.role === "grade_angel";
+          const ok = await openReviewDialog({
+            assignmentId: id,
+            subjectName: isAngel ? a.teacher_name : a.grade_angel_name,
+            subjectRole: isAngel ? "teacher" : "grade_angel",
+          });
+          if (ok) showMessage(pageMsg, "Thanks for your review.", "success");
         } else if (kind === "cancel") {
           if (!confirm("Cancel this assignment? Its pages will be deleted.")) return;
           await apiPostJson("/api/assignments/cancel", { assignment_id: id });
