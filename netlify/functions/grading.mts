@@ -73,6 +73,11 @@ export default async (req: Request) => {
     return json({ error: "Unknown action" }, 400);
   }
 
+  // The teacher has now looked over the graded work.
+  if (access.layer === "teacher" && access.sees.includes("grade_angel") && a.status === "submitted") {
+    await db.sql`UPDATE assignments SET graded_viewed_at = COALESCE(graded_viewed_at, NOW()) WHERE id = ${assignmentId}`;
+  }
+
   const marks = access.sees.length ? await db.sql`
     SELECT page_index, layer, data, updated_at FROM assignment_annotations
     WHERE assignment_id = ${assignmentId} AND layer = ANY(${access.sees})

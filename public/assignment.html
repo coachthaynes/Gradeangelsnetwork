@@ -47,15 +47,15 @@
 
   <dialog id="approve-dialog" class="reason-dialog">
     <form method="dialog" id="approve-form">
-      <h2>Approve the graded work</h2>
-      <p class="muted">Approving releases your Grade Angel's payout. You can still download the graded pages afterward.</p>
+      <h2>Approve and rate</h2>
+      <p class="muted">Rate your Grade Angel, then approve to release their payout. You can still download the graded pages afterward.</p>
       <label>How did <span id="approve-name">they</span> do?</label>
       <div class="star-pick" id="approve-stars">
         <button type="button" data-star="1" aria-label="1 star">★</button><button type="button" data-star="2" aria-label="2 stars">★</button><button type="button" data-star="3" aria-label="3 stars">★</button><button type="button" data-star="4" aria-label="4 stars">★</button><button type="button" data-star="5" aria-label="5 stars">★</button>
       </div>
       <label for="approve-comment">A few words for their profile (optional)</label>
       <textarea id="approve-comment" maxlength="1000" placeholder="Careful, fast, and the feedback sounded like me."></textarea>
-      <p class="muted small-print">Your review stays private until they review you too, or 14 days pass. You can skip the stars and review later.</p>
+      <p class="muted small-print">Stars are optional here; you can rate later instead. Your rating stays private until they rate you too, or 14 days pass.</p>
       <div class="row-actions">
         <button class="btn" type="submit" value="ok">Approve</button>
         <button class="btn ghost" type="button" id="approve-cancel">Not yet</button>
@@ -147,13 +147,17 @@
     // The steps every assignment goes through, and where this one is.
     function trackerSection() {
       if (a.status === "cancelled" || a.status === "draft") return "";
+      // Reviewed: the teacher looked over the graded pages (or approved them).
+      // Rated: stars given, usually in the Approve step. Paid: the Grade
+      // Angel has been paid.
       const steps = [
         ["Posted", true],
         ["Accepted", ["accepted", "submitted", "completed"].includes(a.status)],
-        ["Paid", a.payment_status === "paid"],
         ["Graded work sent", ["submitted", "completed"].includes(a.status)],
+        ["Reviewed", a.status === "completed" || Boolean(a.graded_viewed_at && a.status === "submitted")],
         ["Approved", a.status === "completed"],
-        ["Reviewed", Boolean(a.my_rating)],
+        ["Rated", Boolean(a.my_rating)],
+        [user.role === "grade_angel" ? "You are paid" : "Grade Angel paid", a.status === "completed" && a.payout_status === "transferred"],
       ];
       const now = steps.findIndex(([, done]) => !done);
       return `<ol class="tracker" aria-label="Progress">${steps.map(([label, done], i) =>

@@ -30,7 +30,7 @@ export default async (req: Request) => {
            a.status, a.turnaround_hours, a.due_at, a.created_at, a.published_at, a.accepted_at,
            a.submitted_at, a.completed_at, a.cancelled_at, a.grade_angel_note, a.graded_on_site,
            a.revision_count, a.revision_note, (a.disputed_at IS NOT NULL) AS disputed, a.auto_approved_at,
-           a.grading_groups, a.class_id,
+           a.grading_groups, a.class_id, a.graded_viewed_at,
            (a.source_blob_key IS NOT NULL) AS has_source_file,
            (a.graded_blob_key IS NOT NULL) AS has_graded_file,
            ga.full_name AS grade_angel_name,

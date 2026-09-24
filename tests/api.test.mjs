@@ -534,6 +534,7 @@ check('paid lock: graded file download refused before paying', r.status === 402)
 await q(`UPDATE assignments SET graded_blob_key = NULL WHERE id = $1`, [ga.id]);
 await q(`INSERT INTO payments (assignment_id, amount_cents, platform_fee_cents, status, paid_at, test_mode) VALUES ($1, 400, 80, 'paid', NOW(), true)`, [ga.id]);
 r = await teacher.call('grading', 'GET', `/api/grading?assignment_id=${ga.id}`);
+check('review: opening the graded pages marks the work reviewed', (await q(`SELECT graded_viewed_at FROM assignments WHERE id = $1`, [ga.id]))[0].graded_viewed_at !== null);
 check('review: after paying, teacher sees the marks, read only', !r.data.locked && r.data.marks.length === 2 && !r.data.can_edit && r.data.assignment.grade_angel_note.includes('Number 4'));
 r = await teacher.call('grading', 'POST', '/api/grading', { json: { action: 'save_page', assignment_id: ga.id, page_index: 0, data: { items: [], score: { e: 1, p: 10 } } } });
 check('review: teachers cannot mark the pages', r.status === 409);
