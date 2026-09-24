@@ -73,7 +73,7 @@ export default async (req: Request) => {
   // Scores from the grading screen, once the teacher can see them.
   const { grading_groups: groups } = a;
   delete assignment.grading_groups;
-  const showScores = access === "full" && (session.role !== "teacher" || ["submitted", "completed"].includes(a.status));
+  const showScores = access === "full" && (session.role !== "teacher" || (["submitted", "completed"].includes(a.status) && a.payment_status === "paid"));
   assignment.scores = showScores ? await scoreList(a.id, groups || [], a.stored_pages) : [];
 
   let events: unknown[] = [];

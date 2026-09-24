@@ -197,8 +197,11 @@
       if (!G.can_edit) {
         document.getElementById("toolbar").hidden = true;
         document.getElementById("score-e").disabled = document.getElementById("score-p").disabled = true;
-        flash(a.status === "completed" ? "This assignment is complete. The marks are shown for reference." : "You can look at these pages, but marking is closed.", "success");
+        document.body.classList.add("view-only");
+        if (G.locked) flash("Pay for this assignment to see the graded pages.", "error");
+        else if (G.layer !== "teacher") flash(a.status === "completed" ? "This assignment is complete. The marks are shown for reference." : "You can look at these pages, but marking is closed.", "success");
       }
+      document.getElementById("pdf-btn").hidden = Boolean(G.locked);
       renderInfo();
       renderSide();
       if (G.layer === "teacher") opts.pen.color = opts.text.color = INK[2];
@@ -212,7 +215,9 @@
       if (a.revision_note && G.layer === "grade_angel" && a.status === "accepted") bits.push(`<div class="msg error"><strong>The teacher asked for changes:</strong><br />${escapeHtml(a.revision_note)}</div>`);
       if (a.instructions) bits.push(`<p><strong>Teacher's instructions</strong><br />${escapeHtml(a.instructions)}</p>`);
       if (a.grade_angel_note && G.layer === "teacher") bits.push(`<p><strong>Note from ${escapeHtml(a.grade_angel_name || "your Grade Angel")}</strong><br />${escapeHtml(a.grade_angel_note)}</p>`);
-      if (G.layer === "teacher") bits.push(`<p class="muted small-print">Your marks are in blue by default and sit on top of your Grade Angel's. Pin a note anywhere you want something changed.</p>`);
+      if (G.layer === "teacher") bits.push(G.locked
+        ? `<p class="msg error">Your graded pages are ready. Pay for the assignment to see them.</p>`
+        : `<p class="muted small-print">This is your Grade Angel's grading. To change something, go back and choose Ask for changes.</p>`);
       if (a.due_at && a.status === "accepted") bits.push(`<p class="muted small-print">${escapeHtml(formatDue(a.due_at))} (${escapeHtml(formatDateTime(a.due_at))})</p>`);
       document.getElementById("g-info").innerHTML = bits.join("") || '<p class="muted">No instructions.</p>';
     }
@@ -504,9 +509,12 @@
       const keyP = g && g.kind === "worksheet" ? ((G.layer === "grade_angel" ? mine : theirs)[g.key_page] || {}).score?.p : null;
       document.getElementById("score-p").value = s.p ?? (s.e === null || s.e === undefined ? keyP ?? "" : "");
       const note = document.getElementById("score-note");
-      note.textContent = G.layer === "teacher" && other.e !== null && other.e !== undefined
-        ? `Grade Angel's score: ${other.e}${other.p !== null && other.p !== undefined ? "/" + other.p : ""}. Enter one here only to change it.`
-        : "";
+      if (G.layer === "teacher") {
+        // Teachers see the Grade Angel's score for the page.
+        document.getElementById("score-e").value = other.e ?? "";
+        document.getElementById("score-p").value = other.p ?? "";
+      }
+      note.textContent = "";
     }
 
     function commit(mutator) {

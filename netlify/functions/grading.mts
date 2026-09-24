@@ -73,10 +73,10 @@ export default async (req: Request) => {
     return json({ error: "Unknown action" }, 400);
   }
 
-  const marks = await db.sql`
+  const marks = access.sees.length ? await db.sql`
     SELECT page_index, layer, data, updated_at FROM assignment_annotations
     WHERE assignment_id = ${assignmentId} AND layer = ANY(${access.sees})
-  `;
+  ` : [];
   const [me] = await db.sql`SELECT comment_bank FROM users WHERE id = ${session.id}`;
   const groups = a.grading_groups || [];
 
@@ -100,9 +100,10 @@ export default async (req: Request) => {
     pages,
     layer: access.layer,
     can_edit: access.canEdit,
+    locked: Boolean((access as any).locked),
     groups,
     marks,
-    scores: await scoreList(assignmentId, groups, pages.length),
+    scores: (access as any).locked ? [] : await scoreList(assignmentId, groups, pages.length),
     comment_bank: me?.comment_bank || DEFAULT_COMMENT_BANK,
   }, 200);
 };

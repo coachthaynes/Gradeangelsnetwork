@@ -96,6 +96,13 @@ export function cleanGroups(raw: unknown, pageCount: number): { groups?: any[]; 
   return { groups };
 }
 
+// Whether the teacher has paid for an assignment. Graded work stays locked
+// until they have, so no one can take the grading without paying.
+export async function isPaid(assignmentId: number): Promise<boolean> {
+  const [p] = await db.sql`SELECT 1 FROM payments WHERE assignment_id = ${assignmentId} AND status = 'paid' LIMIT 1`;
+  return Boolean(p);
+}
+
 // What this person may do on the grading screen for this assignment.
 export async function gradingAccess(session: SessionPayload, a: any) {
   const open = a.status === "accepted" || a.status === "submitted";
@@ -103,12 +110,16 @@ export async function gradingAccess(session: SessionPayload, a: any) {
     return { layer: "grade_angel" as Layer, canEdit: open && !a.disputed_at, sees: ["grade_angel", "teacher"] as Layer[] };
   }
   if (session.role === "teacher" && a.teacher_id === session.id) {
-    // Teachers see the Grade Angel's marks once the work has been sent.
+    // Teachers look but do not mark: the grading is the Grade Angel's work,
+    // and changes go through Ask for changes. They see the marks once the
+    // work has been sent, and only after paying for it.
     const graded = a.status === "submitted" || a.status === "completed" || a.revision_count > 0;
+    const paid = await isPaid(a.id);
     return {
       layer: "teacher" as Layer,
-      canEdit: ["accepted", "submitted"].includes(a.status),
-      sees: (graded ? ["grade_angel", "teacher"] : ["teacher"]) as Layer[],
+      canEdit: false,
+      sees: (graded && paid ? ["grade_angel", "teacher"] : []) as Layer[],
+      locked: graded && !paid,
     };
   }
   if (session.role === "admin" && (await isActiveStaff(session.id))) {

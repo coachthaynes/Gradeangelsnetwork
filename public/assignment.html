@@ -47,8 +47,8 @@
 
   <dialog id="approve-dialog" class="reason-dialog">
     <form method="dialog" id="approve-form">
-      <h2>Approve and pay your Grade Angel</h2>
-      <p class="muted">Approving releases their payout. You can still download the graded pages afterward.</p>
+      <h2>Approve the graded work</h2>
+      <p class="muted">Approving releases your Grade Angel's payout. You can still download the graded pages afterward.</p>
       <label>How did <span id="approve-name">they</span> do?</label>
       <div class="star-pick" id="approve-stars">
         <button type="button" data-star="1" aria-label="1 star">★</button><button type="button" data-star="2" aria-label="2 stars">★</button><button type="button" data-star="3" aria-label="3 stars">★</button><button type="button" data-star="4" aria-label="4 stars">★</button><button type="button" data-star="5" aria-label="5 stars">★</button>
@@ -57,7 +57,7 @@
       <textarea id="approve-comment" maxlength="1000" placeholder="Careful, fast, and the feedback sounded like me."></textarea>
       <p class="muted small-print">Your review stays private until they review you too, or 14 days pass. You can skip the stars and review later.</p>
       <div class="row-actions">
-        <button class="btn" type="submit" value="ok">Approve and pay</button>
+        <button class="btn" type="submit" value="ok">Approve</button>
         <button class="btn ghost" type="button" id="approve-cancel">Not yet</button>
       </div>
     </form>
@@ -195,14 +195,17 @@
             `${escapeHtml(formatDue(a.due_at))} (${escapeHtml(formatDateTime(a.due_at))}). We will email you when the graded work comes back.`,
             `<a class="btn small secondary" href="/grade.html?id=${a.id}">Open the grading screen</a>`);
         }
+        if (a.status === "submitted" && !paid) {
+          return box("Your next step", "Graded work is ready. Pay to see it.",
+            "Your Grade Angel sent back the graded pages. Pay now and you can review them, download them, and approve.",
+            payButton());
+        }
         if (a.status === "submitted") {
           const note = a.grade_angel_note ? `<p><strong>Note from ${escapeHtml(a.grade_angel_name || "your Grade Angel")}:</strong> ${escapeHtml(a.grade_angel_note)}</p>` : "";
           const review = `<a class="btn" href="/grade.html?id=${a.id}">Review the graded pages</a> ${gradedDownloads()}`;
-          const decide = paid
-            ? `<button class="btn" data-act="approve">Approve and pay</button> <button class="btn ghost" data-act="revise">Ask for changes</button>`
-            : payButton();
+          const decide = `<button class="btn" data-act="approve">Approve</button> <button class="btn ghost" data-act="revise">Ask for changes</button>`;
           return box("Your next step", "Check the graded work, then approve it",
-            `${paid ? "" : "Pay first, then you can approve. "}If you do nothing, it is approved automatically 5 days after it was sent.`,
+            "Look over each marked page. If something needs fixing, ask for changes and say what. If you do nothing, it is approved automatically 5 days after it was sent.",
             review, `${note}<div class="row-actions">${decide}</div>`);
         }
         if (a.status === "completed") {
@@ -461,7 +464,7 @@
             last ? "Send this to our team" : "Ask for changes",
             last
               ? "You already asked for changes once. If it still is not right, our Dispute Resolution Team will review it and contact you both."
-              : "Your Grade Angel gets 48 hours to fix it. You can also pin notes right on the pages from the grading screen.",
+              : "Your Grade Angel gets 48 hours to fix it. Be specific: the page, the question, and what it should be.",
             { label: "What needs to change", button: last ? "Send to our team" : "Send back", placeholder: "Numbers 4 and 7 were marked wrong, but the answer key says C." }
           );
           if (!note) return;

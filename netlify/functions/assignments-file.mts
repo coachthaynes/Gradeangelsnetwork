@@ -1,5 +1,6 @@
 import type { Config, Context } from "@netlify/functions";
 import { db } from "../lib/db.mts";
+import { isPaid } from "../lib/grading.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 import { assignmentFilesStore } from "../lib/blobs.mts";
@@ -34,6 +35,11 @@ export default async (req: Request, _context: Context) => {
     assignment.teacher_id === session.id ||
     assignment.grade_angel_id === session.id;
   if (!isParty) return json({ error: "You do not have access to this file" }, 403);
+
+  // Graded work stays locked for the teacher until they have paid.
+  if (kind === "graded" && session.id === assignment.teacher_id && !(await isPaid(assignmentId))) {
+    return json({ error: "Pay for this assignment to download the graded work" }, 402);
+  }
 
   const key = kind === "graded" ? assignment.graded_blob_key : assignment.source_blob_key;
   const filename = kind === "graded" ? assignment.graded_filename : assignment.source_filename;
