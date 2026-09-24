@@ -60,6 +60,8 @@ await q(`UPDATE gift_fund SET balance_cents = 0`);
 import fs from 'fs';
 await q(`TRUNCATE email_templates, site_settings, marketing_posts RESTART IDENTITY CASCADE`);
 await db.query(fs.readFileSync(new URL('../netlify/database/migrations/20261001000000_marketing/migration.sql', import.meta.url), 'utf8'));
+// Older checks use small stacks; the minimum total is tested on its own below.
+await q(`INSERT INTO site_settings (key, value) VALUES ('min_total_cents', '0'), ('min_rate_per_page_cents', '10') ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`);
 
 // ---------- Accounts ----------
 const teacher = client('teacher');
@@ -615,6 +617,36 @@ r = await angel.call('payouts-mine', 'GET', '/api/payouts/mine');
 check('payouts: grade angel sees their payouts', r.status === 200 && r.data.payouts.length >= 1 && r.data.year > 2000, JSON.stringify(r.data).slice(0, 200));
 r = await angel.call('payments-connect-dashboard', 'POST', '/api/payments/connect/dashboard', { json: {} });
 check('payouts: Stripe page waits for Stripe', r.status === 501 || r.status === 409, JSON.stringify(r.data));
+
+// ---------- Flat price and minimum total ----------
+await q(`UPDATE site_settings SET value = '1000' WHERE key = 'min_total_cents'`);
+r = await teacher.call('pricing', 'GET', '/api/pricing?assignment_type=combo');
+check('pricing: minimum total offered to the form', r.data.min_total_cents === 1000);
+const postStack = async (json, pages) => {
+  const c = await teacher.call('assignments-create', 'POST', '/api/assignments/create', { json: { title: 'Priced', subject: 'Math', grade_level: '4th', assignment_type: 'combo', turnaround_hours: 48, ...json } });
+  if (c.status !== 201) return c;
+  for (let i = 0; i < pages; i++) await q(`INSERT INTO assignment_pages (assignment_id, page_index, blob_key, content_type, byte_size) VALUES ($1, $2, 'x', 'image/jpeg', 1)`, [c.data.assignment.id, i]);
+  return teacher.call('assignments-publish', 'POST', '/api/assignments/publish', { json: { assignment_id: c.data.assignment.id, expected_pages: pages } });
+};
+r = await postStack({ rate_per_page_cents: 50 }, 4);
+check('pricing: per page under the minimum is raised to $10', r.data.assignment.total_cents === 1000 && r.data.assignment.minimum_applied, JSON.stringify(r.data));
+r = await postStack({ rate_per_page_cents: 50 }, 30);
+check('pricing: per page above the minimum is kept', r.data.assignment.total_cents === 1500 && !r.data.assignment.minimum_applied, JSON.stringify(r.data));
+r = await postStack({ pricing_mode: 'flat', flat_price_cents: 2500 }, 12);
+const flatId = r.data.assignment.id;
+check('pricing: flat price for the whole stack', r.data.assignment.total_cents === 2500, JSON.stringify(r.data));
+r = await postStack({ pricing_mode: 'flat', flat_price_cents: 600 }, 3);
+check('pricing: flat price under the minimum is raised to $10', r.data.assignment.total_cents === 1000 && r.data.assignment.minimum_applied);
+r = await postStack({ pricing_mode: 'flat' }, 1);
+check('pricing: flat needs a price', r.status === 400);
+r = await teacher.call('assignments-get', 'GET', `/api/assignments/get?id=${flatId}`);
+check('pricing: teacher sees flat total and 3% fee', r.data.assignment.total_cents === 2500 && r.data.assignment.service_fee_cents === 75 && r.data.assignment.pricing_mode === 'flat');
+r = await angel.call('assignments-get', 'GET', `/api/assignments/get?id=${flatId}`);
+check('pricing: grade angel earns 80% of the flat price', r.data.assignment.earnings_cents === 2000, JSON.stringify(r.data.assignment.earnings_cents));
+r = await master.call('admin-pricing', 'POST', '/api/admin/pricing', { json: { min_total_cents: 1500, min_rate_cents: 10 } });
+check('pricing: staff change the minimum total', r.status === 200 && r.data.min_total_cents === 1500);
+await q(`UPDATE assignments SET status = 'cancelled' WHERE title = 'Priced'`);
+await q(`UPDATE site_settings SET value = '0' WHERE key = 'min_total_cents'`);
 
 // ---------- Grade Angel Pro ----------
 r = await angel.call('pro', 'GET', '/api/pro');

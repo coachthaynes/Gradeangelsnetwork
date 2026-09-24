@@ -1,5 +1,6 @@
 import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
+import { getMinTotalCents } from "../lib/pricing.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 import { isSuspended } from "../lib/staff.mts";
@@ -46,9 +47,14 @@ export default async (req: Request) => {
   // and retried; they are not part of this assignment.
   await db.sql`DELETE FROM assignment_pages WHERE assignment_id = ${assignmentId} AND page_index >= ${expectedPages}`;
 
+  const minTotal = await getMinTotalCents();
   const [updated] = await db.sql`
     UPDATE assignments
     SET status = 'open', page_count = ${expectedPages}, published_at = NOW(),
+        -- The price for the stack, raised to the minimum when lower.
+        total_cents = GREATEST(${minTotal}::int,
+          CASE WHEN pricing_mode = 'flat' THEN flat_price_cents ELSE ${expectedPages}::int * rate_per_page_cents END),
+        minimum_applied = (CASE WHEN pricing_mode = 'flat' THEN flat_price_cents ELSE ${expectedPages}::int * rate_per_page_cents END) < ${minTotal}::int,
         -- Each student's pages grouped for grading, when the teacher said
         -- how many pages each student turned in.
         grading_groups = CASE WHEN pages_per_student IS NULL THEN grading_groups ELSE (
@@ -60,7 +66,7 @@ export default async (req: Request) => {
           FROM generate_series(0, CEIL(${expectedPages}::numeric / pages_per_student)::int - 1) AS n
         ) END
     WHERE id = ${assignmentId} AND status = 'draft'
-    RETURNING id, status, page_count
+    RETURNING id, status, page_count, total_cents, minimum_applied
   `;
   if (!updated) return json({ error: "This assignment is already posted" }, 409);
 

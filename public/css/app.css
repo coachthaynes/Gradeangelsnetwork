@@ -1353,3 +1353,6 @@ details.card > summary { cursor: pointer; font-family: "Fraunces", Georgia, seri
 .pro-card { border-top: 4px solid var(--black); }
 .pro-perks { padding-left: 1.2rem; margin: 0.5rem 0 0.75rem; }
 .pro-perks li { margin-bottom: 0.3rem; }
+
+.label-like { display: block; font-weight: 600; font-size: 0.92rem; margin: 1rem 0 0.35rem; }
+.price-mode { margin-top: 0; }

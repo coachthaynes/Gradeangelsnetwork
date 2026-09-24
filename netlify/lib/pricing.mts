@@ -6,6 +6,21 @@ import { db } from "./db.mts";
 
 export const DEFAULT_MIN_RATE_CENTS = 10;
 
+export const DEFAULT_MIN_TOTAL_CENTS = 1000;
+
+// The lowest total for any assignment. A stack priced below it is raised
+// to it automatically, so small jobs are still worth a Grade Angel's time.
+export async function getMinTotalCents(): Promise<number> {
+  const [row] = await db.sql`SELECT value FROM site_settings WHERE key = 'min_total_cents'`;
+  const n = Number(row?.value);
+  return Number.isInteger(n) && n >= 0 ? n : DEFAULT_MIN_TOTAL_CENTS;
+}
+
+// What the teacher pays for grading, before the service fee.
+export function assignmentTotal(a: { total_cents?: number | null; page_count: number; rate_per_page_cents: number }): number {
+  return a.total_cents ?? a.page_count * a.rate_per_page_cents;
+}
+
 export async function getMinRateCents(): Promise<number> {
   const [row] = await db.sql`SELECT value FROM site_settings WHERE key = 'min_rate_per_page_cents'`;
   const n = Number(row?.value);
@@ -34,7 +49,7 @@ export async function priceHint(assignmentType: string, gradeLevel: string, subj
              ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY rate_per_page_cents))::int AS rate_cents
       FROM assignments
       WHERE accepted_at IS NOT NULL AND status IN ('accepted', 'submitted', 'completed')
-        AND assignment_type = ${assignmentType}
+        AND assignment_type = ${assignmentType} AND pricing_mode = 'per_page'
         AND (${t.grade}::text IS NULL OR LOWER(TRIM(grade_level)) = ${t.grade})
         AND (${t.subject}::text IS NULL OR LOWER(TRIM(subject)) = ${t.subject})
     `;

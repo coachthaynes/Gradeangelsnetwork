@@ -104,7 +104,8 @@
         ["Grade level", escapeHtml(a.grade_level)],
         ["Type", assignmentTypeLabel(a.assignment_type)],
         ["Pages", a.page_count],
-        ["Rate", formatCents(a.rate_per_page_cents) + " per page"],
+        ["Price", (a.pricing_mode === "flat" ? `${formatCents(a.total_cents)} flat for the stack` : formatCents(a.rate_per_page_cents) + " per page") +
+          (a.minimum_applied ? ` <span class="muted">(raised to the ${formatCents(a.total_cents)} minimum)</span>` : "")],
       ];
       if (user.role === "grade_angel") {
         rows.push(["You earn", `<strong>${formatCents(a.earnings_cents)}</strong>`]);

@@ -1,7 +1,7 @@
 import type { Config } from "@netlify/functions";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
-import { getMinRateCents, priceHint } from "../lib/pricing.mts";
+import { getMinRateCents, getMinTotalCents, priceHint } from "../lib/pricing.mts";
 import { PLATFORM_FEE_RATE } from "../lib/grade-angel.mts";
 
 // What the Post an assignment form shows next to the price box: the lowest
@@ -17,7 +17,7 @@ export default async (req: Request) => {
     ? await priceHint(type, url.searchParams.get("grade_level") || "", url.searchParams.get("subject") || "")
     : null;
 
-  return json({ min_rate_cents: await getMinRateCents(), grade_angel_share: 1 - PLATFORM_FEE_RATE, hint }, 200);
+  return json({ min_rate_cents: await getMinRateCents(), min_total_cents: await getMinTotalCents(), grade_angel_share: 1 - PLATFORM_FEE_RATE, hint }, 200);
 };
 
 export const config: Config = {

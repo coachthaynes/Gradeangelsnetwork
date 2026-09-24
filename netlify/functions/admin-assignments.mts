@@ -54,6 +54,7 @@ export default async (req: Request) => {
 
   const assignments = await db.sql`
     SELECT a.id, a.title, a.subject, a.grade_level, a.status, a.page_count, a.rate_per_page_cents,
+           COALESCE(a.total_cents, a.page_count * a.rate_per_page_cents) AS total_cents,
            a.created_at, a.accepted_at, a.due_at, a.completed_at,
            t.id AS teacher_id, t.full_name AS teacher_name, g.id AS grade_angel_id, g.full_name AS grade_angel_name,
            p.status AS payment_status, p.payout_status,

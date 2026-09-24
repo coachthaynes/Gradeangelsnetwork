@@ -1,5 +1,6 @@
 import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
+import { assignmentTotal } from "../lib/pricing.mts";
 import { isProActive } from "../lib/pro.mts";
 import { classStudents, matchedScores } from "../lib/gradebook.mts";
 import { getSession } from "../lib/auth.mts";
@@ -25,6 +26,7 @@ export default async (req: Request) => {
   const [a] = await db.sql`
     SELECT a.id, a.teacher_id, a.grade_angel_id, a.invited_grade_angel_id, a.title, a.subject,
            a.grade_level, a.assignment_type, a.page_count, a.rate_per_page_cents, a.instructions,
+           a.pricing_mode, a.flat_price_cents, a.total_cents AS stored_total_cents, a.minimum_applied,
            a.status, a.turnaround_hours, a.due_at, a.created_at, a.published_at, a.accepted_at,
            a.submitted_at, a.completed_at, a.cancelled_at, a.grade_angel_note, a.graded_on_site,
            a.revision_count, a.revision_note, (a.disputed_at IS NOT NULL) AS disputed, a.auto_approved_at,
@@ -59,7 +61,7 @@ export default async (req: Request) => {
   const viewablePages =
     access === "full" ? a.stored_pages : access === "preview" ? Math.min(a.stored_pages, PREVIEW_PAGE_LIMIT) : 0;
 
-  const { teacher_full_name, teacher_display_name, teacher_photo_updated_at, grade_angel_photo_updated_at, their_reviews, ...rest } = a;
+  const { stored_total_cents, teacher_full_name, teacher_display_name, teacher_photo_updated_at, grade_angel_photo_updated_at, their_reviews, ...rest } = a;
   const assignment: Record<string, unknown> = {
     ...rest,
     teacher_name: publicName({ role: "teacher", full_name: teacher_full_name, display_name: teacher_display_name }),
@@ -67,8 +69,8 @@ export default async (req: Request) => {
     grade_angel_photo_url: a.grade_angel_id ? photoUrl(a.grade_angel_id, grade_angel_photo_updated_at) : null,
     // Whether the other person already reviewed; never what they wrote.
     their_review_submitted: their_reviews > 0,
-    total_cents: a.page_count * a.rate_per_page_cents,
-    service_fee_cents: serviceFeeCents(a.page_count * a.rate_per_page_cents),
+    total_cents: assignmentTotal({ ...a, total_cents: a.stored_total_cents }),
+    service_fee_cents: serviceFeeCents(assignmentTotal({ ...a, total_cents: a.stored_total_cents })),
     viewable_pages: viewablePages,
     access,
   };
@@ -98,7 +100,7 @@ export default async (req: Request) => {
     }
     assignment.invited_you = a.invited_grade_angel_id === session.id;
     delete assignment.invited_grade_angel_id;
-    assignment.earnings_cents = gradeAngelEarningsCents(a.page_count * a.rate_per_page_cents, await isProActive(session.id));
+    assignment.earnings_cents = gradeAngelEarningsCents(assignment.total_cents as number, await isProActive(session.id));
     delete assignment.service_fee_cents;
     delete assignment.payment_gift_cents;
   } else {

@@ -1,5 +1,6 @@
 import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
+import { assignmentTotal } from "../lib/pricing.mts";
 import { PRO_FIRST_LOOK_MINUTES, isProActive, waitsForFirstLook } from "../lib/pro.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
@@ -28,7 +29,7 @@ export default async (req: Request) => {
   if (session.role === "teacher") {
     rows = await db.sql`
       SELECT a.id, a.grade_angel_id, a.title, a.subject, a.grade_level, a.assignment_type,
-             a.page_count, a.rate_per_page_cents, a.instructions, a.status, a.created_at,
+             a.page_count, a.rate_per_page_cents, a.pricing_mode, a.total_cents, a.instructions, a.status, a.created_at,
              a.accepted_at, a.submitted_at, a.completed_at, a.turnaround_hours, a.due_at,
              (a.source_blob_key IS NOT NULL) AS has_source_file,
              (a.graded_blob_key IS NOT NULL) AS has_graded_file,
@@ -60,7 +61,7 @@ export default async (req: Request) => {
     if (scope === "mine") {
       rows = await db.sql`
         SELECT a.id, a.grade_angel_id, a.title, a.subject, a.grade_level, a.assignment_type,
-               a.page_count, a.rate_per_page_cents, a.instructions, a.status, a.created_at,
+               a.page_count, a.rate_per_page_cents, a.pricing_mode, a.total_cents, a.instructions, a.status, a.created_at,
                a.accepted_at, a.submitted_at, a.completed_at, a.turnaround_hours, a.due_at,
                (a.source_blob_key IS NOT NULL) AS has_source_file,
                (a.graded_blob_key IS NOT NULL) AS has_graded_file,
@@ -83,7 +84,7 @@ export default async (req: Request) => {
       `;
     } else if (scope === "invited") {
       rows = await db.sql`
-        SELECT a.id, a.title, a.subject, a.grade_level, a.assignment_type, a.page_count, a.rate_per_page_cents,
+        SELECT a.id, a.title, a.subject, a.grade_level, a.assignment_type, a.page_count, a.rate_per_page_cents, a.pricing_mode, a.total_cents,
                a.instructions, a.status, a.created_at, a.published_at, a.turnaround_hours,
                a.teacher_id, t.full_name AS teacher_full_name, t.display_name AS teacher_display_name,
                t.photo_updated_at AS teacher_photo_updated_at
@@ -95,7 +96,7 @@ export default async (req: Request) => {
       // Grade Angel Pro members see new open work first.
       const waits = await waitsForFirstLook(session.id);
       rows = await db.sql`
-        SELECT a.id, a.title, a.subject, a.grade_level, a.assignment_type, a.page_count, a.rate_per_page_cents,
+        SELECT a.id, a.title, a.subject, a.grade_level, a.assignment_type, a.page_count, a.rate_per_page_cents, a.pricing_mode, a.total_cents,
                a.instructions, a.status, a.created_at, a.published_at, a.turnaround_hours,
                a.teacher_id, t.full_name AS teacher_full_name, t.display_name AS teacher_display_name,
                t.photo_updated_at AS teacher_photo_updated_at,
@@ -125,13 +126,15 @@ export default async (req: Request) => {
       ...a,
       teacher_name: publicName({ role: "teacher", full_name: teacher_full_name, display_name: teacher_display_name }),
       teacher_photo_url: photoUrl(a.teacher_id, teacher_photo_updated_at),
-      earnings_cents: gradeAngelEarningsCents(a.page_count * a.rate_per_page_cents, pro),
+      earnings_cents: gradeAngelEarningsCents(assignmentTotal(a), pro),
+      total_cents: assignmentTotal(a),
     }));
   } else if (session.role === "teacher") {
     rows = rows.map(({ grade_angel_photo_updated_at, ...a }: any) => ({
       ...a,
       grade_angel_photo_url: a.grade_angel_id ? photoUrl(a.grade_angel_id, grade_angel_photo_updated_at) : null,
-      service_fee_cents: serviceFeeCents(a.page_count * a.rate_per_page_cents),
+      service_fee_cents: serviceFeeCents(assignmentTotal(a)),
+      total_cents: assignmentTotal(a),
     }));
   }
 

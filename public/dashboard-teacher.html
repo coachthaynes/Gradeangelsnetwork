@@ -69,8 +69,19 @@
 
             <div class="grid cols-2">
               <div>
-                <label for="rate_per_page">Rate per page, in dollars</label>
-                <input id="rate_per_page" type="number" min="0.10" step="0.01" required placeholder="1.00" />
+                <span class="label-like" id="price-mode-label">How do you want to price it?</span>
+                <div class="recipient-choice price-mode" role="radiogroup" aria-labelledby="price-mode-label">
+                  <button type="button" role="radio" aria-checked="true" class="active" data-price-mode="per_page">Per page</button>
+                  <button type="button" role="radio" aria-checked="false" data-price-mode="flat">Flat price</button>
+                </div>
+                <div id="per-page-box">
+                  <label for="rate_per_page">Rate per page, in dollars</label>
+                  <input id="rate_per_page" type="number" min="0.10" step="0.01" required placeholder="1.00" />
+                </div>
+                <div id="flat-box" hidden>
+                  <label for="flat_price">Price for the whole stack, in dollars</label>
+                  <input id="flat_price" type="number" min="1" step="0.01" placeholder="25.00" />
+                </div>
                 <p class="price-help muted" id="price-help">You set the price. Your Grade Angel earns 80% of it.</p>
               </div>
               <div>
@@ -205,19 +216,48 @@
       setPostOpen(document.getElementById("post-body").hidden)
     );
 
+    // Per page or one flat price; either way the stack is raised to the
+    // minimum total when it comes in lower.
+    let priceMode = "per_page";
+    let minTotalCents = 1000;
+    function setPriceMode(mode) {
+      priceMode = mode;
+      document.querySelectorAll("[data-price-mode]").forEach((b) => {
+        b.classList.toggle("active", b.dataset.priceMode === mode);
+        b.setAttribute("aria-checked", String(b.dataset.priceMode === mode));
+      });
+      document.getElementById("per-page-box").hidden = mode !== "per_page";
+      document.getElementById("flat-box").hidden = mode !== "flat";
+      document.getElementById("rate_per_page").required = mode === "per_page";
+      document.getElementById("flat_price").required = mode === "flat";
+      updateTotal();
+      loadPriceHelp();
+    }
+    document.querySelectorAll("[data-price-mode]").forEach((b) => b.addEventListener("click", () => setPriceMode(b.dataset.priceMode)));
+
+    function priceFor(pages) {
+      const raw = priceMode === "flat"
+        ? Math.round(parseFloat(document.getElementById("flat_price").value || "0") * 100)
+        : Math.round(parseFloat(document.getElementById("rate_per_page").value || "0") * 100) * pages;
+      return { raw, total: raw ? Math.max(raw, minTotalCents) : 0 };
+    }
+
     function updateTotal() {
-      const dollars = parseFloat(document.getElementById("rate_per_page").value || "0");
       const el = document.getElementById("total-line");
       if (!uploader.count) {
         el.textContent = "Add pages to see the total.";
         return;
       }
-      const cents = Math.round(dollars * 100) * uploader.count;
-      const earns = cents - Math.round(cents * 0.2);
+      const { raw, total } = priceFor(uploader.count);
+      const earns = total - Math.round(total * 0.2);
+      const how = priceMode === "flat" ? "flat price" : `at ${formatCents(Math.round(raw / uploader.count))}/page`;
+      const raised = raw && raw < minTotalCents
+        ? ` That is under the ${formatCents(minTotalCents)} minimum, so the price is raised to ${formatCents(minTotalCents)}.` : "";
       el.innerHTML = `<strong>${uploader.count} page${uploader.count === 1 ? "" : "s"}</strong>` +
-        (cents ? ` at ${formatCents(Math.round(dollars * 100))}/page = <strong>${formatCents(cents)}</strong>, plus a ${formatCents(Math.round(cents * 0.03))} service fee, paid once a Grade Angel accepts. Your Grade Angel earns ${formatCents(earns)} for this stack.` : "");
+        (total ? ` ${how}: <strong>${formatCents(total)}</strong>, plus a ${formatCents(Math.round(total * 0.03))} service fee, paid once a Grade Angel accepts. Your Grade Angel earns ${formatCents(earns)} for this stack.${raised}` : "");
     }
     document.getElementById("rate_per_page").addEventListener("input", updateTotal);
+    document.getElementById("flat_price").addEventListener("input", updateTotal);
 
     // Price guidance: the lowest price allowed and, once there is enough
     // history, what similar work was accepted at. Teachers still decide.
@@ -231,7 +271,9 @@
         const d = await apiGet(`/api/pricing?assignment_type=${type}&grade_level=${encodeURIComponent(grade)}&subject=${encodeURIComponent(subject)}`);
         const rate = document.getElementById("rate_per_page");
         rate.min = (d.min_rate_cents / 100).toFixed(2);
-        let text = `You set the price. Your Grade Angel earns 80% of it. The lowest price is ${formatCents(d.min_rate_cents)} a page.`;
+        minTotalCents = d.min_total_cents;
+        updateTotal();
+        let text = `You set the price, per page or flat. Your Grade Angel earns 80% of it. Every stack is at least ${formatCents(d.min_total_cents)}${priceMode === "per_page" ? `, and per page it is at least ${formatCents(d.min_rate_cents)}` : ""}.`;
         if (d.hint) {
           const what = d.hint.basis === "type_grade_subject" ? `${TYPE_WORDS[type]} ${escapeHtml(subject)} work for ${escapeHtml(grade)}`
             : d.hint.basis === "type_grade" ? `${TYPE_WORDS[type]} work for ${escapeHtml(grade)}`
@@ -340,13 +382,13 @@
     }
 
     function renderAssignmentCard(a) {
-      const total = formatCents(a.rate_per_page_cents * a.page_count);
+      const total = formatCents(a.total_cents);
       const needsPayment = (a.status === "accepted" || a.status === "submitted") && a.payment_status !== "paid";
       const actions = [`<a class="btn small secondary" href="/assignment.html?id=${a.id}">Open</a>`];
       if (a.grade_angel_id && ["accepted", "submitted", "completed"].includes(a.status)) {
         actions.push(`<a class="btn small ghost chat-link" href="/assignment.html?id=${a.id}#chat">Message${a.unread_messages ? ` <span class="badge">${a.unread_messages}</span>` : ""}</a>`);
       }
-      if (needsPayment) actions.push(`<button class="btn small" data-pay-id="${a.id}" title="Includes a ${formatCents(a.service_fee_cents || 0)} service fee">Pay ${formatCents(a.rate_per_page_cents * a.page_count + (a.service_fee_cents || 0))}</button>`);
+      if (needsPayment) actions.push(`<button class="btn small" data-pay-id="${a.id}" title="Includes a ${formatCents(a.service_fee_cents || 0)} service fee">Pay ${formatCents(a.total_cents + (a.service_fee_cents || 0))}</button>`);
       if (a.status === "submitted") actions.push(`<a class="btn small" href="/assignment.html?id=${a.id}">Review and approve</a>`);
       if (a.status === "completed" && !a.my_rating && a.grade_angel_id) actions.push(`<button class="btn small" data-review-id="${a.id}">★ Review</button>`);
       if (a.status === "draft" || a.status === "open") actions.push(`<button class="btn small ghost" data-cancel-id="${a.id}">Cancel</button>`);
@@ -499,7 +541,9 @@
             subject: document.getElementById("subject").value,
             grade_level: document.getElementById("grade_level").value,
             assignment_type: document.getElementById("assignment_type").value,
-            rate_per_page_cents: Math.round(dollars * 100),
+            pricing_mode: priceMode,
+            rate_per_page_cents: priceMode === "per_page" ? Math.round(dollars * 100) : undefined,
+            flat_price_cents: priceMode === "flat" ? Math.round(parseFloat(document.getElementById("flat_price").value || "0") * 100) : undefined,
             turnaround_hours: Number(document.getElementById("turnaround_hours").value),
             pages_per_student: document.getElementById("pages_per_student").value || null,
             class_id: document.getElementById("class_id").value || null,
@@ -521,6 +565,7 @@
         pendingDraftId = null;
         showMessage(createMsg, "Posted. Grade Angels can see it now.", "success");
         createForm.reset();
+        setPriceMode("per_page");
         uploader.clear();
         document.getElementById("invite-note").style.display = "none";
       } catch (err) {

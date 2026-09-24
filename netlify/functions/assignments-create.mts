@@ -31,7 +31,10 @@ export default async (req: Request) => {
   const subject = String(body.subject || "").trim();
   const gradeLevel = String(body.grade_level || "").trim();
   const assignmentType = String(body.assignment_type || "");
-  const ratePerPageCents = Number(body.rate_per_page_cents);
+  // Per page, or one flat price for the whole stack.
+  const pricingMode = body.pricing_mode === "flat" ? "flat" : "per_page";
+  const flatPriceCents = pricingMode === "flat" ? Number(body.flat_price_cents) : null;
+  const ratePerPageCents = pricingMode === "flat" ? 0 : Number(body.rate_per_page_cents);
   const instructions = body.instructions ? String(body.instructions).trim() : null;
   const turnaroundHours = body.turnaround_hours === undefined ? DEFAULT_TURNAROUND_HOURS : Number(body.turnaround_hours);
   const invitedId = body.invited_grade_angel_id ? Number(body.invited_grade_angel_id) : null;
@@ -42,12 +45,18 @@ export default async (req: Request) => {
   if (!ASSIGNMENT_TYPES.has(assignmentType)) {
     return json({ error: "Assignment type must be multiple_choice, combo, or essay" }, 400);
   }
-  if (!Number.isInteger(ratePerPageCents) || ratePerPageCents <= 0) {
-    return json({ error: "Rate per page (in cents) must be a positive whole number" }, 400);
-  }
-  const minRateCents = await getMinRateCents();
-  if (ratePerPageCents < minRateCents) {
-    return json({ error: `The lowest price is $${(minRateCents / 100).toFixed(2)} a page, so Grade Angels are paid fairly` }, 400);
+  if (pricingMode === "flat") {
+    if (!Number.isInteger(flatPriceCents) || (flatPriceCents as number) <= 0 || (flatPriceCents as number) > 1000000) {
+      return json({ error: "Enter a flat price for the whole stack" }, 400);
+    }
+  } else {
+    if (!Number.isInteger(ratePerPageCents) || ratePerPageCents <= 0) {
+      return json({ error: "Rate per page (in cents) must be a positive whole number" }, 400);
+    }
+    const minRateCents = await getMinRateCents();
+    if (ratePerPageCents < minRateCents) {
+      return json({ error: `The lowest price is $${(minRateCents / 100).toFixed(2)} a page, so Grade Angels are paid fairly` }, 400);
+    }
   }
   const pagesPerStudent = body.pages_per_student ? Number(body.pages_per_student) : null;
   if (pagesPerStudent !== null && (!Number.isInteger(pagesPerStudent) || pagesPerStudent < 1 || pagesPerStudent > 50)) {
@@ -73,10 +82,12 @@ export default async (req: Request) => {
   const [assignment] = await db.sql`
     INSERT INTO assignments
       (teacher_id, title, subject, grade_level, assignment_type, page_count, rate_per_page_cents,
-       instructions, status, turnaround_hours, invited_grade_angel_id, pages_per_student, class_id)
+       instructions, status, turnaround_hours, invited_grade_angel_id, pages_per_student, class_id,
+       pricing_mode, flat_price_cents)
     VALUES
       (${session.id}, ${title}, ${subject}, ${gradeLevel}, ${assignmentType}, 1, ${ratePerPageCents},
-       ${instructions}, 'draft', ${turnaroundHours}, ${invitedId}, ${pagesPerStudent}, ${classId})
+       ${instructions}, 'draft', ${turnaroundHours}, ${invitedId}, ${pagesPerStudent}, ${classId},
+       ${pricingMode}, ${flatPriceCents})
     RETURNING id, status
   `;
 

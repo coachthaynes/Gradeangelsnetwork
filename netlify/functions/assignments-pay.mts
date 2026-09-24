@@ -1,5 +1,6 @@
 import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
+import { assignmentTotal } from "../lib/pricing.mts";
 import { isTestUser } from "../lib/test-accounts.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
@@ -39,7 +40,7 @@ export default async (req: Request) => {
   if (!successUrl) return json({ error: "success_url is required" }, 400);
 
   const [assignment] = await db.sql`
-    SELECT id, teacher_id, title, page_count, rate_per_page_cents, status
+    SELECT id, teacher_id, title, page_count, rate_per_page_cents, total_cents, status
     FROM assignments WHERE id = ${assignmentId}
   `;
   if (!assignment) return json({ error: "Assignment not found" }, 404);
@@ -58,7 +59,7 @@ export default async (req: Request) => {
     return json({ error: "This assignment has already been paid for" }, 409);
   }
 
-  const amountCents = assignment.page_count * assignment.rate_per_page_cents;
+  const amountCents = assignmentTotal(assignment);
   const platformFeeCents = Math.round(amountCents * PLATFORM_FEE_RATE);
   // The teacher pays the assignment price plus a small service fee.
   const serviceCents = serviceFeeCents(amountCents);

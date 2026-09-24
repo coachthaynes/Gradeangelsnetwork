@@ -84,8 +84,8 @@
     let mine = [];
 
     function metaLine(a) {
-      const rate = formatCents(a.rate_per_page_cents);
-      return `${escapeHtml(a.subject)} · ${escapeHtml(a.grade_level)} · ${assignmentTypeLabel(a.assignment_type)} · ${a.page_count} pages at ${rate}/page · ${a.turnaround_hours} hour turnaround`;
+      const price = a.pricing_mode === "flat" ? `flat ${formatCents(a.total_cents)}` : `at ${formatCents(a.rate_per_page_cents)}/page`;
+      return `${escapeHtml(a.subject)} · ${escapeHtml(a.grade_level)} · ${assignmentTypeLabel(a.assignment_type)} · ${a.page_count} pages ${price} · ${a.turnaround_hours} hour turnaround`;
     }
 
     function teacherLink(a) {
