@@ -36,11 +36,29 @@
     <form method="dialog" id="reason-form">
       <h2 id="reason-title"></h2>
       <p class="muted" id="reason-help"></p>
-      <label for="reason-text">Reason</label>
-      <textarea id="reason-text" required minlength="3" maxlength="500"></textarea>
+      <label for="reason-text" id="reason-label">Reason</label>
+      <textarea id="reason-text" required minlength="3" maxlength="2000"></textarea>
       <div class="row-actions">
         <button class="btn small" type="submit" value="ok">Send</button>
         <button class="btn small ghost" type="button" id="reason-cancel">Never mind</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="approve-dialog" class="reason-dialog">
+    <form method="dialog" id="approve-form">
+      <h2>Approve and pay your Grade Angel</h2>
+      <p class="muted">Approving releases their payout. You can still download the graded pages afterward.</p>
+      <label>How did <span id="approve-name">they</span> do?</label>
+      <div class="star-pick" id="approve-stars">
+        <button type="button" data-star="1" aria-label="1 star">★</button><button type="button" data-star="2" aria-label="2 stars">★</button><button type="button" data-star="3" aria-label="3 stars">★</button><button type="button" data-star="4" aria-label="4 stars">★</button><button type="button" data-star="5" aria-label="5 stars">★</button>
+      </div>
+      <label for="approve-comment">A few words for their profile (optional)</label>
+      <textarea id="approve-comment" maxlength="1000" placeholder="Careful, fast, and the feedback sounded like me."></textarea>
+      <p class="muted small-print">Your review stays private until they review you too, or 14 days pass. You can skip the stars and review later.</p>
+      <div class="row-actions">
+        <button class="btn" type="submit" value="ok">Approve and pay</button>
+        <button class="btn ghost" type="button" id="approve-cancel">Not yet</button>
       </div>
     </form>
   </dialog>
@@ -55,6 +73,7 @@
   <script src="/js/chat.js"></script>
   <script src="/js/page-uploader.js"></script>
   <script src="/vendor/pdf-lib/pdf-lib.min.js"></script>
+  <script src="/js/annotate.js"></script>
   <script>
     const assignmentId = Number(new URLSearchParams(location.search).get("id"));
     const pageMsg = document.getElementById("page-msg");
@@ -72,6 +91,10 @@
       completed: "Marked complete",
       payout_sent: "Grade Angel paid",
       paid_with_gift: "Paid with Gift Angels money",
+      submitted: "Graded work sent",
+      changes_requested: "Teacher asked for changes",
+      disputed: "Sent to our team to review",
+      auto_approved: "Approved automatically after 5 days",
       paid_test_mode: "Marked paid (test account)",
     };
 
@@ -118,6 +141,122 @@
       return `<div class="page-grid">${thumbs}</div>${more}`;
     }
 
+    // The steps every assignment goes through, and where this one is.
+    function trackerSection() {
+      if (a.status === "cancelled" || a.status === "draft") return "";
+      const steps = [
+        ["Posted", true],
+        ["Accepted", ["accepted", "submitted", "completed"].includes(a.status)],
+        ["Paid", a.payment_status === "paid"],
+        ["Graded work sent", ["submitted", "completed"].includes(a.status)],
+        ["Approved", a.status === "completed"],
+        ["Reviewed", Boolean(a.my_rating)],
+      ];
+      const now = steps.findIndex(([, done]) => !done);
+      return `<ol class="tracker" aria-label="Progress">${steps.map(([label, done], i) =>
+        `<li class="${done ? "done" : i === now ? "now" : ""}">${label}</li>`).join("")}</ol>`;
+    }
+
+    function payButton() {
+      const setAside = a.payment_gift_cents || 0;
+      const gift = Math.min(a.total_cents, setAside + (a.gift_balance_cents || 0));
+      const rest = a.total_cents - gift;
+      if (gift > 0 && rest === 0) return `<button class="btn" data-act="pay">Pay with gift money (${formatCents(gift)})</button>`;
+      if (gift > 0) return `<button class="btn" data-act="pay">Pay ${formatCents(rest)}</button><p class="muted">Gift Angels cover ${formatCents(gift)} of the ${formatCents(a.total_cents)} total.</p>`;
+      return `<button class="btn" data-act="pay">Pay ${formatCents(a.total_cents)}</button>`;
+    }
+
+    function gradedDownloads() {
+      const out = [];
+      if (a.graded_on_site) out.push(`<button class="btn small secondary" data-act="marked-pdf">Download marked PDF</button>`);
+      if (a.has_graded_file && !a.graded_on_site) out.push(`<a class="btn small secondary" href="/api/assignments/file?assignment_id=${a.id}&kind=graded">Download graded work</a>`);
+      return out.join(" ");
+    }
+
+    // One clear box telling this person what to do now.
+    function nextStepSection() {
+      const paid = a.payment_status === "paid";
+      const box = (eyebrow, title, body, buttons = "", extra = "") => `
+        <section class="next-step">
+          <span class="eyebrow">${eyebrow}</span>
+          <h2>${title}</h2>
+          ${body ? `<p>${body}</p>` : ""}
+          ${buttons ? `<div class="row-actions">${buttons}</div>` : ""}
+          ${extra}
+        </section>`;
+      if (a.disputed && a.status === "submitted") {
+        return box("Being reviewed", "Our team is looking at this assignment", "The teacher still had concerns after one round of changes. Our Dispute Resolution Team will contact you both. Nothing else is needed from you right now.");
+      }
+      if (user.role === "teacher") {
+        if (a.status === "open") return box("Your next step", "Waiting for a Grade Angel", "Nothing to do yet. We will email you when a Grade Angel accepts it.");
+        if (a.status === "accepted" && !paid) return box("Your next step", "Pay so your Grade Angel can start", "A Grade Angel accepted this. Pay now and they will get to work.", payButton());
+        if (a.status === "accepted") {
+          return box("In progress", a.revision_count ? "Your Grade Angel is making your changes" : "Your Grade Angel is grading",
+            `${escapeHtml(formatDue(a.due_at))} (${escapeHtml(formatDateTime(a.due_at))}). We will email you when the graded work comes back.`,
+            `<a class="btn small secondary" href="/grade.html?id=${a.id}">Open the grading screen</a>`);
+        }
+        if (a.status === "submitted") {
+          const note = a.grade_angel_note ? `<p><strong>Note from ${escapeHtml(a.grade_angel_name || "your Grade Angel")}:</strong> ${escapeHtml(a.grade_angel_note)}</p>` : "";
+          const review = `<a class="btn" href="/grade.html?id=${a.id}">Review the graded pages</a> ${gradedDownloads()}`;
+          const decide = paid
+            ? `<button class="btn" data-act="approve">Approve and pay</button> <button class="btn ghost" data-act="revise">Ask for changes</button>`
+            : payButton();
+          return box("Your next step", "Check the graded work, then approve it",
+            `${paid ? "" : "Pay first, then you can approve. "}If you do nothing, it is approved automatically 5 days after it was sent.`,
+            review, `${note}<div class="row-actions">${decide}</div>`);
+        }
+        if (a.status === "completed") {
+          return a.my_rating
+            ? box("All done", "This assignment is complete", a.auto_approved_at ? "It was approved automatically after 5 days." : "Thanks for reviewing your Grade Angel.", gradedDownloads())
+            : box("Your next step", `Rate ${escapeHtml(a.grade_angel_name || "your Grade Angel")}`, "Your review helps other teachers choose.", `<button class="btn" data-act="review">Leave a review</button> ${gradedDownloads()}`);
+        }
+      }
+      if (user.role === "grade_angel" && a.access === "full") {
+        if (a.status === "accepted") {
+          const changes = a.revision_count && a.revision_note
+            ? `<p class="msg error"><strong>The teacher asked for changes:</strong><br />${escapeHtml(a.revision_note)}</p>` : "";
+          const upload = `
+            <details>
+              <summary>Or upload a finished file instead</summary>
+              <form id="submit-form" class="submit-box">
+                <label for="graded-file">A PDF or photos of the marked pages, in one file</label>
+                <input id="graded-file" type="file" required accept="application/pdf,image/*" />
+                <label for="graded-note">A note for the teacher (optional)</label>
+                <textarea id="graded-note" maxlength="2000"></textarea>
+                <button class="btn small" type="submit">Send graded file</button>
+              </form>
+            </details>`;
+          return box("Your next step", a.revision_count ? "Make the teacher's changes" : "Grade the pages",
+            `Mark each page on the grading screen, then send it to the teacher. ${escapeHtml(formatDue(a.due_at))} (${escapeHtml(formatDateTime(a.due_at))}).${paid ? "" : " The teacher has not paid yet; you can start, and payment is required before approval."}`,
+            `<a class="btn" href="/grade.html?id=${a.id}">Open the grading screen</a> <button class="btn secondary" data-act="send">Send to teacher</button>`,
+            changes + upload);
+        }
+        if (a.status === "submitted") {
+          return box("Waiting on the teacher", "Graded work sent",
+            "The teacher will approve it or ask for changes. If they do nothing, it is approved automatically 5 days after you sent it. You can still adjust your marks until then.",
+            `<a class="btn small secondary" href="/grade.html?id=${a.id}">Open the grading screen</a>`);
+        }
+        if (a.status === "completed") {
+          return a.my_rating
+            ? box("All done", "Approved", "Thanks for rating the teacher.")
+            : box("Your next step", "Rate the teacher", "Approved! Your payout is on its way. Tell other Grade Angels what working with this teacher was like.", `<button class="btn" data-act="review">Rate the teacher</button>`);
+        }
+      }
+      return "";
+    }
+
+    function scoresSection() {
+      const list = (a.scores || []).filter((x) => x.earned !== null);
+      if (!list.length) return "";
+      return `<div class="card">
+        <h2>Scores</h2>
+        <table class="score-table">${list.map((x) => `<tr><td>${escapeHtml(x.label)}</td><td>${x.earned}${x.possible !== null ? " / " + x.possible : ""}</td></tr>`).join("")}</table>
+        <button class="btn small ghost" data-act="copy-scores">Copy for gradebook</button>
+      </div>`;
+    }
+
+    // Everything that is not the next step: accepting, declining, handing
+    // back, and cancelling.
     function actionsSection() {
       const out = [];
       if (user.role === "grade_angel") {
@@ -128,39 +267,9 @@
         if (a.status === "open" && a.access === "details") {
           out.push(`<a class="btn" href="/grade-angel-setup.html">Finish setup to accept</a>`);
         }
-        if (a.status === "accepted") {
-          out.push(`
-            <form id="submit-form" class="submit-box">
-              <label for="graded-file">Upload the graded work</label>
-              <p class="muted">A PDF or photos of the marked pages, in one file.</p>
-              <div class="row-actions">
-                <input id="graded-file" type="file" required accept="application/pdf,image/*" />
-                <button class="btn small" type="submit">Send graded work</button>
-              </div>
-            </form>`);
-          out.push(`<button class="btn small ghost" data-act="release">I can't finish this, hand it back</button>`);
-        }
+        if (a.status === "accepted") out.push(`<button class="btn small ghost" data-act="release">I can't finish this, hand it back</button>`);
       } else if (user.role === "teacher") {
-        const needsPayment = (a.status === "accepted" || a.status === "submitted") && a.payment_status !== "paid";
-        if (needsPayment) {
-          // Gift money from Gift Angels is used first.
-          const setAside = a.payment_gift_cents || 0;
-          const gift = Math.min(a.total_cents, setAside + (a.gift_balance_cents || 0));
-          const rest = a.total_cents - gift;
-          if (gift > 0 && rest === 0) {
-            out.push(`<button class="btn" data-act="pay">Pay with gift money (${formatCents(gift)})</button>`);
-          } else if (gift > 0) {
-            out.push(`<button class="btn" data-act="pay">Pay ${formatCents(rest)}</button>`);
-            out.push(`<p class="muted gift-note">Gift Angels cover ${formatCents(gift)} of the ${formatCents(a.total_cents)} total.</p>`);
-          } else {
-            out.push(`<button class="btn" data-act="pay">Pay ${formatCents(a.total_cents)}</button>`);
-          }
-        }
-        if (a.status === "submitted") out.push(`<button class="btn" data-act="complete">Mark complete</button>`);
         if (a.status === "draft" || a.status === "open") out.push(`<button class="btn ghost" data-act="cancel">Cancel assignment</button>`);
-      }
-      if (a.has_graded_file && a.access === "full") {
-        out.unshift(`<p><a class="btn small secondary" href="/api/assignments/file?assignment_id=${a.id}&kind=graded">Download graded work</a></p>`);
       }
       return out.join("");
     }
@@ -222,12 +331,15 @@
         ? '<div class="msg success">A teacher sent this assignment to you personally.</div>' : "";
       document.getElementById("content").innerHTML = `
         ${invitedBanner}
+        ${trackerSection()}
+        ${nextStepSection()}
         <div class="card accent">
           <h1 class="assignment-title">${escapeHtml(a.title)} ${statusPillHtml(a.status)}</h1>
           <dl class="details">${detailRows()}</dl>
           ${a.instructions ? `<h3>Instructions</h3><p class="instructions">${escapeHtml(a.instructions)}</p>` : ""}
           <div class="actions">${actionsSection()}</div>
         </div>
+        ${scoresSection()}
         ${peopleSection()}
         <div id="chat-slot"></div>
         <div class="card">
@@ -269,15 +381,39 @@
       }
     }
 
-    function askReason(title, help) {
+    function askReason(title, help, { label = "Reason", required = true, button = "Send", placeholder = "" } = {}) {
       const dialog = document.getElementById("reason-dialog");
       document.getElementById("reason-title").textContent = title;
       document.getElementById("reason-help").textContent = help;
-      document.getElementById("reason-text").value = "";
+      document.getElementById("reason-label").textContent = label;
+      const box = document.getElementById("reason-text");
+      box.value = "";
+      box.required = required;
+      box.minLength = required ? 3 : 0;
+      box.placeholder = placeholder;
+      dialog.querySelector('button[type="submit"]').textContent = button;
       dialog.showModal();
       return new Promise((resolve) => {
         document.getElementById("reason-cancel").onclick = () => dialog.close("");
         dialog.onclose = () => resolve(dialog.returnValue === "ok" ? document.getElementById("reason-text").value.trim() : null);
+        dialog.returnValue = "";
+      });
+    }
+
+    function askApproval() {
+      const dialog = document.getElementById("approve-dialog");
+      let rating = 0;
+      const stars = document.getElementById("approve-stars");
+      const paint = () => stars.querySelectorAll("button").forEach((b) => b.classList.toggle("on", Number(b.dataset.star) <= rating));
+      stars.onclick = (e) => { const b = e.target.closest("[data-star]"); if (b) { rating = Number(b.dataset.star); paint(); } };
+      paint();
+      document.getElementById("approve-name").textContent = a.grade_angel_name || "your Grade Angel";
+      document.getElementById("approve-comment").value = "";
+      document.getElementById("approve-cancel").onclick = () => dialog.close("");
+      dialog.returnValue = "";
+      dialog.showModal();
+      return new Promise((resolve) => {
+        dialog.onclose = () => resolve(dialog.returnValue === "ok" ? { rating, comment: document.getElementById("approve-comment").value.trim() } : null);
       });
     }
 
@@ -310,9 +446,43 @@
             window.location.href = res.url;
             return;
           }
-        } else if (kind === "complete") {
+        } else if (kind === "approve") {
+          const choice = await askApproval();
+          if (!choice) return;
           const { payout_note } = await apiPostJson("/api/assignments/complete", { assignment_id: id });
-          showMessage(pageMsg, "Marked complete. " + (payout_note || ""), "success");
+          if (choice.rating) {
+            await apiPostJson("/api/reviews", { assignment_id: id, rating: choice.rating, comment: choice.comment }).catch(() => {});
+          }
+          showMessage(pageMsg, `Approved. ${payout_note || ""}`, "success");
+        } else if (kind === "revise") {
+          const last = a.revision_count >= 1;
+          const note = await askReason(
+            last ? "Send this to our team" : "Ask for changes",
+            last
+              ? "You already asked for changes once. If it still is not right, our Dispute Resolution Team will review it and contact you both."
+              : "Your Grade Angel gets 48 hours to fix it. You can also pin notes right on the pages from the grading screen.",
+            { label: "What needs to change", button: last ? "Send to our team" : "Send back", placeholder: "Numbers 4 and 7 were marked wrong, but the answer key says C." }
+          );
+          if (!note) return;
+          const r = await apiPostJson("/api/assignments/revise", { assignment_id: id, note });
+          showMessage(pageMsg, r.disputed ? "Sent to our team. We will contact you both." : "Sent back to your Grade Angel with your note.", "success");
+        } else if (kind === "send") {
+          const note = await askReason("Send to the teacher", "The teacher gets an email that the graded work is ready. You can still change your marks until they approve.",
+            { label: "A note for the teacher (optional)", required: false, button: "Send", placeholder: "Most of the class missed number 4." });
+          if (note === null) return;
+          await apiPostJson("/api/assignments/submit", { assignment_id: id, note });
+          showMessage(pageMsg, "Sent to the teacher.", "success");
+        } else if (kind === "marked-pdf") {
+          btn.textContent = "Building PDF…";
+          const g = await apiGet(`/api/grading?assignment_id=${id}`);
+          await exportMarkedPdf({ assignmentId: id, title: a.title, pages: g.pages, marks: g.marks, onProgress: (n, t) => (btn.textContent = `Building PDF ${n} of ${t}…`) });
+          btn.textContent = "Download marked PDF";
+          return;
+        } else if (kind === "copy-scores") {
+          const text = a.scores.filter((x) => x.earned !== null).map((x) => `${x.label}\t${x.earned}${x.possible !== null ? "\t" + x.possible : ""}`).join("\n");
+          try { await navigator.clipboard.writeText(text); showMessage(pageMsg, "Scores copied. Paste them into your gradebook or a spreadsheet.", "success"); }
+          catch { prompt("Copy these scores:", text); }
+          return;
         } else if (kind === "review") {
           const isAngel = user.role === "grade_angel";
           const ok = await openReviewDialog({
@@ -385,8 +555,9 @@
             const form = new FormData();
             form.set("assignment_id", String(a.id));
             form.set("file", file);
+            form.set("note", document.getElementById("graded-note").value);
             await apiPostForm("/api/assignments/submit", form);
-            showMessage(pageMsg, "Sent. The teacher will review it and mark it complete.", "success");
+            showMessage(pageMsg, "Sent. The teacher will review it and approve it.", "success");
             load();
           } catch (err) {
             showMessage(pageMsg, err.message, "error");
@@ -411,6 +582,7 @@
         showMessage(pageMsg, "That link is missing an assignment number.", "error");
         return;
       }
+      if (new URLSearchParams(location.search).get("sent")) showMessage(pageMsg, "Sent to the teacher. We emailed them that it is ready.", "success");
       load();
     })();
   </script>

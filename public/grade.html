@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Grading, Grade Angels Network</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
+  <meta name="theme-color" content="#0B0B0B" />
+  <meta name="robots" content="noindex" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body class="grade-body">
+  <header class="grade-top">
+    <a class="grade-back" id="back-link" href="/">← Back</a>
+    <div class="grade-title">
+      <strong id="g-title">Loading…</strong>
+      <span class="muted" id="g-sub"></span>
+    </div>
+    <span class="save-state" id="save-state" aria-live="polite"></span>
+    <div class="grade-actions">
+      <button class="btn small secondary" type="button" id="pdf-btn">Download marked PDF</button>
+      <button class="btn small" type="button" id="send-btn" hidden>Send to teacher</button>
+    </div>
+  </header>
+
+  <div id="g-msg" class="msg grade-msg" style="display:none"></div>
+
+  <div class="grade-layout">
+    <aside class="grade-side" id="grade-side">
+      <details class="side-block" id="info-block" open>
+        <summary>About this assignment</summary>
+        <div id="g-info"></div>
+      </details>
+      <div class="side-block">
+        <h3>Pages</h3>
+        <ol class="page-list" id="page-list"></ol>
+      </div>
+      <div class="side-block" id="groups-block">
+        <h3>Page groups</h3>
+        <p class="muted small-print" id="groups-help">Group a student's pages to total their score, or group copies of one worksheet to grade from an answer key.</p>
+        <div id="group-list"></div>
+        <div class="row-actions" id="group-actions">
+          <button class="btn small" type="button" id="add-group">Make a group</button>
+          <button class="btn small ghost" type="button" id="split-groups">Split into packets</button>
+        </div>
+      </div>
+      <div class="side-block">
+        <h3>Scores</h3>
+        <div id="score-list"></div>
+        <button class="btn small ghost" type="button" id="copy-scores" hidden>Copy for gradebook</button>
+      </div>
+    </aside>
+
+    <main class="grade-main">
+      <div class="toolbar" id="toolbar" role="toolbar" aria-label="Marking tools">
+        <div class="tool-group" id="tools">
+          <button type="button" data-tool="move" title="Move and scroll">✋<span>Move</span></button>
+          <button type="button" data-tool="pen" title="Pen">✎<span>Pen</span></button>
+          <button type="button" data-tool="hl" title="Highlighter">▬<span>Highlight</span></button>
+          <button type="button" data-tool="check" title="Check mark" class="stamp-btn">✓</button>
+          <button type="button" data-tool="x" title="X mark" class="stamp-btn">✗</button>
+          <button type="button" data-tool="circle" title="Circle" class="stamp-btn">◯</button>
+          <button type="button" data-tool="star" title="Star" class="stamp-btn">☆</button>
+          <button type="button" data-tool="q" title="Question mark" class="stamp-btn">?</button>
+          <button type="button" data-tool="text" title="Type a note">T<span>Note</span></button>
+          <button type="button" data-tool="eraser" title="Eraser">⌫<span>Erase</span></button>
+        </div>
+        <div class="tool-group" id="colors" aria-label="Color">
+          <button type="button" data-color="red" class="swatch" style="--sw:#D92D20" title="Red"></button>
+          <button type="button" data-color="green" class="swatch" style="--sw:#12A150" title="Green"></button>
+          <button type="button" data-color="blue" class="swatch" style="--sw:#1D5FD1" title="Blue"></button>
+          <button type="button" data-color="black" class="swatch" style="--sw:#111111" title="Black"></button>
+          <button type="button" data-color="yellow" class="swatch" style="--sw:#F5C400" title="Yellow"></button>
+        </div>
+        <div class="tool-group" aria-label="Size">
+          <button type="button" data-size="0.7" title="Small">S</button>
+          <button type="button" data-size="1" title="Medium">M</button>
+          <button type="button" data-size="1.6" title="Large">L</button>
+        </div>
+        <div class="tool-group">
+          <button type="button" id="bank-btn" title="Comment bank">💬<span>Comments</span></button>
+          <button type="button" id="undo-btn" title="Undo">↶</button>
+          <button type="button" id="redo-btn" title="Redo">↷</button>
+          <button type="button" id="zoom-out" title="Zoom out">−</button>
+          <button type="button" id="zoom-in" title="Zoom in">+</button>
+          <button type="button" id="rotate-btn" title="Turn the page">⟳</button>
+        </div>
+      </div>
+      <div class="bank-pop" id="bank-pop" hidden></div>
+
+      <div class="page-nav">
+        <button class="btn small ghost" type="button" id="prev-page">‹ Previous</button>
+        <span id="page-label">Page 1</span>
+        <button class="btn small ghost" type="button" id="next-page">Next ›</button>
+      </div>
+      <label class="check-row key-toggle" id="key-toggle" hidden><input type="checkbox" id="show-key" checked /> Show the answer key on this page</label>
+
+      <div class="stage" id="stage">
+        <div class="page-wrap" id="page-wrap">
+          <canvas id="base-canvas"></canvas>
+          <canvas id="ink-canvas"></canvas>
+          <textarea id="text-input" class="text-input" hidden rows="2" placeholder="Type, then press Enter"></textarea>
+        </div>
+      </div>
+
+      <div class="score-row" id="score-row">
+        <label for="score-e">Score for this page</label>
+        <input id="score-e" type="number" min="0" step="0.5" inputmode="decimal" />
+        <span>out of</span>
+        <input id="score-p" type="number" min="0" step="0.5" inputmode="decimal" aria-label="Points possible" />
+        <span class="muted small-print" id="score-note"></span>
+      </div>
+    </main>
+  </div>
+
+  <dialog class="user-dialog" id="group-dialog">
+    <form method="dialog" class="pad" id="group-form">
+      <h2>Make a group</h2>
+      <label class="check-row"><input type="radio" name="gkind" value="student" checked /> One student's packet (their pages add up to one score)</label>
+      <label class="check-row"><input type="radio" name="gkind" value="worksheet" /> Same worksheet, many students (the first page is the answer key)</label>
+      <label for="g-label">Name or student ID</label>
+      <input id="g-label" maxlength="60" placeholder="Student 14" />
+      <div class="grid cols-2">
+        <div><label for="g-from">From page</label><input id="g-from" type="number" min="1" required /></div>
+        <div><label for="g-to">Through page</label><input id="g-to" type="number" min="1" required /></div>
+      </div>
+      <div class="row-actions">
+        <button class="btn" type="submit" value="ok">Make group</button>
+        <button class="btn ghost" type="button" data-close>Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="user-dialog" id="split-dialog">
+    <form method="dialog" class="pad" id="split-form">
+      <h2>Split into packets</h2>
+      <p class="muted">For a stack where every student turned in the same number of pages. This replaces the groups you have now.</p>
+      <label for="split-n">Pages per student</label>
+      <input id="split-n" type="number" min="1" value="2" required />
+      <div class="row-actions">
+        <button class="btn" type="submit" value="ok">Split</button>
+        <button class="btn ghost" type="button" data-close>Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="user-dialog" id="bank-dialog">
+    <form method="dialog" class="pad" id="bank-form">
+      <h2>Your comment bank</h2>
+      <p class="muted">One comment per line. Tap one on the grading screen, then tap the page to place it.</p>
+      <textarea id="bank-text" rows="10"></textarea>
+      <div class="row-actions">
+        <button class="btn" type="submit" value="ok">Save</button>
+        <button class="btn ghost" type="button" data-close>Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="user-dialog" id="send-dialog">
+    <form method="dialog" class="pad" id="send-form">
+      <h2>Send to the teacher</h2>
+      <p id="send-warning" class="msg error" style="display:none"></p>
+      <label for="send-note">A note for the teacher (optional)</label>
+      <textarea id="send-note" rows="4" maxlength="2000" placeholder="Most of the class missed number 4. Students 3 and 9 left the last page blank."></textarea>
+      <p class="muted small-print">You can still change your marks until the teacher approves.</p>
+      <div class="row-actions">
+        <button class="btn" type="submit" value="ok">Send</button>
+        <button class="btn ghost" type="button" data-close>Keep grading</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/annotate.js"></script>
+  <script>
+    const assignmentId = Number(new URLSearchParams(location.search).get("id"));
+    const gmsg = document.getElementById("g-msg");
+    // Notices float over the page (so nothing shifts under the pen) and
+    // good news fades after a few seconds.
+    function flash(text, kind) {
+      showMessage(gmsg, text, kind);
+      clearTimeout(flash.timer);
+      if (text && kind === "success") flash.timer = setTimeout(() => showMessage(gmsg, "", ""), 5000);
+    }
+    let G = null;              // the grading data from the server
+    let me = null;
+    let pageNo = 0;            // position in G.pages
+    let tool = "pen", color = "red", sizeMul = 1, rotation = 0, zoom = 1;
+    let pendingText = null;    // a comment bank line waiting to be placed
+    const mine = {};           // page_index -> my layer data
+    const theirs = {};         // page_index -> the other layer's data
+    const history = {};        // page_index -> { undo: [], redo: [] }
+    const saveTimers = {};
+    let unsaved = 0;
+    const imgCache = {};
+
+    const pageIndex = () => G.pages[pageNo].page_index;
+    const blank = () => ({ v: 1, items: [], score: { e: null, p: null } });
+    const hist = (i) => (history[i] ||= { undo: [], redo: [] });
+
+    function setSave(text) { document.getElementById("save-state").textContent = text; }
+
+    // ---------- Loading ----------
+    async function load() {
+      me = (await apiGet("/api/auth/me")).user;
+      if (!me) { location.href = "/login.html"; return; }
+      G = await apiGet(`/api/grading?assignment_id=${assignmentId}`);
+      const a = G.assignment;
+      document.title = `Grading: ${a.title}, Grade Angels Network`;
+      document.getElementById("g-title").textContent = a.title;
+      document.getElementById("g-sub").textContent = `${a.subject}, ${a.grade_level} · ${G.pages.length} page${G.pages.length === 1 ? "" : "s"}`;
+      document.getElementById("back-link").href = `/assignment.html?id=${a.id}`;
+      for (const m of G.marks) (m.layer === G.layer ? mine : theirs)[m.page_index] = m.data;
+      if (G.layer === "teacher") { color = "blue"; }
+      document.getElementById("send-btn").hidden = !(G.layer === "grade_angel" && a.status === "accepted");
+      const angel = G.layer === "grade_angel";
+      document.getElementById("group-actions").hidden = !(angel && G.can_edit);
+      document.getElementById("groups-help").hidden = !(angel && G.can_edit);
+      if (!G.can_edit) {
+        document.getElementById("toolbar").hidden = true;
+        document.getElementById("score-e").disabled = document.getElementById("score-p").disabled = true;
+        flash(a.status === "completed" ? "This assignment is complete. The marks are shown for reference." : "You can look at these pages, but marking is closed.", "success");
+      }
+      renderInfo();
+      renderSide();
+      selectTool(G.can_edit ? "pen" : "move");
+      selectColor(color);
+      selectSize(1);
+      await showPage(0);
+    }
+
+    function renderInfo() {
+      const a = G.assignment;
+      const bits = [];
+      if (a.revision_note && G.layer === "grade_angel" && a.status === "accepted") bits.push(`<div class="msg error"><strong>The teacher asked for changes:</strong><br />${escapeHtml(a.revision_note)}</div>`);
+      if (a.instructions) bits.push(`<p><strong>Teacher's instructions</strong><br />${escapeHtml(a.instructions)}</p>`);
+      if (a.grade_angel_note && G.layer === "teacher") bits.push(`<p><strong>Note from ${escapeHtml(a.grade_angel_name || "your Grade Angel")}</strong><br />${escapeHtml(a.grade_angel_note)}</p>`);
+      if (G.layer === "teacher") bits.push(`<p class="muted small-print">Your marks are in blue by default and sit on top of your Grade Angel's. Pin a note anywhere you want something changed.</p>`);
+      if (a.due_at && a.status === "accepted") bits.push(`<p class="muted small-print">${escapeHtml(formatDue(a.due_at))} (${escapeHtml(formatDateTime(a.due_at))})</p>`);
+      document.getElementById("g-info").innerHTML = bits.join("") || '<p class="muted">No instructions.</p>';
+    }
+
+    // ---------- Sidebar ----------
+    function groupOf(i) { return G.groups.find((g) => g.pages.includes(i)); }
+    function hasMarks(d) { return d && (d.items.length || (d.score && d.score.e !== null)); }
+
+    function renderSide() {
+      document.getElementById("page-list").innerHTML = G.pages.map((p, n) => {
+        const i = p.page_index, g = groupOf(i);
+        const s = effectiveScore(G.layer === "grade_angel" ? mine[i] : theirs[i], G.layer === "teacher" ? mine[i] : theirs[i]);
+        return `<li><button type="button" data-page="${n}" class="${n === pageNo ? "active" : ""}">
+          <img loading="lazy" alt="" src="/api/assignments/page?assignment_id=${assignmentId}&page=${i}" />
+          <span><strong>Page ${i + 1}</strong>
+          ${g ? `<span class="muted">${escapeHtml(g.label)}${g.kind === "worksheet" && g.key_page === i ? " · key" : ""}</span>` : ""}
+          ${s && s.e !== null ? `<span class="page-score">${s.e}${s.p !== null && s.p !== undefined ? "/" + s.p : ""}</span>` : hasMarks(mine[i]) || hasMarks(theirs[i]) ? '<span class="muted">Marked</span>' : ""}</span>
+        </button></li>`;
+      }).join("");
+      document.getElementById("group-list").innerHTML = G.groups.length
+        ? `<ul class="group-list">${G.groups.map((g) => `
+            <li><span><strong>${escapeHtml(g.label)}</strong><span class="muted">${g.kind === "worksheet" ? "Worksheet, key on page " + (g.key_page + 1) : "Student packet"} · pages ${g.pages.map((x) => x + 1).join(", ")}</span></span>
+            ${G.layer === "grade_angel" && G.can_edit ? `<button type="button" class="link" data-remove-group="${escapeHtml(g.id)}">Remove</button>` : ""}</li>`).join("")}</ul>`
+        : '<p class="muted small-print">No groups yet.</p>';
+      renderScores();
+    }
+
+    function renderScores() {
+      const list = G.scores.filter((s) => s.earned !== null);
+      document.getElementById("score-list").innerHTML = list.length
+        ? `<table class="score-table">${list.map((s) => `<tr><td>${escapeHtml(s.label)}</td><td>${s.earned}${s.possible !== null ? " / " + s.possible : ""}</td></tr>`).join("")}</table>`
+        : '<p class="muted small-print">Scores you enter on each page add up here.</p>';
+      document.getElementById("copy-scores").hidden = !list.length;
+    }
+
+    async function refreshScores() {
+      try {
+        const d = await apiGet(`/api/grading?assignment_id=${assignmentId}`);
+        G.scores = d.scores;
+        renderScores();
+      } catch {}
+    }
+
+    document.getElementById("page-list").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-page]");
+      if (b) showPage(Number(b.dataset.page));
+    });
+
+    document.getElementById("copy-scores").addEventListener("click", async () => {
+      const text = G.scores.filter((s) => s.earned !== null)
+        .map((s) => `${s.label}\t${s.earned}${s.possible !== null ? "\t" + s.possible : ""}`).join("\n");
+      try { await navigator.clipboard.writeText(text); flash("Scores copied. Paste them into your gradebook or a spreadsheet.", "success"); }
+      catch { prompt("Copy these scores:", text); }
+    });
+
+    // ---------- Groups ----------
+    async function saveGroups(groups) {
+      try {
+        const d = await apiPostJson("/api/grading", { action: "save_groups", assignment_id: assignmentId, groups });
+        G.groups = d.groups;
+        G.scores = d.scores;
+        renderSide();
+        drawAll();
+      } catch (err) {
+        flash(err.message, "error");
+      }
+    }
+    document.getElementById("add-group").addEventListener("click", () => {
+      document.getElementById("g-from").value = pageIndex() + 1;
+      document.getElementById("g-to").value = pageIndex() + 1;
+      document.getElementById("g-label").value = "";
+      document.getElementById("group-dialog").showModal();
+    });
+    document.getElementById("group-form").addEventListener("submit", (e) => {
+      const from = Number(document.getElementById("g-from").value) - 1;
+      const to = Number(document.getElementById("g-to").value) - 1;
+      if (to < from) { e.preventDefault(); alert("The last page must come after the first page."); return; }
+      const kind = document.querySelector("[name=gkind]:checked").value;
+      const pages = [];
+      for (let p = from; p <= to; p++) pages.push(p);
+      const taken = pages.filter((p) => groupOf(p));
+      const rest = G.groups.map((g) => ({ ...g, pages: g.pages.filter((p) => !pages.includes(p)) })).filter((g) => g.pages.length);
+      if (taken.length && !confirm(`Pages ${taken.map((p) => p + 1).join(", ")} are already in a group. Move them to this one?`)) { e.preventDefault(); return; }
+      saveGroups([...rest, { id: "g" + Date.now().toString(36), kind, label: document.getElementById("g-label").value || (kind === "worksheet" ? "Worksheet" : `Student ${G.groups.length + 1}`), pages, key_page: pages[0] }]);
+    });
+    document.getElementById("split-groups").addEventListener("click", () => document.getElementById("split-dialog").showModal());
+    document.getElementById("split-form").addEventListener("submit", () => {
+      const n = Math.max(1, Number(document.getElementById("split-n").value) || 1);
+      const groups = [];
+      for (let s = 0; s * n < G.pages.length; s++) {
+        groups.push({ id: `s${s + 1}`, kind: "student", label: `Student ${s + 1}`, pages: G.pages.slice(s * n, s * n + n).map((p) => p.page_index) });
+      }
+      saveGroups(groups);
+    });
+    document.getElementById("group-list").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-remove-group]");
+      if (b) saveGroups(G.groups.filter((g) => g.id !== b.dataset.removeGroup));
+    });
+    document.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => b.closest("dialog").close()));
+
+    // ---------- Tools ----------
+    function selectTool(t) {
+      tool = t;
+      if (t !== "text") pendingText = null;
+      document.querySelectorAll("[data-tool]").forEach((b) => b.classList.toggle("active", b.dataset.tool === t));
+      const ink = document.getElementById("ink-canvas");
+      ink.style.touchAction = t === "move" ? "auto" : "none";
+      ink.style.cursor = t === "move" ? "grab" : t === "text" ? "text" : t === "eraser" ? "cell" : "crosshair";
+    }
+    function selectColor(c) {
+      color = c;
+      document.querySelectorAll("[data-color]").forEach((b) => b.classList.toggle("active", b.dataset.color === c));
+    }
+    function selectSize(m) {
+      sizeMul = m;
+      document.querySelectorAll("[data-size]").forEach((b) => b.classList.toggle("active", Number(b.dataset.size) === m));
+    }
+    document.getElementById("tools").addEventListener("click", (e) => { const b = e.target.closest("[data-tool]"); if (b) selectTool(b.dataset.tool); });
+    document.getElementById("colors").addEventListener("click", (e) => { const b = e.target.closest("[data-color]"); if (b) selectColor(b.dataset.color); });
+    document.querySelectorAll("[data-size]").forEach((b) => b.addEventListener("click", () => selectSize(Number(b.dataset.size))));
+
+    // Comment bank
+    const bankPop = document.getElementById("bank-pop");
+    document.getElementById("bank-btn").addEventListener("click", () => {
+      if (!bankPop.hidden) { bankPop.hidden = true; return; }
+      bankPop.innerHTML = G.comment_bank.map((c, n) => `<button type="button" data-bank="${n}">${escapeHtml(c)}</button>`).join("") +
+        `<button type="button" class="bank-edit" data-bank-edit>Edit my comments</button>`;
+      bankPop.hidden = false;
+    });
+    bankPop.addEventListener("click", (e) => {
+      if (e.target.closest("[data-bank-edit]")) {
+        bankPop.hidden = true;
+        document.getElementById("bank-text").value = G.comment_bank.join("\n");
+        document.getElementById("bank-dialog").showModal();
+        return;
+      }
+      const b = e.target.closest("[data-bank]");
+      if (!b) return;
+      selectTool("text");
+      pendingText = G.comment_bank[Number(b.dataset.bank)];
+      bankPop.hidden = true;
+      flash(`Tap the page where "${pendingText}" should go.`, "success");
+    });
+    document.getElementById("bank-form").addEventListener("submit", async () => {
+      const items = document.getElementById("bank-text").value.split("\n").map((s) => s.trim()).filter(Boolean);
+      try { G.comment_bank = (await apiPostJson("/api/grading", { action: "save_bank", items })).comment_bank; }
+      catch (err) { flash(err.message, "error"); }
+    });
+
+    // ---------- Drawing ----------
+    const stage = document.getElementById("stage");
+    const base = document.getElementById("base-canvas");
+    const ink = document.getElementById("ink-canvas");
+    let geo = null; // { W, H, dispW, dispH }
+    let live = null; // the stroke being drawn
+
+    function computeGeo(img) {
+      const iw = img.naturalWidth, ih = img.naturalHeight;
+      const sideways = rotation % 180 !== 0;
+      const avail = Math.max(260, stage.clientWidth - 8);
+      const fit = avail / (sideways ? ih : iw);
+      const scale = fit * zoom;
+      const W = iw * scale, H = ih * scale;
+      return { W, H, dispW: sideways ? H : W, dispH: sideways ? W : H };
+    }
+
+    function transform(ctx) {
+      const dpr = window.devicePixelRatio || 1;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (rotation === 90) { ctx.translate(geo.dispW, 0); ctx.rotate(Math.PI / 2); }
+      if (rotation === 180) { ctx.translate(geo.dispW, geo.dispH); ctx.rotate(Math.PI); }
+      if (rotation === 270) { ctx.translate(0, geo.dispH); ctx.rotate(-Math.PI / 2); }
+    }
+
+    // Screen point to page fractions, undoing the view's rotation.
+    function toPage(e) {
+      const r = ink.getBoundingClientRect();
+      const px = e.clientX - r.left, py = e.clientY - r.top;
+      let x, y;
+      if (rotation === 0) { x = px; y = py; }
+      if (rotation === 90) { x = py; y = geo.dispW - px; }
+      if (rotation === 180) { x = geo.dispW - px; y = geo.dispH - py; }
+      if (rotation === 270) { x = geo.dispH - py; y = px; }
+      return [Math.min(1, Math.max(0, x / geo.W)), Math.min(1, Math.max(0, y / geo.H))];
+    }
+
+    function sizeCanvas(c) {
+      const dpr = window.devicePixelRatio || 1;
+      c.width = Math.round(geo.dispW * dpr);
+      c.height = Math.round(geo.dispH * dpr);
+      c.style.width = geo.dispW + "px";
+      c.style.height = geo.dispH + "px";
+    }
+
+    function keyData() {
+      const g = groupOf(pageIndex());
+      if (!g || g.kind !== "worksheet" || g.key_page === pageIndex() || !document.getElementById("show-key").checked) return null;
+      return G.layer === "grade_angel" ? mine[g.key_page] : theirs[g.key_page];
+    }
+
+    function drawAll() {
+      if (!geo) return;
+      const i = pageIndex();
+      const img = imgCache[i];
+      const bctx = base.getContext("2d");
+      transform(bctx);
+      bctx.clearRect(-5000, -5000, 20000, 20000);
+      bctx.fillStyle = "#fff";
+      bctx.fillRect(0, 0, geo.W, geo.H);
+      bctx.drawImage(img, 0, 0, geo.W, geo.H);
+      const ictx = ink.getContext("2d");
+      transform(ictx);
+      ictx.clearRect(-5000, -5000, 20000, 20000);
+      const key = keyData();
+      if (key) drawMarks(ictx, key, geo.W, geo.H, 0.35);
+      // The Grade Angel's layer always sits underneath the teacher's.
+      const under = G.layer === "teacher" ? theirs[i] : null;
+      const over = G.layer === "grade_angel" ? theirs[i] : null;
+      if (under) drawMarks(ictx, under, geo.W, geo.H);
+      drawMarks(ictx, mine[i], geo.W, geo.H);
+      if (over) drawMarks(ictx, over, geo.W, geo.H);
+      if (live) drawMarkItem(ictx, live, geo.W, geo.H);
+      const g = groupOf(i);
+      document.getElementById("key-toggle").hidden = !(g && g.kind === "worksheet" && g.key_page !== i);
+    }
+
+    async function showPage(n) {
+      if (n < 0 || n >= G.pages.length) return;
+      pageNo = n;
+      const i = pageIndex();
+      document.getElementById("page-label").textContent = `Page ${i + 1} of ${G.pages.length}`;
+      document.getElementById("prev-page").disabled = n === 0;
+      document.getElementById("next-page").disabled = n === G.pages.length - 1;
+      if (!imgCache[i]) {
+        setSave("Loading page…");
+        try { imgCache[i] = await loadPageImage(assignmentId, i); }
+        catch (err) { flash(err.message, "error"); return; }
+        setSave(unsaved ? "Saving…" : "");
+      }
+      geo = computeGeo(imgCache[i]);
+      sizeCanvas(base);
+      sizeCanvas(ink);
+      drawAll();
+      fillScore();
+      renderSide();
+      // Load the next page early so turning pages feels instant.
+      const next = G.pages[n + 1];
+      if (next && !imgCache[next.page_index]) loadPageImage(assignmentId, next.page_index).then((img) => (imgCache[next.page_index] = img)).catch(() => {});
+    }
+
+    function fillScore() {
+      const i = pageIndex();
+      const s = (mine[i] && mine[i].score) || {};
+      const other = (theirs[i] && theirs[i].score) || {};
+      document.getElementById("score-e").value = s.e ?? "";
+      const g = groupOf(i);
+      const keyP = g && g.kind === "worksheet" ? ((G.layer === "grade_angel" ? mine : theirs)[g.key_page] || {}).score?.p : null;
+      document.getElementById("score-p").value = s.p ?? (s.e === null || s.e === undefined ? keyP ?? "" : "");
+      const note = document.getElementById("score-note");
+      note.textContent = G.layer === "teacher" && other.e !== null && other.e !== undefined
+        ? `Grade Angel's score: ${other.e}${other.p !== null && other.p !== undefined ? "/" + other.p : ""}. Enter one here only to change it.`
+        : "";
+    }
+
+    function commit(mutator) {
+      const i = pageIndex();
+      const cur = mine[i] || blank();
+      hist(i).undo.push(JSON.stringify(cur));
+      if (hist(i).undo.length > 100) hist(i).undo.shift();
+      hist(i).redo = [];
+      const next = JSON.parse(JSON.stringify(cur));
+      mutator(next);
+      mine[i] = next;
+      drawAll();
+      queueSave(i);
+    }
+
+    function queueSave(i) {
+      if (!saveTimers[i]) unsaved++;
+      clearTimeout(saveTimers[i]);
+      setSave("Saving…");
+      saveTimers[i] = setTimeout(() => savePage(i), 700);
+    }
+
+    async function savePage(i) {
+      try {
+        await apiPostJson("/api/grading", { action: "save_page", assignment_id: assignmentId, page_index: i, data: mine[i] || blank() });
+        delete saveTimers[i];
+        unsaved = Math.max(0, unsaved - 1);
+        setSave(unsaved ? "Saving…" : "All changes saved");
+        refreshScores();
+        renderSide();
+      } catch (err) {
+        setSave("Not saved");
+        flash(`${err.message} We will keep trying.`, "error");
+        saveTimers[i] = setTimeout(() => savePage(i), 4000);
+      }
+    }
+    window.addEventListener("beforeunload", (e) => { if (unsaved) { e.preventDefault(); e.returnValue = ""; } });
+
+    // Finds the topmost of my marks under a point, working in pixels.
+    function hitItem(items, [fx, fy]) {
+      const W = geo.W, H = geo.H, x = fx * W, y = fy * H, tol = 12;
+      const segDist = (ax, ay, bx, by) => {
+        const dx = bx - ax, dy = by - ay, len = dx * dx + dy * dy;
+        const t = len ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / len)) : 0;
+        return Math.hypot(ax + t * dx - x, ay + t * dy - y);
+      };
+      for (let n = items.length - 1; n >= 0; n--) {
+        const it = items[n];
+        if (it.t === "stamp" && Math.hypot(it.x * W - x, it.y * H - y) < (it.s * W) / 2 + tol) return n;
+        if (it.t === "text") {
+          const lines = String(it.text).split("\n"), size = it.s * W;
+          const w = Math.max(...lines.map((l) => l.length)) * size * 0.6, h = lines.length * size * 1.2;
+          if (x >= it.x * W - tol && x <= it.x * W + w + tol && y >= it.y * H - tol && y <= it.y * H + h + tol) return n;
+        }
+        if (it.t === "pen" || it.t === "hl") {
+          const reach = (it.w * W) / 2 + tol;
+          for (let k = 0; k < it.p.length; k++) {
+            const [a1, a2] = it.p[k], [b1, b2] = it.p[Math.min(k + 1, it.p.length - 1)];
+            if (segDist(a1 * W, a2 * H, b1 * W, b2 * H) < reach) return n;
+          }
+        }
+      }
+      return -1;
+    }
+
+    ink.addEventListener("pointerdown", (e) => {
+      if (!G.can_edit || tool === "move") return;
+      e.preventDefault();
+      const pt = toPage(e);
+      const c = MARK_COLORS[color];
+      if (tool === "pen" || tool === "hl") {
+        ink.setPointerCapture(e.pointerId);
+        live = { t: tool, c: tool === "hl" && color === "red" ? MARK_COLORS.yellow : c, w: (tool === "hl" ? 0.022 : 0.0035) * sizeMul, p: [pt] };
+        drawAll();
+      } else if (["check", "x", "circle", "star", "q"].includes(tool)) {
+        commit((d) => d.items.push({ t: "stamp", k: tool, c: tool === "check" && color === "red" ? MARK_COLORS.green : c, x: pt[0], y: pt[1], s: 0.045 * sizeMul }));
+      } else if (tool === "text") {
+        if (pendingText) {
+          const text = pendingText;
+          commit((d) => d.items.push({ t: "text", c, x: pt[0], y: pt[1], s: 0.024 * sizeMul, text }));
+          pendingText = null;
+          flash("", "");
+          return;
+        }
+        openTextInput(e, pt);
+      } else if (tool === "eraser") {
+        ink.setPointerCapture(e.pointerId);
+        eraseAt(pt);
+        live = { erasing: true };
+      }
+    });
+    ink.addEventListener("pointermove", (e) => {
+      if (!live) return;
+      const pt = toPage(e);
+      if (live.erasing) return eraseAt(pt);
+      const last = live.p[live.p.length - 1];
+      if (Math.hypot(pt[0] - last[0], pt[1] - last[1]) > 0.0015) {
+        live.p.push(pt);
+        drawAll();
+      }
+    });
+    const endStroke = () => {
+      if (!live) return;
+      const done = live;
+      live = null;
+      if (done.erasing) return;
+      commit((d) => d.items.push(done));
+    };
+    ink.addEventListener("pointerup", endStroke);
+    ink.addEventListener("pointercancel", endStroke);
+
+    function eraseAt(pt) {
+      const i = pageIndex();
+      const items = (mine[i] || blank()).items;
+      const n = hitItem(items, pt);
+      if (n >= 0) commit((d) => d.items.splice(n, 1));
+    }
+
+    const textInput = document.getElementById("text-input");
+    let textAt = null;
+    function openTextInput(e, pt) {
+      const r = ink.getBoundingClientRect(), w = document.getElementById("page-wrap").getBoundingClientRect();
+      textAt = pt;
+      textInput.hidden = false;
+      textInput.value = "";
+      textInput.style.left = e.clientX - w.left + "px";
+      textInput.style.top = e.clientY - w.top + "px";
+      textInput.style.color = MARK_COLORS[color];
+      textInput.focus();
+      setTimeout(() => textInput.focus(), 0);
+    }
+    function closeTextInput(save) {
+      if (textInput.hidden) return;
+      const text = textInput.value.trim();
+      textInput.hidden = true;
+      if (save && text && textAt) {
+        const at = textAt;
+        commit((d) => d.items.push({ t: "text", c: MARK_COLORS[color], x: at[0], y: at[1], s: 0.024 * sizeMul, text }));
+      }
+      textAt = null;
+    }
+    textInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); closeTextInput(true); }
+      if (e.key === "Escape") closeTextInput(false);
+    });
+    textInput.addEventListener("blur", () => closeTextInput(true));
+
+    function undo() {
+      const i = pageIndex(), h = hist(i);
+      if (!h.undo.length) return;
+      h.redo.push(JSON.stringify(mine[i] || blank()));
+      mine[i] = JSON.parse(h.undo.pop());
+      drawAll(); queueSave(i);
+    }
+    function redo() {
+      const i = pageIndex(), h = hist(i);
+      if (!h.redo.length) return;
+      h.undo.push(JSON.stringify(mine[i] || blank()));
+      mine[i] = JSON.parse(h.redo.pop());
+      drawAll(); queueSave(i);
+    }
+    document.getElementById("undo-btn").addEventListener("click", undo);
+    document.getElementById("redo-btn").addEventListener("click", redo);
+    document.getElementById("zoom-in").addEventListener("click", () => { zoom = Math.min(3, zoom * 1.25); showPage(pageNo); });
+    document.getElementById("zoom-out").addEventListener("click", () => { zoom = Math.max(0.5, zoom / 1.25); showPage(pageNo); });
+    document.getElementById("rotate-btn").addEventListener("click", () => { rotation = (rotation + 90) % 360; showPage(pageNo); });
+    document.getElementById("prev-page").addEventListener("click", () => showPage(pageNo - 1));
+    document.getElementById("next-page").addEventListener("click", () => showPage(pageNo + 1));
+    document.getElementById("show-key").addEventListener("change", drawAll);
+    window.addEventListener("resize", () => { if (G) showPage(pageNo); });
+    document.addEventListener("keydown", (e) => {
+      if (["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
+      if (e.key === "ArrowRight") showPage(pageNo + 1);
+      if (e.key === "ArrowLeft") showPage(pageNo - 1);
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+    });
+
+    // Page score
+    ["score-e", "score-p"].forEach((id) => document.getElementById(id).addEventListener("change", () => {
+      const e = document.getElementById("score-e").value, p = document.getElementById("score-p").value;
+      commit((d) => { d.score = { e: e === "" ? null : Number(e), p: p === "" ? null : Number(p) }; });
+    }));
+
+    // ---------- PDF and sending ----------
+    document.getElementById("pdf-btn").addEventListener("click", async (e) => {
+      const btn = e.target;
+      btn.disabled = true;
+      try {
+        const marks = Object.entries(mine).map(([i, data]) => ({ page_index: Number(i), layer: G.layer, data }))
+          .concat(Object.entries(theirs).map(([i, data]) => ({ page_index: Number(i), layer: G.layer === "teacher" ? "grade_angel" : "teacher", data })));
+        await exportMarkedPdf({ assignmentId, title: G.assignment.title, pages: G.pages, marks, onProgress: (n, t) => (btn.textContent = `Building PDF ${n} of ${t}…`) });
+      } catch (err) {
+        flash(err.message, "error");
+      } finally {
+        btn.textContent = "Download marked PDF";
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById("send-btn").addEventListener("click", () => {
+      const unmarked = G.pages.filter((p) => !hasMarks(mine[p.page_index])).map((p) => p.page_index + 1);
+      const warn = document.getElementById("send-warning");
+      warn.style.display = unmarked.length ? "block" : "none";
+      warn.textContent = unmarked.length ? `Page${unmarked.length === 1 ? "" : "s"} ${unmarked.join(", ")} ${unmarked.length === 1 ? "has" : "have"} no marks yet. You can still send.` : "";
+      document.getElementById("send-dialog").showModal();
+    });
+    document.getElementById("send-form").addEventListener("submit", async () => {
+      try {
+        await Promise.all(Object.keys(saveTimers).map((i) => { clearTimeout(saveTimers[i]); return savePage(Number(i)); }));
+        await apiPostJson("/api/assignments/submit", { assignment_id: assignmentId, note: document.getElementById("send-note").value });
+        location.href = `/assignment.html?id=${assignmentId}&sent=1`;
+      } catch (err) {
+        flash(err.message, "error");
+      }
+    });
+
+    load().catch((err) => flash(err.message, "error"));
+  </script>
+</body>
+</html>

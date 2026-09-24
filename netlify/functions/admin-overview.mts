@@ -55,6 +55,12 @@ export default async (req: Request) => {
   `) {
     attention.push({ kind: "overdue", label: `Overdue: ${a.title}`, detail: `${a.angel || "Grade Angel"} was due ${new Date(a.due_at).toLocaleString("en-US")}`, link: `/assignment.html?id=${a.id}`, created_at: a.due_at });
   }
+  for (const d of await db.sql`
+    SELECT id, title, dispute_note, disputed_at FROM assignments
+    WHERE disputed_at IS NOT NULL AND status = 'submitted' ORDER BY disputed_at LIMIT 20
+  `) {
+    attention.push({ kind: "dispute", label: `Dispute: ${d.title}`, detail: d.dispute_note || "", link: `/assignment.html?id=${d.id}`, created_at: d.disputed_at });
+  }
   for (const p of await db.sql`
     SELECT p.assignment_id, p.payout_status, p.payout_error, p.payout_attempted_at, a.title FROM payments p
     JOIN assignments a ON a.id = p.assignment_id

@@ -3,8 +3,7 @@ import { db } from "../lib/db.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
 import { isSuspended } from "../lib/staff.mts";
-import { attemptPayout } from "../lib/payouts.mts";
-import { recordEvent } from "../lib/assignments.mts";
+import { approveAssignment } from "../lib/grading.mts";
 
 // The teacher reviews the graded work and marks the assignment complete.
 // This is also the moment the Grade Angel actually gets paid: their 80%
@@ -46,6 +45,9 @@ export default async (req: Request) => {
     return json({ error: "This assignment has not been submitted yet" }, 409);
   }
 
+  const [open] = await db.sql`SELECT disputed_at FROM assignments WHERE id = ${assignmentId}`;
+  if (open?.disputed_at) return json({ error: "Our team is reviewing this assignment, so it cannot be approved yet" }, 409);
+
   const [payment] = await db.sql`
     SELECT id, status
     FROM payments WHERE assignment_id = ${assignmentId} ORDER BY id DESC LIMIT 1
@@ -54,19 +56,9 @@ export default async (req: Request) => {
     return json({ error: "Pay for this assignment before marking it complete" }, 402);
   }
 
-  const [updated] = await db.sql`
-    UPDATE assignments
-    SET status = 'completed', completed_at = NOW()
-    WHERE id = ${assignmentId} AND status = 'submitted'
-    RETURNING id, teacher_id, grade_angel_id, title, status, created_at, completed_at
-  `;
-  if (!updated) return json({ error: "This assignment was already marked complete" }, 409);
-
-  await recordEvent(assignmentId, session.id, "completed");
-  const payout = await attemptPayout(assignmentId);
-  const payoutNote = payout.note;
-
-  return json({ assignment: updated, payout_note: payoutNote }, 200);
+  const result = await approveAssignment(assignmentId, session.id);
+  if (!result) return json({ error: "This assignment was already marked complete" }, 409);
+  return json({ assignment: result.assignment, payout_note: result.payout.note }, 200);
 };
 
 export const config: Config = {

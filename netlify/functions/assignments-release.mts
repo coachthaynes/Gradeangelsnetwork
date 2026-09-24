@@ -26,11 +26,14 @@ export default async (req: Request) => {
 
   const rows = await db.sql`
     UPDATE assignments
-    SET status = 'open', grade_angel_id = NULL, accepted_at = NULL, due_at = NULL
+    SET status = 'open', grade_angel_id = NULL, accepted_at = NULL, due_at = NULL,
+        grading_groups = '[]'::jsonb, grade_angel_note = NULL, revision_count = 0, revision_note = NULL
     WHERE id = ${assignmentId} AND status = 'accepted' AND grade_angel_id = ${session.id}
     RETURNING id
   `;
   if (rows.length === 0) return json({ error: "You can only hand back work you accepted and have not submitted" }, 409);
+  // The next Grade Angel starts with clean pages.
+  await db.sql`DELETE FROM assignment_annotations WHERE assignment_id = ${assignmentId} AND layer = 'grade_angel'`;
 
   await recordEvent(assignmentId, session.id, "handed_back", reason);
   return json({ ok: true }, 200);

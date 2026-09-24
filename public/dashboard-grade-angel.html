@@ -213,11 +213,11 @@
         ? `<p class="due ${new Date(a.due_at) < new Date() ? "late" : ""}">${formatDue(a.due_at)} (${formatDateTime(a.due_at)})</p>`
         : "";
       const submitForm = a.status === "accepted"
-        ? `<form data-submit-id="${a.id}" class="row-actions">
-             <input type="file" required accept="application/pdf,image/*" aria-label="Graded work file" />
-             <button class="btn small" type="submit">Submit graded work</button>
-           </form>`
-        : "";
+        ? `<div class="row-actions grade-now">
+             <a class="btn small" href="/grade.html?id=${a.id}">Grade now</a>
+             <span class="muted">Mark the pages, then send them to the teacher from the grading screen.</span>
+           </div>`
+        : a.status === "submitted" ? '<p class="muted">Sent. Waiting for the teacher to approve.</p>' : "";
       const review = a.status === "completed" && !a.my_rating
         ? `<button class="btn small" data-review-id="${a.id}">★ Review teacher</button>`
         : a.my_rating ? `<span class="muted">You rated this teacher ${a.my_rating} of 5</span>` : "";
@@ -280,26 +280,6 @@
         const a = mine.find((x) => x.id === Number(btn.dataset.reviewId));
         const ok = await openReviewDialog({ assignmentId: a.id, subjectName: a.teacher_name, subjectRole: "teacher" });
         if (ok) loadMine();
-      }
-    });
-
-    document.getElementById("mine-list").addEventListener("submit", async (e) => {
-      const form = e.target.closest("[data-submit-id]");
-      if (!form) return;
-      e.preventDefault();
-      const fileInput = form.querySelector('input[type="file"]');
-      const submitBtn = form.querySelector("button");
-      if (!fileInput.files[0]) return;
-      submitBtn.disabled = true;
-      try {
-        const formData = new FormData();
-        formData.set("assignment_id", form.dataset.submitId);
-        formData.set("file", fileInput.files[0]);
-        await apiPostForm("/api/assignments/submit", formData);
-        loadMine();
-      } catch (err) {
-        alert(err.message);
-        submitBtn.disabled = false;
       }
     });
 

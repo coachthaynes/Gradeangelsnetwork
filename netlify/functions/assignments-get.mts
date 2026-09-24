@@ -5,6 +5,7 @@ import { json, methodNotAllowed } from "../lib/http.mts";
 import { PREVIEW_PAGE_LIMIT, assignmentAccess, type AccessRow } from "../lib/assignments.mts";
 import { gradeAngelEarningsCents } from "../lib/grade-angel.mts";
 import { photoUrl, publicName } from "../lib/profiles.mts";
+import { scoreList } from "../lib/grading.mts";
 
 // Everything the assignment page needs. What comes back depends on who is
 // asking: Grade Angels see the teacher only by their public display name
@@ -23,7 +24,9 @@ export default async (req: Request) => {
     SELECT a.id, a.teacher_id, a.grade_angel_id, a.invited_grade_angel_id, a.title, a.subject,
            a.grade_level, a.assignment_type, a.page_count, a.rate_per_page_cents, a.instructions,
            a.status, a.turnaround_hours, a.due_at, a.created_at, a.published_at, a.accepted_at,
-           a.submitted_at, a.completed_at, a.cancelled_at,
+           a.submitted_at, a.completed_at, a.cancelled_at, a.grade_angel_note, a.graded_on_site,
+           a.revision_count, a.revision_note, (a.disputed_at IS NOT NULL) AS disputed, a.auto_approved_at,
+           a.grading_groups,
            (a.source_blob_key IS NOT NULL) AS has_source_file,
            (a.graded_blob_key IS NOT NULL) AS has_graded_file,
            ga.full_name AS grade_angel_name,
@@ -66,6 +69,12 @@ export default async (req: Request) => {
     viewable_pages: viewablePages,
     access,
   };
+
+  // Scores from the grading screen, once the teacher can see them.
+  const { grading_groups: groups } = a;
+  delete assignment.grading_groups;
+  const showScores = access === "full" && (session.role !== "teacher" || ["submitted", "completed"].includes(a.status));
+  assignment.scores = showScores ? await scoreList(a.id, groups || [], a.stored_pages) : [];
 
   let events: unknown[] = [];
   if (session.role === "grade_angel") {

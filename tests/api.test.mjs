@@ -493,6 +493,77 @@ check('pricing: no hint without enough history', r.data.hint === null);
 await master.call('admin-pricing', 'POST', '/api/admin/pricing', { json: { min_rate_cents: 10 } });
 
 
+// ---------- Grading screen and review process ----------
+const [ga] = await q(`INSERT INTO assignments (teacher_id, grade_angel_id, title, subject, grade_level, assignment_type, page_count, rate_per_page_cents, status, accepted_at, due_at)
+  VALUES ($1, $2, 'Grading test', 'Math', '4th', 'combo', 4, 100, 'accepted', NOW(), NOW() + INTERVAL '2 days') RETURNING id`, [tiaId, angelId]);
+for (let i = 0; i < 4; i++) await q(`INSERT INTO assignment_pages (assignment_id, page_index, blob_key, content_type, byte_size, width, height) VALUES ($1, $2, 'x', 'image/jpeg', 1, 1000, 1300)`, [ga.id, i]);
+r = await angel.call('grading', 'GET', `/api/grading?assignment_id=${ga.id}`);
+check('grading: grade angel opens the grading screen', r.status === 200 && r.data.layer === 'grade_angel' && r.data.can_edit && r.data.pages.length === 4 && r.data.comment_bank.length > 3, JSON.stringify(r.data).slice(0, 200));
+r = await stranger.call('grading', 'GET', `/api/grading?assignment_id=${ga.id}`);
+check('grading: others are kept out', r.status === 401);
+const marks = { items: [{ t: 'pen', c: '#D92D20', w: 0.004, p: [[0.1, 0.1], [0.2, 0.2]] }, { t: 'stamp', k: 'check', c: '#12A150', x: 0.5, y: 0.5, s: 0.045 }, { t: 'text', c: '#D92D20', x: 0.3, y: 0.7, s: 0.024, text: 'Show your work' }], score: { e: 8, p: 10 } };
+r = await angel.call('grading', 'POST', '/api/grading', { json: { action: 'save_page', assignment_id: ga.id, page_index: 0, data: marks } });
+check('grading: marks saved', r.status === 200);
+r = await angel.call('grading', 'POST', '/api/grading', { json: { action: 'save_page', assignment_id: ga.id, page_index: 1, data: { items: [{ t: 'script', x: 1 }] } } });
+check('grading: unknown mark types refused', r.status === 400);
+r = await angel.call('grading', 'POST', '/api/grading', { json: { action: 'save_page', assignment_id: ga.id, page_index: 1, data: { items: [], score: { e: 5, p: 5 } } } });
+r = await angel.call('grading', 'POST', '/api/grading', { json: { action: 'save_groups', assignment_id: ga.id, groups: [{ kind: 'student', label: 'Student 1', pages: [0, 1] }, { kind: 'worksheet', label: 'Quiz', pages: [2, 3] }] } });
+check('grading: groups saved and student packet totals', r.status === 200 && r.data.groups.length === 2 && r.data.groups[1].key_page === 2 && r.data.scores[0].label === 'Student 1' && r.data.scores[0].earned === 13 && r.data.scores[0].possible === 15, JSON.stringify(r.data));
+r = await angel.call('grading', 'POST', '/api/grading', { json: { action: 'save_groups', assignment_id: ga.id, groups: [{ pages: [0] }, { pages: [0, 1] }] } });
+check('grading: a page cannot be in two groups', r.status === 400);
+r = await teacher.call('grading', 'GET', `/api/grading?assignment_id=${ga.id}`);
+check('grading: teacher cannot see marks before the work is sent', r.data.layer === 'teacher' && r.data.marks.length === 0);
+r = await angel.call('grading', 'POST', '/api/grading', { json: { action: 'save_bank', items: ['Nice work', '  ', 'Check signs'] } });
+check('grading: comment bank saved', r.data.comment_bank.length === 2);
+
+let mailMark = sentEmails.length;
+r = await angel.call('assignments-submit', 'POST', '/api/assignments/submit', { json: { assignment_id: ga.id, note: 'Number 4 tripped most of them up.' } });
+check('review: graded work sent from the grading screen', r.status === 200 && r.data.assignment.status === 'submitted' && r.data.assignment.graded_on_site, JSON.stringify(r.data));
+check('review: teacher emailed that work is ready', sentEmails.slice(mailMark).some((m) => m.to[0] === 'tia@example.com' && /Graded work is ready/.test(m.subject) && /Number 4/.test(m.text)));
+r = await teacher.call('grading', 'GET', `/api/grading?assignment_id=${ga.id}`);
+check('review: teacher now sees the marks and can add their own', r.data.marks.length === 2 && r.data.can_edit && r.data.assignment.grade_angel_note.includes('Number 4'));
+r = await teacher.call('grading', 'POST', '/api/grading', { json: { action: 'save_page', assignment_id: ga.id, page_index: 0, data: { items: [{ t: 'text', c: '#1D5FD1', x: 0.5, y: 0.2, s: 0.024, text: 'This should be C' }], score: { e: 9, p: 10 } } } });
+r = await teacher.call('assignments-get', 'GET', `/api/assignments/get?id=${ga.id}`);
+check('review: teacher score wins on the score list', r.data.assignment.scores[0].earned === 14, JSON.stringify(r.data.assignment.scores));
+mailMark = sentEmails.length;
+r = await teacher.call('assignments-revise', 'POST', '/api/assignments/revise', { json: { assignment_id: ga.id, note: 'Page 1 number 4 should be C.' } });
+check('review: teacher asks for changes once', r.status === 200 && r.data.assignment.status === 'accepted' && r.data.assignment.revision_count === 1, JSON.stringify(r.data));
+check('review: grade angel emailed about changes', sentEmails.slice(mailMark).some((m) => m.to[0] === 'jordan@example.com' && /Changes requested/.test(m.subject)));
+r = await angel.call('assignments-get', 'GET', `/api/assignments/get?id=${ga.id}`);
+check('review: grade angel sees the change note', r.data.assignment.revision_note.includes('should be C'));
+await angel.call('assignments-submit', 'POST', '/api/assignments/submit', { json: { assignment_id: ga.id } });
+r = await teacher.call('assignments-revise', 'POST', '/api/assignments/revise', { json: { assignment_id: ga.id, note: 'Still not right on page 1.' } });
+check('review: second request goes to staff as a dispute', r.status === 200 && r.data.disputed, JSON.stringify(r.data));
+r = await teacher.call('assignments-complete', 'POST', '/api/assignments/complete', { json: { assignment_id: ga.id } });
+check('review: disputed work cannot be approved', r.status === 409);
+r = await master.call('admin-overview', 'GET', '/api/admin/overview');
+check('review: dispute shows in staff attention list', r.data.attention.some((x) => x.kind === 'dispute'));
+
+// Automatic approval: reminder on day 3, approval on day 5 (only when paid).
+const [ab] = await q(`INSERT INTO assignments (teacher_id, grade_angel_id, title, subject, grade_level, assignment_type, page_count, rate_per_page_cents, status, accepted_at, submitted_at)
+  VALUES ($1, $2, 'Slow teacher', 'Math', '4th', 'combo', 2, 100, 'submitted', NOW() - INTERVAL '7 days', NOW() - INTERVAL '4 days') RETURNING id`, [tiaId, angelId]);
+mailMark = sentEmails.length;
+await (await fn('assignments-auto-approve'))();
+check('auto approve: day 3 reminder sent once', sentEmails.slice(mailMark).filter((m) => /Waiting on you: Slow teacher/.test(m.subject)).length === 1);
+await q(`UPDATE assignments SET submitted_at = NOW() - INTERVAL '6 days' WHERE id = $1`, [ab.id]);
+await (await fn('assignments-auto-approve'))();
+check('auto approve: unpaid work is left for staff', (await q(`SELECT status FROM assignments WHERE id = $1`, [ab.id]))[0].status === 'submitted');
+await q(`INSERT INTO payments (assignment_id, amount_cents, platform_fee_cents, status, paid_at, test_mode) VALUES ($1, 200, 40, 'paid', NOW(), true)`, [ab.id]);
+mailMark = sentEmails.length;
+await (await fn('assignments-auto-approve'))();
+const abRow = (await q(`SELECT status, auto_approved_at FROM assignments WHERE id = $1`, [ab.id]))[0];
+check('auto approve: approved after 5 days and both told', abRow.status === 'completed' && abRow.auto_approved_at && sentEmails.slice(mailMark).some((m) => m.to[0] === 'jordan@example.com') && sentEmails.slice(mailMark).some((m) => m.to[0] === 'tia@example.com'), JSON.stringify(abRow));
+check('auto approve: reminder not sent twice', sentEmails.slice(mailMark).filter((m) => /Waiting on you/.test(m.subject)).length === 0);
+
+// Handing work back clears the marks for the next Grade Angel.
+const [hb] = await q(`INSERT INTO assignments (teacher_id, grade_angel_id, title, subject, grade_level, assignment_type, page_count, rate_per_page_cents, status, accepted_at)
+  VALUES ($1, $2, 'Hand back', 'Math', '4th', 'combo', 1, 100, 'accepted', NOW()) RETURNING id`, [tiaId, angelId]);
+await q(`INSERT INTO assignment_pages (assignment_id, page_index, blob_key, content_type, byte_size) VALUES ($1, 0, 'x', 'image/jpeg', 1)`, [hb.id]);
+await angel.call('grading', 'POST', '/api/grading', { json: { action: 'save_page', assignment_id: hb.id, page_index: 0, data: marks } });
+r = await angel.call('assignments-submit', 'POST', '/api/assignments/submit', { json: { assignment_id: hb.id + 999 } });
+await angel.call('assignments-release', 'POST', '/api/assignments/release', { json: { assignment_id: hb.id, reason: 'Out sick' } });
+check('grading: handing back clears the marks', (await q(`SELECT 1 FROM assignment_annotations WHERE assignment_id = $1`, [hb.id])).length === 0);
+
 // ---------- Test accounts ----------
 process.env.TEST_ACCOUNT_EMAILS = 'grader.test@example.com, TEACHER.test@example.com';
 const tTeacher = client('test teacher');

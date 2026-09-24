@@ -295,7 +295,7 @@
         return "Waiting for a Grade Angel." + reason;
       }
       if (a.status === "accepted") return `Being graded. ${formatDue(a.due_at)}.`;
-      if (a.status === "submitted") return "Graded work is back. Review it and mark it complete.";
+      if (a.status === "submitted") return "Graded work is back. Review the pages, then approve or ask for changes.";
       if (a.status === "completed") return a.my_rating ? `You rated this ${a.my_rating} of 5.` : "Complete. Leave a review for your Grade Angel.";
       return "";
     }
@@ -308,7 +308,7 @@
         actions.push(`<a class="btn small ghost chat-link" href="/assignment.html?id=${a.id}#chat">Message${a.unread_messages ? ` <span class="badge">${a.unread_messages}</span>` : ""}</a>`);
       }
       if (needsPayment) actions.push(`<button class="btn small" data-pay-id="${a.id}">Pay ${total}</button>`);
-      if (a.status === "submitted") actions.push(`<button class="btn small" data-complete-id="${a.id}">Mark complete</button>`);
+      if (a.status === "submitted") actions.push(`<a class="btn small" href="/assignment.html?id=${a.id}">Review and approve</a>`);
       if (a.status === "completed" && !a.my_rating && a.grade_angel_id) actions.push(`<button class="btn small" data-review-id="${a.id}">★ Review</button>`);
       if (a.status === "draft" || a.status === "open") actions.push(`<button class="btn small ghost" data-cancel-id="${a.id}">Cancel</button>`);
       const person = a.grade_angel_id
