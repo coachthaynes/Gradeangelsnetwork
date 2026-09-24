@@ -1356,3 +1356,15 @@ details.card > summary { cursor: pointer; font-family: "Fraunces", Georgia, seri
 
 .label-like { display: block; font-weight: 600; font-size: 0.92rem; margin: 1rem 0 0.35rem; }
 .price-mode { margin-top: 0; }
+.fold { margin-bottom: 1.5rem; }
+.fold > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 0.6rem; padding: 0.75rem 1rem; background: #fff; border: 1px solid var(--border); border-radius: 12px; font-weight: 600; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary::before { content: "▸"; color: var(--seafoam-deep); transition: transform 0.15s; }
+.fold[open] > summary::before { transform: rotate(90deg); }
+.fold > summary .section-title { margin: 0; }
+.fold-count { background: var(--black); color: var(--seafoam); border-radius: 999px; padding: 0 0.55rem; font-size: 0.8rem; font-weight: 700; }
+.fold-count:empty { display: none; }
+.fold-hint { margin-left: auto; font-size: 0.85rem; font-weight: 500; }
+.fold[open] > summary { margin-bottom: 0.75rem; }
+.fold-tools { margin-bottom: 0.5rem; }
+.finished-fold > summary { font-size: 0.95rem; }

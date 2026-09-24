@@ -36,17 +36,24 @@
       </section>
 
       <section>
-        <div class="section-head">
-          <h2 class="section-title">Open assignments</h2>
-          <label class="check toggle"><input type="checkbox" id="match-only" /> Only show my subjects and types</label>
-        </div>
-        <div id="open-list"></div>
-      </section>
-
-      <section>
         <h2 class="section-title">Your assignments</h2>
         <div id="mine-list"></div>
       </section>
+
+      <details class="fold" id="open-section">
+        <summary>
+          <span class="section-title">Open assignments</span>
+          <span class="fold-count" id="open-count"></span>
+          <span class="fold-hint muted" id="open-hint">Show</span>
+        </summary>
+        <div class="section-head fold-tools">
+          <label class="check toggle"><input type="checkbox" id="match-only" /> Only show my subjects and types</label>
+        </div>
+        <div id="open-list"></div>
+        <div class="row-actions" id="open-more-row" hidden>
+          <button class="btn small ghost" type="button" id="open-more">Show more</button>
+        </div>
+      </details>
 
       <section class="card pro-card" id="pro"></section>
 
@@ -185,10 +192,19 @@
         </div>`;
     }
 
+    // Open work sits below the Grade Angel's own work, folded away when they
+    // are busy, and shows a page of cards at a time.
+    const OPEN_PAGE = 10;
+    let openShown = OPEN_PAGE;
+    let openFoldSet = false;
     function renderOpen() {
       const list = document.getElementById("open-list");
       const onlyMatches = document.getElementById("match-only").checked;
-      const shown = onlyMatches ? openAssignments.filter(matchesProfile) : openAssignments;
+      const all = onlyMatches ? openAssignments.filter(matchesProfile) : openAssignments;
+      const shown = all.slice(0, openShown);
+      document.getElementById("open-count").textContent = openAssignments.length ? String(openAssignments.length) : "";
+      document.getElementById("open-more-row").hidden = all.length <= openShown;
+      document.getElementById("open-more").textContent = `Show more (${all.length - shown.length} left)`;
       if (shown.length === 0) {
         list.innerHTML = onlyMatches && openAssignments.length
           ? emptyStateHtml("pages", "Nothing matches your profile right now", "Turn off the filter above to see every open assignment.")
@@ -197,6 +213,24 @@
       }
       list.innerHTML = shown.map((a) => openCardHtml(a)).join("");
     }
+
+    // Folded when there is work in progress, open otherwise; the Grade
+    // Angel's own choice wins once they make one.
+    function setOpenFold() {
+      const section = document.getElementById("open-section");
+      let saved = null;
+      try { saved = localStorage.getItem("ga_open_fold"); } catch {}
+      const busy = mine.some((a) => a.status === "accepted" || a.status === "submitted");
+      openFoldSet = true;
+      section.open = saved ? saved === "open" : !busy;
+      document.getElementById("open-hint").textContent = section.open ? "Hide" : "Show";
+    }
+    document.getElementById("open-section").addEventListener("toggle", (e) => {
+      document.getElementById("open-hint").textContent = e.target.open ? "Hide" : "Show";
+      if (!openFoldSet) return;
+      try { localStorage.setItem("ga_open_fold", e.target.open ? "open" : "closed"); } catch {}
+    });
+    document.getElementById("open-more").addEventListener("click", () => { openShown += OPEN_PAGE; renderOpen(); });
 
     async function loadOpen() {
       const list = document.getElementById("open-list");
@@ -264,10 +298,16 @@
       try {
         mine = (await apiGet("/api/assignments/list?scope=mine")).assignments || [];
         renderTiles();
-        list.innerHTML = mine.length
-          ? mine.map(mineCardHtml).join("")
-          : emptyStateHtml("check", "You have not accepted anything yet",
-              setup.ready ? "Pick an open assignment above to get started." : "Once your account is live, the assignments you accept show up here.");
+        const active = mine.filter((a) => a.status !== "completed" && a.status !== "cancelled");
+        const finished = mine.filter((a) => a.status === "completed");
+        list.innerHTML = (active.length
+          ? active.map(mineCardHtml).join("")
+          : emptyStateHtml("check", mine.length ? "Nothing in progress" : "You have not accepted anything yet",
+              setup.ready ? "Pick an open assignment below to get started." : "Once your account is live, the assignments you accept show up here.")) +
+          (finished.length
+            ? `<details class="fold finished-fold"><summary><span>Finished assignments</span><span class="fold-count">${finished.length}</span></summary>${finished.map(mineCardHtml).join("")}</details>`
+            : "");
+        if (!openFoldSet) setOpenFold();
       } catch (err) {
         list.innerHTML = `<div class="msg error">${escapeHtml(err.message)}</div>`;
       }
