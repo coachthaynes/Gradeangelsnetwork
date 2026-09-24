@@ -50,7 +50,7 @@
           email: document.getElementById("email").value,
           password: document.getElementById("password").value,
         });
-        window.location.href = user.role === "teacher" ? "/dashboard-teacher.html" : "/dashboard-grade-angel.html";
+        window.location.href = dashboardFor(user.role);
       } catch (err) {
         showMessage(msg, err.message, "error");
         submitBtn.disabled = false;

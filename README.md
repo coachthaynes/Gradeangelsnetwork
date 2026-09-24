@@ -40,8 +40,8 @@ after five steps on `/grade-angel-setup.html`, done in order (see
 2. Teaching background (experience, degree, certificate, subjects, bio)
 3. Agreements (confidentiality, plus the independent contractor agreement
    signed by typing their full legal name)
-4. A clear background check (Checkr, or recorded by an admin through
-   `POST /api/admin/background-check` with `user_id` and `status`)
+4. A clear background check (Checkr, or recorded by staff on the admin
+   dashboard's user page)
 5. A Stripe Connect account that can receive payouts
 
 Until they are live they can still sign in, use their dashboard, and browse
@@ -50,8 +50,8 @@ steps 4 and 5 show as opening soon, so Grade Angels can finish steps 1 to 3
 now; those steps switch on by themselves once the keys are added.
 
 Environment variables used: `SESSION_SECRET`, `STRIPE_SECRET_KEY`,
-`STRIPE_WEBHOOK_SECRET`, `CHECKR_API_KEY`, `CHECKR_WEBHOOK_SECRET`, and
-optionally `CHECKR_PACKAGE`. On a real deploy both webhooks refuse every
+`STRIPE_WEBHOOK_SECRET`, `CHECKR_API_KEY`, `CHECKR_WEBHOOK_SECRET`,
+`OWNER_EMAILS`, and optionally `CHECKR_PACKAGE`. On a real deploy both webhooks refuse every
 request until their secret is set; only local `netlify dev` skips the check.
 
 ## Assignment pages and flow
@@ -126,3 +126,27 @@ addresses and phone numbers are replaced with "[contact info removed]".
 The page checks for new messages every 4 seconds while visible and every 30
 seconds in the background, and stops once the chat closes. Dashboards show
 unread counts.
+
+## Admin dashboard
+
+`/admin.html` is for staff. It has an overview (headline numbers, money,
+sign ups, and a needs attention list), plus Users, Assignments, Payouts,
+Reviews, Staff, Activity log, and My account tabs.
+
+Staff are users with role `admin` and a `staff_level`:
+
+* support: view everything, hide reviews, suspend users, record background checks
+* manager: support, plus retry payouts, cancel unpaid assignments, download the payments spreadsheet
+* owner: manager, plus add, change, and remove staff
+
+Levels are checked on the server for every request (`netlify/lib/staff.mts`)
+and every staff action is written to `admin_actions`, shown in the Activity
+log.
+
+The first owner: set `OWNER_EMAILS` in Netlify to the email you will use
+(comma separated for more than one), then sign up with that email. It must
+not already have an account. Owners add other staff from the Staff tab with a
+temporary password; staff change it under My account.
+
+Suspended accounts cannot sign in, are signed out on their next page load,
+and are refused by every endpoint that changes anything.

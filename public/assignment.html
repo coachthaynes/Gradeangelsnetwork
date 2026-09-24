@@ -135,7 +135,7 @@
             </form>`);
           out.push(`<button class="btn small ghost" data-act="release">I can't finish this, hand it back</button>`);
         }
-      } else {
+      } else if (user.role === "teacher") {
         const needsPayment = (a.status === "accepted" || a.status === "submitted") && a.payment_status !== "paid";
         if (needsPayment) out.push(`<button class="btn" data-act="pay">Pay ${formatCents(a.total_cents)}</button>`);
         if (a.status === "submitted") out.push(`<button class="btn" data-act="complete">Mark complete</button>`);
@@ -157,9 +157,11 @@
           ? { id: a.grade_angel_id, name: a.grade_angel_name, photo: a.grade_angel_photo_url, role: "grade_angel", label: "Grade Angel" }
           : null;
       if (!other || !other.id) return "";
+      // Staff see who is involved but do not leave reviews.
+      const canReview = user.role === "teacher" || user.role === "grade_angel";
 
       let review = "";
-      if (a.status === "completed") {
+      if (a.status === "completed" && canReview) {
         if (a.my_rating) {
           review = `<p class="review-done">You rated ${escapeHtml(other.name)} ${starRowHtml(a.my_rating)}</p>`;
         } else {
@@ -379,7 +381,7 @@
         return;
       }
       renderNav(user);
-      document.getElementById("back-link").href = user.role === "teacher" ? "/dashboard-teacher.html" : "/dashboard-grade-angel.html";
+      document.getElementById("back-link").href = dashboardFor(user.role);
       if (!Number.isInteger(assignmentId) || assignmentId <= 0) {
         document.getElementById("content").innerHTML = "";
         showMessage(pageMsg, "That link is missing an assignment number.", "error");

@@ -18,7 +18,8 @@ export default async (req: Request) => {
   if (!email || !password) return json({ error: "Email and password are required" }, 400);
 
   const rows = await db.sql`
-    SELECT id, email, password_hash, role, full_name, school_or_org, subjects, background_check_status
+    SELECT id, email, password_hash, role, full_name, school_or_org, subjects, background_check_status,
+           staff_level, suspended_at
     FROM users WHERE email = ${email}
   `;
   const user = rows[0];
@@ -28,6 +29,11 @@ export default async (req: Request) => {
   if (!user || !(await verifyPassword(password, user.password_hash))) {
     return json({ error: "Incorrect email or password" }, 401);
   }
+
+  if (user.suspended_at) {
+    return json({ error: "This account is suspended. Contact Grade Angels Network support." }, 403);
+  }
+  delete user.suspended_at;
 
   const token = signSession({ id: user.id, email: user.email, role: user.role, full_name: user.full_name });
   delete user.password_hash;

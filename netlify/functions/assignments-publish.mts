@@ -2,6 +2,7 @@ import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
+import { isSuspended } from "../lib/staff.mts";
 import { readJson, recordEvent } from "../lib/assignments.mts";
 
 // Last step of posting. Checks that every page from 0 up to the expected
@@ -15,6 +16,7 @@ export default async (req: Request) => {
   if (!session) return json({ error: "Sign in required" }, 401);
   if (session.role !== "teacher") return json({ error: "Only teachers post assignments" }, 403);
 
+  if (await isSuspended(session.id)) return json({ error: "This account is suspended" }, 403);
   const body = await readJson(req);
   if (!body) return json({ error: "Body must be JSON" }, 400);
   const assignmentId = Number(body.assignment_id);

@@ -2,6 +2,7 @@ import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
+import { isSuspended } from "../lib/staff.mts";
 import { assignmentFilesStore } from "../lib/blobs.mts";
 import { PHOTO_CONTENT_TYPES, PHOTO_MAX_BYTES, photoBlobKey, photoUrl } from "../lib/profiles.mts";
 
@@ -10,6 +11,7 @@ import { PHOTO_CONTENT_TYPES, PHOTO_MAX_BYTES, photoBlobKey, photoUrl } from "..
 export default async (req: Request) => {
   const session = getSession(req);
   if (!session) return json({ error: "Sign in required" }, 401);
+  if (await isSuspended(session.id)) return json({ error: "This account is suspended" }, 403);
   const store = assignmentFilesStore();
   const key = photoBlobKey(session.id);
 

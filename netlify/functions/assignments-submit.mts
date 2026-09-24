@@ -2,6 +2,7 @@ import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
+import { isSuspended } from "../lib/staff.mts";
 import { assignmentFilesStore, sanitizeFilename } from "../lib/blobs.mts";
 
 // A Grade Angel uploads the graded work here. Multipart form data again,
@@ -15,6 +16,7 @@ export default async (req: Request) => {
     return json({ error: "Only Grade Angels can submit graded work" }, 403);
   }
 
+  if (await isSuspended(session.id)) return json({ error: "This account is suspended" }, 403);
   let form: FormData;
   try {
     form = await req.formData();

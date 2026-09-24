@@ -2,6 +2,7 @@ import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
+import { isSuspended } from "../lib/staff.mts";
 import { assignmentFilesStore } from "../lib/blobs.mts";
 import { MAX_PAGES, MAX_PAGE_BYTES, PAGE_CONTENT_TYPES, pageBlobKey } from "../lib/assignments.mts";
 
@@ -16,6 +17,7 @@ export default async (req: Request) => {
   if (!session) return json({ error: "Sign in required" }, 401);
   if (session.role !== "teacher") return json({ error: "Only teachers upload assignment pages" }, 403);
 
+  if (await isSuspended(session.id)) return json({ error: "This account is suspended" }, 403);
   let form: FormData;
   try {
     form = await req.formData();

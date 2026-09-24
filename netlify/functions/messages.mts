@@ -2,6 +2,7 @@ import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
+import { isSuspended } from "../lib/staff.mts";
 import { readJson } from "../lib/assignments.mts";
 import { MAX_MESSAGES_PER_MINUTE, MAX_MESSAGE_LENGTH, chatAccess, stripContactInfo, type ChatRow } from "../lib/chat.mts";
 import { photoUrl, publicName } from "../lib/profiles.mts";
@@ -50,6 +51,7 @@ export default async (req: Request) => {
 
   if (req.method === "POST") {
     if (!access.canWrite) return json({ error: "This chat is closed" }, 409);
+    if (await isSuspended(session.id)) return json({ error: "This account is suspended" }, 403);
 
     const text = String(body!.body ?? "").trim();
     if (!text) return json({ error: "Type a message first" }, 400);

@@ -2,6 +2,7 @@ import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
 import { hashPassword, signSession, sessionCookieHeader } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
+import { isOwnerEmail } from "../lib/staff.mts";
 
 const ALLOWED_ROLES = new Set(["teacher", "grade_angel"]);
 
@@ -34,10 +35,16 @@ export default async (req: Request) => {
 
   const passwordHash = await hashPassword(password);
 
+  // The site owner's email (OWNER_EMAILS setting) always becomes an owner
+  // account, whatever role was picked on the form.
+  const owner = isOwnerEmail(email);
+  const finalRole = owner ? "admin" : role;
+  const staffLevel = owner ? "owner" : null;
+
   const [user] = await db.sql`
-    INSERT INTO users (email, password_hash, role, full_name, school_or_org, subjects)
-    VALUES (${email}, ${passwordHash}, ${role}, ${fullName}, ${schoolOrOrg}, ${subjects})
-    RETURNING id, email, role, full_name, school_or_org, subjects, background_check_status, created_at
+    INSERT INTO users (email, password_hash, role, full_name, school_or_org, subjects, staff_level)
+    VALUES (${email}, ${passwordHash}, ${finalRole}, ${fullName}, ${schoolOrOrg}, ${subjects}, ${staffLevel})
+    RETURNING id, email, role, full_name, school_or_org, subjects, background_check_status, staff_level, created_at
   `;
 
   const token = signSession({ id: user.id, email: user.email, role: user.role, full_name: user.full_name });

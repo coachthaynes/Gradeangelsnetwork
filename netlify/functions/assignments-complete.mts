@@ -2,6 +2,7 @@ import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
+import { isSuspended } from "../lib/staff.mts";
 import { attemptPayout } from "../lib/payouts.mts";
 import { recordEvent } from "../lib/assignments.mts";
 
@@ -21,6 +22,7 @@ export default async (req: Request) => {
     return json({ error: "Only the posting teacher can close out an assignment" }, 403);
   }
 
+  if (await isSuspended(session.id)) return json({ error: "This account is suspended" }, 403);
   let body: Record<string, unknown>;
   try {
     body = await req.json();

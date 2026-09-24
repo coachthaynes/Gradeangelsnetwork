@@ -41,7 +41,7 @@ function showMessage(el, text, kind) {
 }
 
 function formatCents(cents) {
-  return "$" + (cents / 100).toFixed(2);
+  return "$" + (Number(cents || 0) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function statusPillHtml(status) {
@@ -57,6 +57,12 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+// Where each kind of account lands after signing in.
+function dashboardFor(role) {
+  if (role === "admin") return "/admin.html";
+  return role === "teacher" ? "/dashboard-teacher.html" : "/dashboard-grade-angel.html";
+}
+
 // Renders the shared nav bar. `user` is the object from GET /api/auth/me
 // (or null when signed out).
 function renderNav(user) {
@@ -64,7 +70,7 @@ function renderNav(user) {
   if (!nav) return;
   const links = [];
   if (user) {
-    const dashboardHref = user.role === "teacher" ? "/dashboard-teacher.html" : "/dashboard-grade-angel.html";
+    const dashboardHref = dashboardFor(user.role);
     links.push(`<a href="${dashboardHref}">Dashboard</a>`);
     links.push(`<span class="user-name">${escapeHtml(user.full_name)}</span>`);
     links.push(`<button class="link" id="logout-btn">Sign out</button>`);
@@ -96,7 +102,7 @@ async function requireRole(role) {
     return null;
   }
   if (user.role !== role) {
-    window.location.href = user.role === "teacher" ? "/dashboard-teacher.html" : "/dashboard-grade-angel.html";
+    window.location.href = dashboardFor(user.role);
     return null;
   }
   renderNav(user);

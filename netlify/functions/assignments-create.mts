@@ -2,6 +2,7 @@ import type { Config } from "@netlify/functions";
 import { db } from "../lib/db.mts";
 import { getSession } from "../lib/auth.mts";
 import { json, methodNotAllowed } from "../lib/http.mts";
+import { isSuspended } from "../lib/staff.mts";
 import { DEFAULT_TURNAROUND_HOURS, TURNAROUND_HOURS, readJson } from "../lib/assignments.mts";
 import { getSetupStatus } from "../lib/grade-angel.mts";
 
@@ -21,6 +22,7 @@ export default async (req: Request) => {
     return json({ error: "Only teachers can post assignments" }, 403);
   }
 
+  if (await isSuspended(session.id)) return json({ error: "This account is suspended" }, 403);
   const body = await readJson(req);
   if (!body) return json({ error: "Body must be JSON" }, 400);
 

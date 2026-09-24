@@ -95,7 +95,7 @@
           subjects: document.getElementById("subjects").value,
         });
         // New Grade Angels go straight into setup; teachers can post right away.
-        window.location.href = user.role === "teacher" ? "/dashboard-teacher.html" : "/grade-angel-setup.html";
+        window.location.href = user.role === "grade_angel" ? "/grade-angel-setup.html" : dashboardFor(user.role);
       } catch (err) {
         showMessage(msg, err.message, "error");
         submitBtn.disabled = false;

@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin, Grade Angels Network</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
+  <meta name="theme-color" content="#0B0B0B" />
+  <meta name="robots" content="noindex" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body class="admin-body">
+  <nav class="nav" id="site-nav"></nav>
+
+  <div class="admin">
+    <aside class="admin-side">
+      <div class="admin-who" id="admin-who"></div>
+      <nav class="admin-menu" id="admin-menu" aria-label="Admin sections">
+        <a href="#overview" data-tab="overview">Overview</a>
+        <a href="#users" data-tab="users">Users</a>
+        <a href="#assignments" data-tab="assignments">Assignments</a>
+        <a href="#payouts" data-tab="payouts">Payouts</a>
+        <a href="#reviews" data-tab="reviews">Reviews</a>
+        <a href="#staff" data-tab="staff">Staff</a>
+        <a href="#activity" data-tab="activity">Activity log</a>
+        <a href="#account" data-tab="account">My account</a>
+      </nav>
+    </aside>
+
+    <main class="admin-main">
+      <div id="admin-msg" class="msg" style="display:none"></div>
+
+      <!-- Overview -->
+      <section class="tab" id="tab-overview">
+        <h1>Overview</h1>
+        <div class="tiles" id="ov-tiles"></div>
+        <div class="grid admin-two">
+          <div class="card">
+            <h2>Needs attention</h2>
+            <div id="ov-attention"></div>
+          </div>
+          <div class="card">
+            <h2>Money</h2>
+            <dl class="money-list" id="ov-money"></dl>
+            <h2 class="mt">Sign ups, last 14 days</h2>
+            <div id="ov-signups"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Users -->
+      <section class="tab" id="tab-users" hidden>
+        <h1>Users</h1>
+        <form class="filters" id="users-filters">
+          <input type="search" id="users-q" placeholder="Search name or email" aria-label="Search users" />
+          <select id="users-role" aria-label="Role">
+            <option value="">Everyone</option>
+            <option value="teacher">Teachers</option>
+            <option value="grade_angel">Grade Angels</option>
+          </select>
+          <select id="users-filter" aria-label="Filter">
+            <option value="">Any status</option>
+            <option value="in_setup">Grade Angels in setup</option>
+            <option value="check_review">Background check to review</option>
+            <option value="suspended">Suspended</option>
+          </select>
+          <button class="btn small" type="submit">Search</button>
+        </form>
+        <div class="table-wrap"><table class="admin-table" id="users-table"></table></div>
+      </section>
+
+      <!-- Assignments -->
+      <section class="tab" id="tab-assignments" hidden>
+        <h1>Assignments</h1>
+        <form class="filters" id="asg-filters">
+          <input type="search" id="asg-q" placeholder="Search title, subject, or person" aria-label="Search assignments" />
+          <select id="asg-status" aria-label="Status">
+            <option value="">Any status</option>
+            <option value="draft">Draft</option>
+            <option value="open">Open</option>
+            <option value="accepted">Being graded</option>
+            <option value="submitted">Submitted</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <label class="check"><input type="checkbox" id="asg-overdue" /> Overdue only</label>
+          <button class="btn small" type="submit">Search</button>
+        </form>
+        <div class="table-wrap"><table class="admin-table" id="asg-table"></table></div>
+      </section>
+
+      <!-- Payouts -->
+      <section class="tab" id="tab-payouts" hidden>
+        <h1>Payments and payouts</h1>
+        <form class="filters" id="pay-filters">
+          <select id="pay-status" aria-label="Payout status">
+            <option value="">All payouts</option>
+            <option value="failed">Failed</option>
+            <option value="held">Held</option>
+            <option value="processing">Sending</option>
+            <option value="not_started">Not started</option>
+            <option value="transferred">Paid out</option>
+          </select>
+          <button class="btn small" type="submit">Filter</button>
+          <a class="btn small secondary" id="pay-csv" href="/api/admin/payments?format=csv">Download spreadsheet</a>
+        </form>
+        <div class="table-wrap"><table class="admin-table" id="pay-table"></table></div>
+      </section>
+
+      <!-- Reviews -->
+      <section class="tab" id="tab-reviews" hidden>
+        <h1>Reviews</h1>
+        <form class="filters" id="rev-filters">
+          <select id="rev-filter" aria-label="Filter reviews">
+            <option value="">All reviews</option>
+            <option value="low">1 and 2 stars</option>
+            <option value="hidden">Hidden</option>
+          </select>
+          <button class="btn small" type="submit">Filter</button>
+        </form>
+        <div id="rev-list"></div>
+      </section>
+
+      <!-- Staff -->
+      <section class="tab" id="tab-staff" hidden>
+        <h1>Staff</h1>
+        <div class="card levels">
+          <div><strong>Support</strong><span>View everything, hide reviews, suspend users, record background checks.</span></div>
+          <div><strong>Manager</strong><span>Support, plus retry payouts, cancel assignments, and download money reports.</span></div>
+          <div><strong>Owner</strong><span>Manager, plus add, change, and remove staff.</span></div>
+        </div>
+        <div class="table-wrap"><table class="admin-table" id="staff-table"></table></div>
+        <div class="card" id="staff-add-card" hidden>
+          <h2>Add a staff member</h2>
+          <p class="muted">They sign in at the normal sign in page with this email and temporary password, then change it under My account. Staff need an email that is not already a teacher or Grade Angel account.</p>
+          <form id="staff-add">
+            <div class="grid cols-2">
+              <div><label for="st-name">Full name</label><input id="st-name" required /></div>
+              <div><label for="st-email">Email</label><input id="st-email" type="email" required /></div>
+            </div>
+            <div class="grid cols-2">
+              <div><label for="st-pass">Temporary password</label><input id="st-pass" required minlength="10" /></div>
+              <div>
+                <label for="st-level">Access</label>
+                <select id="st-level"><option value="support">Support</option><option value="manager">Manager</option><option value="owner">Owner</option></select>
+              </div>
+            </div>
+            <button class="btn" type="submit">Add staff member</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- Activity -->
+      <section class="tab" id="tab-activity" hidden>
+        <h1>Activity log</h1>
+        <p class="muted">Every action staff take on the site, newest first.</p>
+        <div class="table-wrap"><table class="admin-table" id="act-table"></table></div>
+      </section>
+
+      <!-- Account -->
+      <section class="tab" id="tab-account" hidden>
+        <h1>My account</h1>
+        <div class="card narrow-card">
+          <h2>Change password</h2>
+          <form id="pw-form">
+            <label for="pw-current">Current password</label>
+            <input id="pw-current" type="password" required autocomplete="current-password" />
+            <label for="pw-new">New password</label>
+            <input id="pw-new" type="password" required minlength="8" autocomplete="new-password" />
+            <label for="pw-confirm">Confirm new password</label>
+            <input id="pw-confirm" type="password" required minlength="8" autocomplete="new-password" />
+            <button class="btn" type="submit">Change password</button>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="user-dialog" class="reason-dialog user-dialog"></dialog>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/profile-ui.js"></script>
+  <script>
+    const RANK = { support: 1, manager: 2, owner: 3 };
+    const msg = document.getElementById("admin-msg");
+    let me = { level: "support" };
+    const can = (level) => RANK[me.level] >= RANK[level];
+    const fmtDate = (d) => (d ? new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "");
+    const ROLE = { teacher: "Teacher", grade_angel: "Grade Angel", admin: "Staff" };
+    const PAYOUT = { not_started: "Not started", held: "Held", processing: "Sending", transferred: "Paid out", failed: "Failed" };
+
+    function flash(text, kind = "success") {
+      showMessage(msg, text, kind);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      if (kind === "success") setTimeout(() => showMessage(msg, "", ""), 4000);
+    }
+
+    // Tabs follow the address bar, so a link like #payouts opens that tab.
+    const loaders = {};
+    function showTab() {
+      let tab = (location.hash || "#overview").slice(1);
+      if (tab.startsWith("user-")) {
+        openUser(Number(tab.slice(5)));
+        tab = "users";
+      }
+      if (!document.getElementById("tab-" + tab)) tab = "overview";
+      document.querySelectorAll(".tab").forEach((t) => (t.hidden = t.id !== "tab-" + tab));
+      document.querySelectorAll("#admin-menu a").forEach((a) => a.classList.toggle("active", a.dataset.tab === tab));
+      if (loaders[tab]) loaders[tab]().catch((err) => flash(err.message, "error"));
+    }
+    window.addEventListener("hashchange", showTab);
+
+    // ---------- Overview ----------
+    loaders.overview = async () => {
+      const d = await apiGet("/api/admin/overview");
+      me = d.me;
+      document.getElementById("admin-who").innerHTML = `<strong>${escapeHtml(me.name)}</strong><span class="role-badge">${me.level}</span>`;
+      const u = d.users, a = d.assignments, m = d.money;
+      document.getElementById("ov-tiles").innerHTML = [
+        statTileHtml("star", "Teachers", u.teachers),
+        statTileHtml("check", `Grade Angels (${u.live_grade_angels} live)`, u.grade_angels),
+        statTileHtml("pages", "Open assignments", a.open),
+        statTileHtml("clock", "Being graded", a.accepted),
+        statTileHtml("inbox", "Overdue", a.overdue, a.overdue ? "hot" : ""),
+        statTileHtml("money", "Your 20% so far", formatCents(m.fees_cents)),
+      ].join("");
+
+      document.getElementById("ov-attention").innerHTML = d.attention.length
+        ? `<ul class="attention">${d.attention.map((x) => `
+            <li class="att-${x.kind}">
+              <a href="${x.link}"><strong>${escapeHtml(x.label)}</strong></a>
+              ${x.detail ? `<span class="muted">${escapeHtml(x.detail)}</span>` : ""}
+            </li>`).join("")}</ul>`
+        : emptyStateHtml("check", "All clear", "Nothing needs attention right now.");
+
+      document.getElementById("ov-money").innerHTML = `
+        <div><dt>Collected from teachers</dt><dd>${formatCents(m.collected_cents)}</dd></div>
+        <div><dt>Last 30 days</dt><dd>${formatCents(m.collected_30d_cents)}</dd></div>
+        <div><dt>Platform share (20%)</dt><dd>${formatCents(m.fees_cents)}</dd></div>
+        <div><dt>Paid to Grade Angels</dt><dd>${formatCents(m.paid_out_cents)}</dd></div>
+        <div><dt>Owed to Grade Angels</dt><dd>${formatCents(m.owed_cents)}</dd></div>
+        <div><dt>Pages graded</dt><dd>${a.pages_graded}</dd></div>`;
+
+      const max = Math.max(1, ...d.signups.map((s) => s.teachers + s.grade_angels));
+      document.getElementById("ov-signups").innerHTML = d.signups.length
+        ? `<div class="bars">${d.signups.map((s) => `
+            <div class="bar" title="${s.day}: ${s.teachers} teachers, ${s.grade_angels} Grade Angels">
+              <span class="bar-angels" style="height:${(s.grade_angels / max) * 100}%"></span>
+              <span class="bar-teachers" style="height:${(s.teachers / max) * 100}%"></span>
+              <em>${s.day.slice(8)}</em>
+            </div>`).join("")}</div>
+           <p class="legend"><span class="key teachers"></span> Teachers <span class="key angels"></span> Grade Angels</p>`
+        : '<p class="muted">No sign ups in the last two weeks.</p>';
+      applyPermissions();
+    };
+
+    function applyPermissions() {
+      document.getElementById("pay-csv").hidden = !can("manager");
+      document.getElementById("staff-add-card").hidden = !can("owner");
+    }
+
+    // ---------- Users ----------
+    function setupProgress(u) {
+      if (u.role !== "grade_angel") return "";
+      const steps = [u.personal_completed_at, u.profile_completed_at, u.contractor_agreement_signed_at, u.background_check_status === "clear", u.stripe_payouts_ready];
+      const done = steps.filter(Boolean).length;
+      return done === 5 ? '<span class="pill status-completed">Live</span>' : `<span class="pill">${done} of 5 steps</span>`;
+    }
+    loaders.users = async () => {
+      const q = encodeURIComponent(document.getElementById("users-q").value);
+      const role = document.getElementById("users-role").value;
+      const filter = document.getElementById("users-filter").value;
+      const { users } = await apiGet(`/api/admin/users?q=${q}&role=${role}&filter=${filter}`);
+      document.getElementById("users-table").innerHTML = `
+        <thead><tr><th>Name</th><th>Role</th><th>Status</th><th>Rating</th><th>Assignments</th><th>Joined</th></tr></thead>
+        <tbody>${users.map((u) => `
+          <tr class="clickable" data-user="${u.id}">
+            <td><span class="cell-person">${avatarHtml(u.full_name, u.photo_url, 32)}<span><strong>${escapeHtml(u.full_name)}</strong><br /><span class="muted">${escapeHtml(u.email)}</span></span></span></td>
+            <td>${ROLE[u.role]}</td>
+            <td>${u.suspended_at ? '<span class="pill status-cancelled">Suspended</span>' : setupProgress(u)}${u.background_check_status === "consider" ? ' <span class="pill status-submitted">Check review</span>' : ""}</td>
+            <td>${u.rating ? "★ " + u.rating.toFixed(1) : '<span class="muted">None</span>'}</td>
+            <td>${u.assignment_count}</td>
+            <td>${fmtDate(u.created_at)}</td>
+          </tr>`).join("") || '<tr><td colspan="6" class="muted">No one matches.</td></tr>'}</tbody>`;
+    };
+    document.getElementById("users-filters").addEventListener("submit", (e) => (e.preventDefault(), loaders.users()));
+    document.getElementById("users-table").addEventListener("click", (e) => {
+      const row = e.target.closest("[data-user]");
+      if (row) openUser(Number(row.dataset.user));
+    });
+
+    async function openUser(id) {
+      const dialog = document.getElementById("user-dialog");
+      dialog.innerHTML = '<div class="pad"><p class="muted">Loading…</p></div>';
+      if (!dialog.open) dialog.showModal();
+      try {
+        const { user: u, setup, assignments, reviews } = await apiGet(`/api/admin/users?id=${id}`);
+        const facts = [
+          ["Email", escapeHtml(u.email)],
+          ["Phone", escapeHtml(u.phone || "")],
+          ["Location", [u.city, u.state, u.zip].filter(Boolean).map(escapeHtml).join(", ")],
+          ["Joined", fmtDate(u.created_at)],
+          u.role === "teacher" ? ["Display name", escapeHtml(u.display_name || "")] : null,
+          u.role === "teacher" ? ["School", escapeHtml(u.school_or_org || "")] : null,
+          u.role === "grade_angel" ? ["Experience", u.years_experience != null ? `${u.years_experience} years` : ""] : null,
+          u.role === "grade_angel" ? ["Certificate", `${escapeHtml(u.teaching_certificate || "")} ${escapeHtml(u.certification_state || "")}`] : null,
+          u.role === "grade_angel" ? ["Contract signed", u.contractor_agreement_signed_at ? `${escapeHtml(u.contractor_signature_name || "")}, ${fmtDate(u.contractor_agreement_signed_at)}` : "Not yet"] : null,
+          u.role === "grade_angel" ? ["Payouts", u.stripe_payouts_ready ? "Ready" : u.stripe_account_id ? "Started, not finished" : "Not started"] : null,
+        ].filter((f) => f && f[1]);
+        const steps = setup ? [
+          ["Personal information", setup.personal_complete], ["Teaching background", setup.profile_complete],
+          ["Agreements", setup.agreement_signed], ["Background check", setup.background_check_clear], ["Payouts", setup.payouts_ready],
+        ] : [];
+        dialog.innerHTML = `
+          <div class="pad">
+            <div class="user-head">
+              ${avatarHtml(u.full_name, u.photo_url, 64)}
+              <div>
+                <h2>${escapeHtml(u.full_name)}</h2>
+                <span class="role-badge">${ROLE[u.role]}</span>
+                ${u.suspended_at ? `<span class="pill status-cancelled">Suspended: ${escapeHtml(u.suspended_reason || "")}</span>` : ""}
+              </div>
+              <button type="button" class="btn small ghost close-x" data-close>Close</button>
+            </div>
+            <dl class="details">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>
+            ${u.bio ? `<p class="bio">${escapeHtml(u.bio)}</p>` : ""}
+            ${steps.length ? `<h3>Setup</h3><ul class="checklist">${steps.map(([l, d]) => `<li class="${d ? "done" : ""}">${l}</li>`).join("")}</ul>` : ""}
+
+            <h3>Actions</h3>
+            <div class="row-actions">
+              <a class="btn small secondary" href="/profile.html?id=${u.id}" target="_blank" rel="noopener">Public profile</a>
+              ${u.suspended_at
+                ? `<button class="btn small" data-act="unsuspend">Restore account</button>`
+                : `<button class="btn small ghost" data-act="suspend">Suspend account</button>`}
+            </div>
+            ${u.role === "grade_angel" ? `
+              <div class="row-actions">
+                <label for="bg-status" class="inline-label">Background check</label>
+                <select id="bg-status">${["not_started", "invited", "pending", "clear", "consider"].map((s) =>
+                  `<option value="${s}" ${u.background_check_status === s ? "selected" : ""}>${s.replace("_", " ")}</option>`).join("")}</select>
+                <button class="btn small" data-act="bg">Save</button>
+              </div>` : ""}
+
+            <h3>Assignments (${assignments.length})</h3>
+            ${assignments.length ? `<ul class="mini-list">${assignments.map((a) => `
+              <li><a href="/assignment.html?id=${a.id}" target="_blank" rel="noopener">${escapeHtml(a.title)}</a> ${statusPillHtml(a.status)}
+              <span class="muted">${a.page_count} pages · ${fmtDate(a.created_at)}</span></li>`).join("")}</ul>` : '<p class="muted">None yet.</p>'}
+
+            <h3>Reviews about them (${reviews.length})</h3>
+            ${reviews.length ? `<ul class="mini-list">${reviews.map((r) => `
+              <li>${starRowHtml(r.rating)} ${r.hidden ? '<span class="pill">Hidden</span>' : ""}
+              ${escapeHtml(r.comment || "")} <span class="muted">by ${escapeHtml(r.author)}, ${fmtDate(r.created_at)}</span></li>`).join("")}</ul>` : '<p class="muted">None yet.</p>'}
+          </div>`;
+
+        dialog.querySelector("[data-close]").onclick = () => dialog.close();
+        dialog.querySelectorAll("[data-act]").forEach((b) => (b.onclick = async () => {
+          const act = b.dataset.act;
+          const body = { user_id: u.id };
+          if (act === "suspend") {
+            const reason = prompt(`Why are you suspending ${u.full_name}? They will be signed out and cannot sign back in.`);
+            if (!reason) return;
+            Object.assign(body, { action: "suspend", reason });
+          } else if (act === "unsuspend") body.action = "unsuspend";
+          else if (act === "bg") Object.assign(body, { action: "set_background_check", status: dialog.querySelector("#bg-status").value });
+          try {
+            await apiPostJson("/api/admin/users", body);
+            flash("Saved.");
+            openUser(u.id);
+            loaders.users();
+          } catch (err) {
+            alert(err.message);
+          }
+        }));
+      } catch (err) {
+        dialog.innerHTML = `<div class="pad"><div class="msg error">${escapeHtml(err.message)}</div><button class="btn small" onclick="this.closest('dialog').close()">Close</button></div>`;
+      }
+    }
+    document.getElementById("user-dialog").addEventListener("close", () => {
+      if (location.hash.startsWith("#user-")) history.replaceState(null, "", "#users");
+    });
+
+    // ---------- Assignments ----------
+    loaders.assignments = async () => {
+      const q = encodeURIComponent(document.getElementById("asg-q").value);
+      const status = document.getElementById("asg-status").value;
+      const overdue = document.getElementById("asg-overdue").checked ? 1 : 0;
+      const { assignments } = await apiGet(`/api/admin/assignments?q=${q}&status=${status}&overdue=${overdue}`);
+      document.getElementById("asg-table").innerHTML = `
+        <thead><tr><th>Assignment</th><th>Teacher</th><th>Grade Angel</th><th>Status</th><th>Total</th><th>Payout</th><th></th></tr></thead>
+        <tbody>${assignments.map((a) => {
+          const late = a.status === "accepted" && a.due_at && new Date(a.due_at) < new Date();
+          const cancellable = can("manager") && !["completed", "cancelled"].includes(a.status) && a.payment_status !== "paid";
+          return `
+          <tr>
+            <td><a href="/assignment.html?id=${a.id}" target="_blank" rel="noopener"><strong>${escapeHtml(a.title)}</strong></a><br />
+                <span class="muted">${escapeHtml(a.subject)} · ${a.page_count} pages · ${fmtDate(a.created_at)}${a.message_count ? ` · ${a.message_count} messages` : ""}</span></td>
+            <td><a href="#user-${a.teacher_id}">${escapeHtml(a.teacher_name)}</a></td>
+            <td>${a.grade_angel_id ? `<a href="#user-${a.grade_angel_id}">${escapeHtml(a.grade_angel_name)}</a>` : '<span class="muted">None</span>'}</td>
+            <td>${statusPillHtml(a.status)}${late ? ' <span class="pill status-cancelled">Overdue</span>' : ""}</td>
+            <td>${formatCents(a.page_count * a.rate_per_page_cents)}<br /><span class="muted">${a.payment_status === "paid" ? "Paid" : "Not paid"}</span></td>
+            <td>${a.payout_status ? PAYOUT[a.payout_status] : ""}</td>
+            <td>${cancellable ? `<button class="btn small ghost" data-cancel="${a.id}">Cancel</button>` : ""}</td>
+          </tr>`;
+        }).join("") || '<tr><td colspan="7" class="muted">No assignments match.</td></tr>'}</tbody>`;
+    };
+    document.getElementById("asg-filters").addEventListener("submit", (e) => (e.preventDefault(), loaders.assignments()));
+    document.getElementById("asg-table").addEventListener("click", async (e) => {
+      const b = e.target.closest("[data-cancel]");
+      if (!b) return;
+      const reason = prompt("Why are you cancelling this assignment? The teacher sees this reason. Its pages will be deleted.");
+      if (!reason) return;
+      try {
+        await apiPostJson("/api/admin/assignments", { assignment_id: Number(b.dataset.cancel), reason });
+        flash("Assignment cancelled.");
+        loaders.assignments();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    // ---------- Payouts ----------
+    loaders.payouts = async () => {
+      const status = document.getElementById("pay-status").value;
+      document.getElementById("pay-csv").href = `/api/admin/payments?format=csv&payout=${status}`;
+      const { payments } = await apiGet(`/api/admin/payments?payout=${status}`);
+      document.getElementById("pay-table").innerHTML = `
+        <thead><tr><th>Assignment</th><th>Teacher paid</th><th>Our 20%</th><th>Grade Angel</th><th>Payout</th><th></th></tr></thead>
+        <tbody>${payments.map((p) => {
+          const retry = can("manager") && p.status === "paid" && p.assignment_status === "completed" && ["failed", "held", "not_started"].includes(p.payout_status);
+          return `
+          <tr>
+            <td><a href="/assignment.html?id=${p.assignment_id}" target="_blank" rel="noopener">${escapeHtml(p.title)}</a><br /><span class="muted">${escapeHtml(p.teacher)} · ${p.paid_at ? fmtDate(p.paid_at) : p.status}</span></td>
+            <td>${formatCents(p.amount_cents)}</td>
+            <td>${formatCents(p.platform_fee_cents)}</td>
+            <td>${escapeHtml(p.grade_angel || "")}<br /><span class="muted">${formatCents(p.payout_cents)}</span></td>
+            <td><span class="pill ${p.payout_status === "transferred" ? "status-completed" : p.payout_status === "failed" ? "status-cancelled" : ""}">${PAYOUT[p.payout_status] || p.payout_status}</span>
+                ${p.payout_error ? `<br /><span class="muted small-text">${escapeHtml(p.payout_error)}</span>` : ""}
+                ${p.payout_attempts ? `<br /><span class="muted small-text">${p.payout_attempts} tries</span>` : ""}</td>
+            <td>${retry ? `<button class="btn small" data-retry="${p.assignment_id}">Retry</button>` : ""}</td>
+          </tr>`;
+        }).join("") || '<tr><td colspan="6" class="muted">No payments yet.</td></tr>'}</tbody>`;
+    };
+    document.getElementById("pay-filters").addEventListener("submit", (e) => (e.preventDefault(), loaders.payouts()));
+    document.getElementById("pay-table").addEventListener("click", async (e) => {
+      const b = e.target.closest("[data-retry]");
+      if (!b) return;
+      b.disabled = true;
+      try {
+        const r = await apiPostJson("/api/admin/payouts/retry", { assignment_id: Number(b.dataset.retry) });
+        flash(r.note, r.status === "transferred" ? "success" : "error");
+        loaders.payouts();
+      } catch (err) {
+        alert(err.message);
+        b.disabled = false;
+      }
+    });
+
+    // ---------- Reviews ----------
+    loaders.reviews = async () => {
+      const filter = document.getElementById("rev-filter").value;
+      const { reviews } = await apiGet(`/api/admin/reviews?filter=${filter}`);
+      document.getElementById("rev-list").innerHTML = reviews.length
+        ? reviews.map((r) => `
+          <div class="card review-admin ${r.hidden ? "is-hidden" : ""}">
+            <div class="card-top">
+              <div>
+                ${starRowHtml(r.rating)} ${r.hidden ? '<span class="pill">Hidden</span>' : ""}
+                <p>${escapeHtml(r.comment || "(no comment)")}</p>
+                <span class="muted"><a href="#user-${r.author_id}">${escapeHtml(r.author)}</a> (${ROLE[r.author_role]}) about
+                  <a href="#user-${r.subject_id}">${escapeHtml(r.subject)}</a> (${ROLE[r.subject_role]}) · ${fmtDate(r.created_at)} ·
+                  <a href="/assignment.html?id=${r.assignment_id}" target="_blank" rel="noopener">assignment</a></span>
+              </div>
+              <button class="btn small ${r.hidden ? "" : "ghost"}" data-review="${r.id}" data-hide="${!r.hidden}">${r.hidden ? "Restore" : "Hide"}</button>
+            </div>
+          </div>`).join("")
+        : emptyStateHtml("star", "No reviews here", "Nothing matches this filter.");
+    };
+    document.getElementById("rev-filters").addEventListener("submit", (e) => (e.preventDefault(), loaders.reviews()));
+    document.getElementById("rev-list").addEventListener("click", async (e) => {
+      const b = e.target.closest("[data-review]");
+      if (!b) return;
+      try {
+        await apiPostJson("/api/admin/reviews", { review_id: Number(b.dataset.review), hidden: b.dataset.hide === "true" });
+        loaders.reviews();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    // ---------- Staff ----------
+    loaders.staff = async () => {
+      const { staff, me: who } = await apiGet("/api/admin/staff");
+      const owner = can("owner");
+      document.getElementById("staff-table").innerHTML = `
+        <thead><tr><th>Name</th><th>Access</th><th>Last action</th><th></th></tr></thead>
+        <tbody>${staff.map((s) => {
+          const self = s.id === who.id;
+          const level = owner && !self && !s.suspended_at
+            ? `<select data-level="${s.id}">${["support", "manager", "owner"].map((l) => `<option ${s.staff_level === l ? "selected" : ""}>${l}</option>`).join("")}</select>`
+            : escapeHtml(s.staff_level || "support");
+          const action = owner && !self
+            ? s.suspended_at
+              ? `<button class="btn small" data-staff-act="restore" data-id="${s.id}">Restore</button>`
+              : `<button class="btn small ghost" data-staff-act="remove" data-id="${s.id}">Remove</button>`
+            : self ? '<span class="muted">You</span>' : "";
+          return `<tr>
+            <td><strong>${escapeHtml(s.full_name)}</strong><br /><span class="muted">${escapeHtml(s.email)}</span>${s.suspended_at ? ' <span class="pill status-cancelled">Removed</span>' : ""}</td>
+            <td>${level}</td>
+            <td>${s.last_action_at ? fmtDate(s.last_action_at) : '<span class="muted">Never</span>'}</td>
+            <td>${action}</td></tr>`;
+        }).join("")}</tbody>`;
+    };
+    document.getElementById("staff-table").addEventListener("change", async (e) => {
+      const sel = e.target.closest("[data-level]");
+      if (!sel) return;
+      try {
+        await apiPostJson("/api/admin/staff", { action: "set_level", user_id: Number(sel.dataset.level), staff_level: sel.value });
+        flash("Access updated.");
+      } catch (err) {
+        alert(err.message);
+        loaders.staff();
+      }
+    });
+    document.getElementById("staff-table").addEventListener("click", async (e) => {
+      const b = e.target.closest("[data-staff-act]");
+      if (!b) return;
+      if (b.dataset.staffAct === "remove" && !confirm("Remove this staff member? They will be signed out and cannot sign back in.")) return;
+      try {
+        await apiPostJson("/api/admin/staff", { action: b.dataset.staffAct, user_id: Number(b.dataset.id) });
+        loaders.staff();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+    document.getElementById("staff-add").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        await apiPostJson("/api/admin/staff", {
+          action: "add",
+          full_name: document.getElementById("st-name").value,
+          email: document.getElementById("st-email").value,
+          password: document.getElementById("st-pass").value,
+          staff_level: document.getElementById("st-level").value,
+        });
+        e.target.reset();
+        flash("Staff member added. Share their email and temporary password with them privately.");
+        loaders.staff();
+      } catch (err) {
+        flash(err.message, "error");
+      }
+    });
+
+    // ---------- Activity ----------
+    loaders.activity = async () => {
+      const { actions } = await apiGet("/api/admin/activity");
+      document.getElementById("act-table").innerHTML = `
+        <thead><tr><th>When</th><th>Who</th><th>What</th><th>Details</th></tr></thead>
+        <tbody>${actions.map((x) => `
+          <tr><td>${formatDateTime(x.created_at)}</td><td>${escapeHtml(x.actor || "")}</td><td>${escapeHtml(x.action)}</td>
+          <td>${x.target_type === "user" ? `<a href="#user-${x.target_id}">${escapeHtml(x.details || "")}</a>` : x.target_type === "assignment" ? `<a href="/assignment.html?id=${x.target_id}" target="_blank" rel="noopener">${escapeHtml(x.details || "")}</a>` : escapeHtml(x.details || "")}</td></tr>`).join("")
+          || '<tr><td colspan="4" class="muted">No staff actions yet.</td></tr>'}</tbody>`;
+    };
+
+    // ---------- Account ----------
+    document.getElementById("pw-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const next = document.getElementById("pw-new").value;
+      if (next !== document.getElementById("pw-confirm").value) return flash("The new passwords do not match.", "error");
+      try {
+        await apiPostJson("/api/account/password", { current_password: document.getElementById("pw-current").value, new_password: next });
+        e.target.reset();
+        flash("Password changed.");
+      } catch (err) {
+        flash(err.message, "error");
+      }
+    });
+
+    (async () => {
+      let user = null;
+      try {
+        ({ user } = await apiGet("/api/auth/me"));
+      } catch {}
+      if (!user) return (window.location.href = "/login.html");
+      if (user.role !== "admin") return (window.location.href = dashboardFor(user.role));
+      renderNav(user);
+      try {
+        await loaders.overview();
+      } catch (err) {
+        flash(err.message, "error");
+      }
+      const first = (location.hash || "#overview").slice(1);
+      if (first !== "overview") showTab();
+      else document.querySelector('#admin-menu a[data-tab="overview"]').classList.add("active");
+    })();
+  </script>
+</body>
+</html>
